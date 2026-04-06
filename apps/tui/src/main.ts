@@ -13,11 +13,11 @@ import React from "react";
 import { App } from "./App";
 
 // Global singleton for auto-started server
-let runningServer: ReturnType<typeof startServer> | null = null;
+let runningServer: Awaited<ReturnType<typeof startServer>> | null = null;
 
 async function ensureServer(port: number) {
 	if (!runningServer) {
-		runningServer = startServer({ port, withDashboard: true });
+		runningServer = await startServer({ port, withDashboard: true });
 	}
 	return runningServer;
 }
@@ -80,7 +80,7 @@ Examples:
 		const config = new Config();
 		const port =
 			parsed.port || config.getRuntime().port || NETWORK.DEFAULT_PORT;
-		startServer({ port, withDashboard: true });
+		await startServer({ port, withDashboard: true });
 		// Keep process alive
 		await new Promise(() => {});
 		return;

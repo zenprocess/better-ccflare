@@ -138,6 +138,7 @@ export class DatabaseOperations implements StrategyStore, Disposable {
 		accountUsed: string | null,
 		statusCode: number | null,
 		timestamp?: number,
+		project?: string | null,
 	): void {
 		this.requests.saveMeta(
 			id,
@@ -146,6 +147,7 @@ export class DatabaseOperations implements StrategyStore, Disposable {
 			accountUsed,
 			statusCode,
 			timestamp,
+			project,
 		);
 	}
 
@@ -161,6 +163,7 @@ export class DatabaseOperations implements StrategyStore, Disposable {
 		failoverAttempts: number,
 		usage?: RequestData["usage"],
 		agentUsed?: string,
+		project?: string | null,
 	): void {
 		this.requests.save({
 			id,
@@ -174,6 +177,7 @@ export class DatabaseOperations implements StrategyStore, Disposable {
 			failoverAttempts,
 			usage,
 			agentUsed,
+			project,
 		});
 	}
 
@@ -181,22 +185,22 @@ export class DatabaseOperations implements StrategyStore, Disposable {
 		this.requests.updateUsage(requestId, usage);
 	}
 
-	saveRequestPayload(id: string, data: unknown): void {
-		this.requests.savePayload(id, data);
+	async saveRequestPayload(id: string, data: unknown): Promise<void> {
+		await this.requests.savePayload(id, data);
 	}
 
-	getRequestPayload(id: string): unknown | null {
+	async getRequestPayload(id: string): Promise<unknown | null> {
 		return this.requests.getPayload(id);
 	}
 
-	listRequestPayloads(limit = 50): Array<{ id: string; json: string }> {
-		return this.requests.listPayloads(limit);
+	async listRequestPayloads(limit = 50): Promise<Array<{ id: string; json: string }>> {
+		return await this.requests.listPayloads(limit);
 	}
 
-	listRequestPayloadsWithAccountNames(
+	async listRequestPayloadsWithAccountNames(
 		limit = 50,
-	): Array<{ id: string; json: string; account_name: string | null }> {
-		return this.requests.listPayloadsWithAccountNames(limit);
+	): Promise<Array<{ id: string; json: string; account_name: string | null }>> {
+		return await this.requests.listPayloadsWithAccountNames(limit);
 	}
 
 	// OAuth operations delegated to repository

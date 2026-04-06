@@ -267,6 +267,11 @@ export function runMigrations(db: Database): void {
 		log.info("Added output_tokens_per_second column to requests table");
 	}
 
+	if (!requestsColumnNames.includes("project")) {
+		db.prepare("ALTER TABLE requests ADD COLUMN project TEXT").run();
+		log.info("Added project column to requests table");
+	}
+
 	// Add performance indexes
 	addPerformanceIndexes(db);
 }

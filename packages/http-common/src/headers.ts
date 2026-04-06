@@ -28,6 +28,9 @@ export function sanitizeRequestHeaders(original: Headers): Headers {
 	h.delete("content-encoding");
 	h.delete("content-length");
 	h.delete("transfer-encoding");
+	h.delete("authorization");
+	h.delete("x-api-key");
+	h.delete("cookie");
 	return h;
 }
 

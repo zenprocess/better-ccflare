@@ -17,7 +17,7 @@ export interface RequestSummary {
 
 export async function getRequests(limit = 100): Promise<RequestPayload[]> {
 	const dbOps = DatabaseFactory.getInstance();
-	const rows = dbOps.listRequestPayloads(limit);
+	const rows = await dbOps.listRequestPayloads(limit);
 
 	const parsed = rows.map((r: { id: string; json: string }) => {
 		try {

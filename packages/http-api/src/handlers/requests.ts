@@ -76,8 +76,8 @@ export function createRequestsSummaryHandler(db: Database) {
  * Create a detailed requests handler with full payload data
  */
 export function createRequestsDetailHandler(dbOps: DatabaseOperations) {
-	return (limit = 100): Response => {
-		const rows = dbOps.listRequestPayloadsWithAccountNames(limit);
+	return async (limit = 100): Promise<Response> => {
+		const rows = await dbOps.listRequestPayloadsWithAccountNames(limit);
 		const parsed = rows.map((r) => {
 			try {
 				const data = JSON.parse(r.json);

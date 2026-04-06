@@ -10,5 +10,7 @@ export { ensureSchema, runMigrations } from "./migrations";
 export { resolveDbPath } from "./paths";
 export { analyzeIndexUsage } from "./performance-indexes";
 
+export { initPayloadEncryption, isEncryptionEnabled } from "./payload-encryption";
+
 // Re-export repository types
 export type { StatsRepository } from "./repositories/stats.repository";

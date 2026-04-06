@@ -37,6 +37,7 @@ interface RequestState {
 	};
 	lastActivity: number;
 	agentUsed?: string;
+	project?: string | null;
 	firstTokenTimestamp?: number;
 	lastTokenTimestamp?: number;
 	providerFinalOutputTokens?: number;
@@ -101,6 +102,29 @@ function _extractSystemPrompt(requestBody: string | null): string | null {
 		log.debug("Failed to extract system prompt:", error);
 	}
 
+	return null;
+}
+
+function extractProjectFromRequest(startMessage: StartMessage): string | null {
+	if (startMessage.requestHeaders) {
+		const headerProject =
+			startMessage.requestHeaders["x-project"] ||
+			startMessage.requestHeaders["X-Project"];
+		if (headerProject) return headerProject;
+	}
+	const systemPrompt = _extractSystemPrompt(startMessage.requestBody);
+	if (!systemPrompt) return null;
+	const pathMatch = systemPrompt.match(
+		/\/(?:Users|home)\/[^/]+\/(?:Desktop|projects|repos|src)\/([^/]+)\//,
+	);
+	if (pathMatch) return pathMatch[1];
+	const headingMatch = systemPrompt.match(/^#\s+(.+?)$/m);
+	if (headingMatch) {
+		const heading = headingMatch[1].trim();
+		if (!heading.toLowerCase().startsWith("claude") && heading.length < 60) {
+			return heading;
+		}
+	}
 	return null;
 }
 
@@ -282,6 +306,11 @@ async function handleStart(msg: StartMessage): Promise<void> {
 		log.debug(`Agent '${msg.agentUsed}' used for request ${msg.requestId}`);
 	}
 
+	state.project = extractProjectFromRequest(msg);
+	if (state.project) {
+		log.debug(`Project '${state.project}' detected for request ${msg.requestId}`);
+	}
+
 	requests.set(msg.requestId, state);
 
 	// Skip all database operations for ignored requests
@@ -299,6 +328,7 @@ async function handleStart(msg: StartMessage): Promise<void> {
 			msg.accountId,
 			msg.responseStatus,
 			msg.timestamp,
+			state.project,
 		),
 	);
 
@@ -425,6 +455,7 @@ async function handleEnd(msg: EndMessage): Promise<void> {
 					}
 				: undefined,
 			state.agentUsed,
+			state.project,
 		),
 	);
 

@@ -14,7 +14,7 @@ import { container, SERVICE_KEYS } from "@ccflare/core-di";
 // Import React dashboard assets
 import dashboardManifest from "@ccflare/dashboard-web/dist/manifest.json";
 import type { DatabaseOperations } from "@ccflare/database";
-import { AsyncDbWriter, DatabaseFactory } from "@ccflare/database";
+import { AsyncDbWriter, DatabaseFactory, initPayloadEncryption } from "@ccflare/database";
 import { APIRouter } from "@ccflare/http-api";
 import { SessionStrategy } from "@ccflare/load-balancer";
 import { Logger } from "@ccflare/logger";
@@ -108,7 +108,7 @@ function runStartupMaintenance(config: Config, dbOps: DatabaseOperations) {
 }
 
 // Export for programmatic use
-export default function startServer(options?: {
+export default async function startServer(options?: {
 	port?: number;
 	withDashboard?: boolean;
 }) {
@@ -213,6 +213,9 @@ export default function startServer(options?: {
 			}
 		}
 	});
+
+	// Initialize payload encryption (if PAYLOAD_ENCRYPTION_KEY is set)
+	await initPayloadEncryption();
 
 	// Main server
 	serverInstance = serve({

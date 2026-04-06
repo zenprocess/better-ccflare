@@ -1,3 +1,4 @@
+import { encryptPayload, decryptPayload } from "../payload-encryption";
 import { BaseRepository } from "./base.repository";
 
 export interface RequestData {
@@ -11,6 +12,7 @@ export interface RequestData {
 	responseTime: number;
 	failoverAttempts: number;
 	agentUsed?: string;
+	project?: string | null;
 	usage?: {
 		model?: string;
 		promptTokens?: number;
@@ -33,16 +35,18 @@ export class RequestRepository extends BaseRepository<RequestData> {
 		accountUsed: string | null,
 		statusCode: number | null,
 		timestamp?: number,
+		project?: string | null,
 	): void {
 		this.run(
 			`
 			INSERT INTO requests (
-				id, timestamp, method, path, account_used, 
-				status_code, success, error_message, response_time_ms, failover_attempts
+				id, timestamp, method, path, account_used,
+				status_code, success, error_message, response_time_ms, failover_attempts,
+				project
 			)
-			VALUES (?, ?, ?, ?, ?, ?, 0, NULL, 0, 0)
+			VALUES (?, ?, ?, ?, ?, ?, 0, NULL, 0, 0, ?)
 		`,
-			[id, timestamp || Date.now(), method, path, accountUsed, statusCode],
+			[id, timestamp || Date.now(), method, path, accountUsed, statusCode, project || null],
 		);
 	}
 
@@ -51,13 +55,13 @@ export class RequestRepository extends BaseRepository<RequestData> {
 		this.run(
 			`
 			INSERT OR REPLACE INTO requests (
-				id, timestamp, method, path, account_used, 
+				id, timestamp, method, path, account_used,
 				status_code, success, error_message, response_time_ms, failover_attempts,
 				model, prompt_tokens, completion_tokens, total_tokens, cost_usd,
 				input_tokens, cache_read_input_tokens, cache_creation_input_tokens, output_tokens,
-				agent_used, output_tokens_per_second
+				agent_used, output_tokens_per_second, project
 			)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`,
 			[
 				data.id,
@@ -81,6 +85,7 @@ export class RequestRepository extends BaseRepository<RequestData> {
 				usage?.outputTokens || null,
 				data.agentUsed || null,
 				usage?.tokensPerSecond || null,
+				data.project || null,
 			],
 		);
 	}
@@ -121,15 +126,16 @@ export class RequestRepository extends BaseRepository<RequestData> {
 	}
 
 	// Payload management
-	savePayload(id: string, data: unknown): void {
+	async savePayload(id: string, data: unknown): Promise<void> {
 		const json = JSON.stringify(data);
+		const stored = await encryptPayload(json);
 		this.run(
 			`INSERT OR REPLACE INTO request_payloads (id, json) VALUES (?, ?)`,
-			[id, json],
+			[id, stored],
 		);
 	}
 
-	getPayload(id: string): unknown | null {
+	async getPayload(id: string): Promise<unknown | null> {
 		const row = this.get<{ json: string }>(
 			`SELECT json FROM request_payloads WHERE id = ?`,
 			[id],
@@ -138,16 +144,17 @@ export class RequestRepository extends BaseRepository<RequestData> {
 		if (!row) return null;
 
 		try {
-			return JSON.parse(row.json);
+			const decrypted = await decryptPayload(row.json);
+			return JSON.parse(decrypted);
 		} catch {
 			return null;
 		}
 	}
 
-	listPayloads(limit = 50): Array<{ id: string; json: string }> {
-		return this.query<{ id: string; json: string }>(
+	async listPayloads(limit = 50): Promise<Array<{ id: string; json: string }>> {
+		const rows = this.query<{ id: string; json: string }>(
 			`
-			SELECT rp.id, rp.json 
+			SELECT rp.id, rp.json
 			FROM request_payloads rp
 			JOIN requests r ON rp.id = r.id
 			ORDER BY r.timestamp DESC
@@ -155,12 +162,18 @@ export class RequestRepository extends BaseRepository<RequestData> {
 		`,
 			[limit],
 		);
+		return Promise.all(
+			rows.map(async (row) => ({
+				id: row.id,
+				json: await decryptPayload(row.json),
+			})),
+		);
 	}
 
-	listPayloadsWithAccountNames(
+	async listPayloadsWithAccountNames(
 		limit = 50,
-	): Array<{ id: string; json: string; account_name: string | null }> {
-		return this.query<{
+	): Promise<Array<{ id: string; json: string; account_name: string | null }>> {
+		const rows = this.query<{
 			id: string;
 			json: string;
 			account_name: string | null;
@@ -174,6 +187,13 @@ export class RequestRepository extends BaseRepository<RequestData> {
 			LIMIT ?
 		`,
 			[limit],
+		);
+		return Promise.all(
+			rows.map(async (row) => ({
+				id: row.id,
+				json: await decryptPayload(row.json),
+				account_name: row.account_name,
+			})),
 		);
 	}
 
