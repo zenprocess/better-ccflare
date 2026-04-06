@@ -138,6 +138,7 @@ export class DatabaseOperations implements StrategyStore, Disposable {
 		accountUsed: string | null,
 		statusCode: number | null,
 		timestamp?: number,
+		project?: string | null,
 	): void {
 		this.requests.saveMeta(
 			id,
@@ -146,6 +147,7 @@ export class DatabaseOperations implements StrategyStore, Disposable {
 			accountUsed,
 			statusCode,
 			timestamp,
+			project,
 		);
 	}
 
@@ -161,6 +163,7 @@ export class DatabaseOperations implements StrategyStore, Disposable {
 		failoverAttempts: number,
 		usage?: RequestData["usage"],
 		agentUsed?: string,
+		project?: string | null,
 	): void {
 		this.requests.save({
 			id,
@@ -174,6 +177,7 @@ export class DatabaseOperations implements StrategyStore, Disposable {
 			failoverAttempts,
 			usage,
 			agentUsed,
+			project,
 		});
 	}
 

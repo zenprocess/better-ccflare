@@ -37,6 +37,7 @@ interface RequestState {
 	};
 	lastActivity: number;
 	agentUsed?: string;
+	project?: string | null;
 	firstTokenTimestamp?: number;
 	lastTokenTimestamp?: number;
 	providerFinalOutputTokens?: number;
@@ -99,6 +100,45 @@ function _extractSystemPrompt(requestBody: string | null): string | null {
 		}
 	} catch (error) {
 		log.debug("Failed to extract system prompt:", error);
+	}
+
+	return null;
+}
+
+/**
+ * Extract project name from the request.
+ * Priority: 1) x-project header, 2) path in system prompt, 3) first heading in system prompt
+ */
+function extractProjectFromRequest(startMessage: StartMessage): string | null {
+	// Priority 1: explicit header
+	if (startMessage.requestHeaders) {
+		const headerProject =
+			startMessage.requestHeaders["x-project"] ||
+			startMessage.requestHeaders["X-Project"];
+		if (headerProject) return headerProject;
+	}
+
+	// Priority 2 & 3: parse from system prompt
+	const systemPrompt = _extractSystemPrompt(startMessage.requestBody);
+	if (!systemPrompt) return null;
+
+	// Try path patterns: /Users/.../Desktop/ProjectName/ or /home/.../ProjectName/
+	const pathMatch = systemPrompt.match(
+		/\/(?:Users|home)\/[^/]+\/(?:Desktop|projects|repos|src)\/([^/]+)\//,
+	);
+	if (pathMatch) return pathMatch[1];
+
+	// Try CLAUDE.md-style heading: "# ProjectName"
+	const headingMatch = systemPrompt.match(/^#\s+(.+?)$/m);
+	if (headingMatch) {
+		const heading = headingMatch[1].trim();
+		// Skip generic headings
+		if (
+			!heading.toLowerCase().startsWith("claude") &&
+			heading.length < 60
+		) {
+			return heading;
+		}
 	}
 
 	return null;
@@ -282,6 +322,12 @@ async function handleStart(msg: StartMessage): Promise<void> {
 		log.debug(`Agent '${msg.agentUsed}' used for request ${msg.requestId}`);
 	}
 
+	// Extract project from request headers or system prompt
+	state.project = extractProjectFromRequest(msg);
+	if (state.project) {
+		log.debug(`Project '${state.project}' detected for request ${msg.requestId}`);
+	}
+
 	requests.set(msg.requestId, state);
 
 	// Skip all database operations for ignored requests
@@ -299,6 +345,7 @@ async function handleStart(msg: StartMessage): Promise<void> {
 			msg.accountId,
 			msg.responseStatus,
 			msg.timestamp,
+			state.project,
 		),
 	);
 
@@ -425,6 +472,7 @@ async function handleEnd(msg: EndMessage): Promise<void> {
 					}
 				: undefined,
 			state.agentUsed,
+			state.project,
 		),
 	);
 
