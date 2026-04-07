@@ -157,17 +157,118 @@ function sanitizeProjectName(raw: string | undefined | null): string | null {
 
 /**
  * Strip Claude Code's framework-injected `<system-reminder>` blocks from a
- * system-prompt string before pattern-matching against it.
+ * text string before pattern-matching against it.
  *
- * Claude Code wraps skill catalogs, CLAUDE.md content, and harness rules in
- * `<system-reminder>...</system-reminder>` markers. The wrapper text contains
- * its own headings (e.g. `# claudeMd`, `# System`) which are NOT user-typed
- * and should not be matched as project names. Stripping the wrappers leaves
- * the actual user-authored content (CLAUDE.md body, prompts) which is where
- * the real project signal lives.
+ * Used for the heading-based fallback only. The path-based extractor wants
+ * to see INSIDE reminders because the framework lists project file paths
+ * there.
  */
 function _stripSystemReminders(text: string): string {
 	return text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "");
+}
+
+/**
+ * Concatenate every text block from `parsed.messages[*].content[*]` into
+ * one big string we can pattern-match against. The actual project context
+ * (CLAUDE.md content, paths, headings) lives in user-message content blocks
+ * — NOT in `parsed.system`, which holds the harness boilerplate sent on
+ * every request.
+ */
+function _extractMessagesText(requestBody: string | null): string | null {
+	if (!requestBody) return null;
+	try {
+		const decoded = Buffer.from(requestBody, "base64").toString("utf-8");
+		const parsed = JSON.parse(decoded);
+		const messages = parsed?.messages;
+		if (!Array.isArray(messages)) return null;
+		const out: string[] = [];
+		for (const m of messages) {
+			const content = m?.content;
+			if (typeof content === "string") {
+				out.push(content);
+			} else if (Array.isArray(content)) {
+				for (const block of content) {
+					if (
+						block &&
+						typeof block === "object" &&
+						block.type === "text" &&
+						typeof block.text === "string"
+					) {
+						out.push(block.text);
+					}
+				}
+			}
+		}
+		return out.join("\n");
+	} catch (error) {
+		log.debug("Failed to extract messages text:", error);
+		return null;
+	}
+}
+
+/**
+ * Extract a project name from a Claude Code request body using the most
+ * reliable signals first. Claude Code injects framework markers in user
+ * messages whenever a project CLAUDE.md is loaded:
+ *
+ *     Contents of <absolute-path>/CLAUDE.md (project instructions, ...)
+ *
+ * The directory immediately before `/CLAUDE.md` is the project name. This
+ * works regardless of WHERE on disk the project lives (Desktop, /tmp, an
+ * agent worktree under /tmp/switchyard-worktrees, etc) — far more robust
+ * than guessing from `/Users/.../Desktop/...` path patterns.
+ *
+ * If no project marker is found, fall through to the heading-based and
+ * path-based heuristics so requests from non-Claude-Code clients (curl,
+ * SDK callers) still get a best-effort label.
+ */
+function _extractProjectFromMessageText(text: string): string | null {
+	// Strongest signal: explicit framework marker.
+	// Multiple matches are common (every imported file gets one); the FIRST
+	// match is the most specific project file.
+	const projectMarkerRe =
+		/Contents of (\S+?)\/CLAUDE\.md \(project instructions/;
+	const projectMarker = text.match(projectMarkerRe);
+	if (projectMarker) {
+		// Last path segment of the parent directory
+		const dir = projectMarker[1];
+		const lastSegment = dir.split("/").filter(Boolean).pop();
+		const sanitized = sanitizeProjectName(lastSegment);
+		if (sanitized) return sanitized;
+	}
+
+	// Weaker but useful: a workspace path expressed in user-typed text or
+	// a tool result. Recognize anywhere under home dirs OR /tmp worktrees.
+	const pathRegex =
+		/\/(?:Users|home)\/[^/]+\/(?:Desktop|projects|repos|src|workspace|code)\/([^/\s]+)|\/tmp\/[^/]*worktrees?\/[^/]+\/([^/\s]+)/;
+	const pathMatch = text.match(pathRegex);
+	if (pathMatch) {
+		const captured = pathMatch[1] || pathMatch[2];
+		const sanitized = sanitizeProjectName(captured);
+		if (sanitized) return sanitized;
+	}
+
+	// Weakest: first H1 heading after stripping framework reminders.
+	// Skip well-known framework heading names so we never tag traffic with
+	// a synthetic label.
+	const cleaned = _stripSystemReminders(text);
+	const headingMatch = cleaned.match(/^#\s+(.+?)$/m);
+	if (headingMatch) {
+		const heading = sanitizeProjectName(headingMatch[1]);
+		if (heading) {
+			const lower = heading.toLowerCase();
+			if (
+				lower !== "system" &&
+				lower !== "claudemd" &&
+				lower !== "tools" &&
+				!lower.startsWith("claude")
+			) {
+				return heading;
+			}
+		}
+	}
+
+	return null;
 }
 
 /**
@@ -175,12 +276,14 @@ function _stripSystemReminders(text: string): string {
  *
  * Resolution order (first non-null wins):
  *  1. Case-insensitive `x-project` request header
- *  2. Workspace path embedded in the system prompt
- *     (e.g. /Users/me/Desktop/MyProj/...)
- *  3. First Markdown H1 heading in the system prompt (if reasonable),
- *     looked up AFTER stripping `<system-reminder>` wrappers so framework
- *     headings like "# System" / "# claudeMd" cannot win
- *  4. `CCFLARE_DEFAULT_PROJECT` env var (operator fallback)
+ *  2. `Contents of <path>/CLAUDE.md (project instructions...)` marker in
+ *     message content — set by Claude Code itself, the most reliable signal
+ *  3. Workspace path embedded in message content (Desktop / projects /
+ *     repos / src / workspace / code under home, OR a worktree under /tmp)
+ *  4. First H1 heading in message content (after stripping reminders)
+ *  5. Same three steps re-run against `parsed.system` (the harness
+ *     boilerplate) — useful for non-Claude-Code clients
+ *  6. `CCFLARE_DEFAULT_PROJECT` env var (operator fallback)
  *
  * All return values are sanitized (control chars stripped, length-capped).
  * Returns null when no project can be inferred AND no default is set.
@@ -196,32 +299,20 @@ function extractProjectFromRequest(startMessage: StartMessage): string | null {
 		if (sanitizedHeader) return sanitizedHeader;
 	}
 
+	// Look in user-message content first — this is where Claude Code puts
+	// the project context (CLAUDE.md content, paths, headings).
+	const messagesText = _extractMessagesText(startMessage.requestBody);
+	if (messagesText) {
+		const fromMessages = _extractProjectFromMessageText(messagesText);
+		if (fromMessages) return fromMessages;
+	}
+
+	// Fall back to the harness system prompt for non-Claude-Code clients
+	// that may put project context there instead.
 	const rawSystemPrompt = _extractSystemPrompt(startMessage.requestBody);
 	if (rawSystemPrompt) {
-		const systemPrompt = _stripSystemReminders(rawSystemPrompt);
-
-		// Path match runs against the cleaned prompt so a path embedded
-		// in a `<system-reminder>` block (Claude Code injects cwd hints
-		// inside reminders) doesn't accidentally win over a real path
-		// further down — but if the cleaned prompt loses everything, we
-		// fall back to the raw form so we still catch path hints embedded
-		// only in reminders.
-		const pathRegex =
-			/\/(?:Users|home)\/[^/]+\/(?:Desktop|projects|repos|src)\/([^/]+)\//;
-		const pathMatch =
-			systemPrompt.match(pathRegex) || rawSystemPrompt.match(pathRegex);
-		const sanitizedPath = sanitizeProjectName(pathMatch?.[1]);
-		if (sanitizedPath) return sanitizedPath;
-
-		// Heading match runs ONLY against the cleaned prompt — framework
-		// reminders are full of `# Section` headings that aren't projects.
-		const headingMatch = systemPrompt.match(/^#\s+(.+?)$/m);
-		if (headingMatch) {
-			const heading = sanitizeProjectName(headingMatch[1]);
-			if (heading && !heading.toLowerCase().startsWith("claude")) {
-				return heading;
-			}
-		}
+		const fromSystem = _extractProjectFromMessageText(rawSystemPrompt);
+		if (fromSystem) return fromSystem;
 	}
 
 	return DEFAULT_PROJECT;
