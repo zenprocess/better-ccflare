@@ -137,6 +137,12 @@ function shouldLogRequest(path: string, status: number): boolean {
 // newlines, ANSI escapes, or megabyte-long blobs into the database.
 const PROJECT_NAME_MAX_LEN = 64;
 
+// Operator-supplied fallback project label, applied when no signal can be
+// extracted from the request itself. Lets a deployment dedicated to a
+// single project (or to "everything I work on this week") get a stable
+// label without requiring callers to set X-Project on every request.
+const DEFAULT_PROJECT = sanitizeProjectName(process.env.CCFLARE_DEFAULT_PROJECT);
+
 function sanitizeProjectName(raw: string | undefined | null): string | null {
 	if (!raw) return null;
 	// Strip ASCII control chars (incl. newlines/tabs) — keep Unicode letters,
@@ -150,16 +156,34 @@ function sanitizeProjectName(raw: string | undefined | null): string | null {
 }
 
 /**
+ * Strip Claude Code's framework-injected `<system-reminder>` blocks from a
+ * system-prompt string before pattern-matching against it.
+ *
+ * Claude Code wraps skill catalogs, CLAUDE.md content, and harness rules in
+ * `<system-reminder>...</system-reminder>` markers. The wrapper text contains
+ * its own headings (e.g. `# claudeMd`, `# System`) which are NOT user-typed
+ * and should not be matched as project names. Stripping the wrappers leaves
+ * the actual user-authored content (CLAUDE.md body, prompts) which is where
+ * the real project signal lives.
+ */
+function _stripSystemReminders(text: string): string {
+	return text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "");
+}
+
+/**
  * Extract a project name from a Claude API request.
  *
- * Resolution order:
+ * Resolution order (first non-null wins):
  *  1. Case-insensitive `x-project` request header
  *  2. Workspace path embedded in the system prompt
  *     (e.g. /Users/me/Desktop/MyProj/...)
- *  3. First Markdown H1 heading in the system prompt (if reasonable)
+ *  3. First Markdown H1 heading in the system prompt (if reasonable),
+ *     looked up AFTER stripping `<system-reminder>` wrappers so framework
+ *     headings like "# System" / "# claudeMd" cannot win
+ *  4. `CCFLARE_DEFAULT_PROJECT` env var (operator fallback)
  *
  * All return values are sanitized (control chars stripped, length-capped).
- * Returns null when no project can be inferred.
+ * Returns null when no project can be inferred AND no default is set.
  */
 function extractProjectFromRequest(startMessage: StartMessage): string | null {
 	if (startMessage.requestHeaders) {
@@ -172,24 +196,35 @@ function extractProjectFromRequest(startMessage: StartMessage): string | null {
 		if (sanitizedHeader) return sanitizedHeader;
 	}
 
-	const systemPrompt = _extractSystemPrompt(startMessage.requestBody);
-	if (!systemPrompt) return null;
+	const rawSystemPrompt = _extractSystemPrompt(startMessage.requestBody);
+	if (rawSystemPrompt) {
+		const systemPrompt = _stripSystemReminders(rawSystemPrompt);
 
-	const pathMatch = systemPrompt.match(
-		/\/(?:Users|home)\/[^/]+\/(?:Desktop|projects|repos|src)\/([^/]+)\//,
-	);
-	const sanitizedPath = sanitizeProjectName(pathMatch?.[1]);
-	if (sanitizedPath) return sanitizedPath;
+		// Path match runs against the cleaned prompt so a path embedded
+		// in a `<system-reminder>` block (Claude Code injects cwd hints
+		// inside reminders) doesn't accidentally win over a real path
+		// further down — but if the cleaned prompt loses everything, we
+		// fall back to the raw form so we still catch path hints embedded
+		// only in reminders.
+		const pathRegex =
+			/\/(?:Users|home)\/[^/]+\/(?:Desktop|projects|repos|src)\/([^/]+)\//;
+		const pathMatch =
+			systemPrompt.match(pathRegex) || rawSystemPrompt.match(pathRegex);
+		const sanitizedPath = sanitizeProjectName(pathMatch?.[1]);
+		if (sanitizedPath) return sanitizedPath;
 
-	const headingMatch = systemPrompt.match(/^#\s+(.+?)$/m);
-	if (headingMatch) {
-		const heading = sanitizeProjectName(headingMatch[1]);
-		if (heading && !heading.toLowerCase().startsWith("claude")) {
-			return heading;
+		// Heading match runs ONLY against the cleaned prompt — framework
+		// reminders are full of `# Section` headings that aren't projects.
+		const headingMatch = systemPrompt.match(/^#\s+(.+?)$/m);
+		if (headingMatch) {
+			const heading = sanitizeProjectName(headingMatch[1]);
+			if (heading && !heading.toLowerCase().startsWith("claude")) {
+				return heading;
+			}
 		}
 	}
 
-	return null;
+	return DEFAULT_PROJECT;
 }
 
 // Extract system prompt from request body
