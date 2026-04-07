@@ -64,7 +64,14 @@ log.info("Post-processor worker started");
 const MAX_REQUESTS_MAP_SIZE = 10000;
 const REQUEST_TTL_MS = 2 * 60 * 1000; // 2 minutes - hard limit for request lifecycle
 const MAX_RESPONSE_BODY_BYTES = 256 * 1024; // 256KB - cap stored response body
-const MAX_REQUEST_BODY_BYTES = 256 * 1024; // 256KB - cap stored request body
+// Cap stored request body. Defaults to 4MB for projects that need full
+// conversation history captured (long Claude Code sessions routinely run
+// 500KB-2MB per request because the Anthropic Messages API is stateless
+// and the entire transcript is replayed on every call). Override via the
+// CF_MAX_REQUEST_BODY_BYTES env var when memory is tight.
+const MAX_REQUEST_BODY_BYTES = Number(
+	process.env.CF_MAX_REQUEST_BODY_BYTES || 4 * 1024 * 1024,
+);
 
 // Initialize tiktoken encoder (cl100k_base is used for Claude models)
 // Using embedded WASM to avoid "Missing tiktoken_bg.wasm" errors in bunx

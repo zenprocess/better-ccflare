@@ -10,7 +10,10 @@ import type { ChunkMessage, EndMessage, StartMessage } from "./worker-messages";
 
 // Must match MAX_REQUEST_BODY_BYTES in post-processor.worker.ts.
 // Cap applied before postMessage to avoid multi-MB structured clones.
-const MAX_REQUEST_BODY_BYTES = 256 * 1024;
+// Same default + env override as the worker.
+const MAX_REQUEST_BODY_BYTES = Number(
+	process.env.CF_MAX_REQUEST_BODY_BYTES || 4 * 1024 * 1024,
+);
 
 /**
  * Safely post a message to the worker, handling terminated workers
