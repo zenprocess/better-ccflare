@@ -268,7 +268,21 @@ export async function processProxyResponse(
 	// (status 200 with an SSE `event: error` frame partway through the body)
 	// is handled separately by the streaming forwarder — see issue #114.
 	if (rateLimitInfo.isRateLimited) {
-		if (rateLimitInfo.resetTime) {
+		// Skip cooldown application on synthetic cache-keepalive replays. The
+		// keepalive scheduler fires parallel requests across every cached
+		// account simultaneously; bursts of 4+ concurrent requests can trip
+		// Anthropic's per-IP burst limit and 429 every account at the same
+		// instant. Treating those as real per-account rate limits drains the
+		// pool to zero routable accounts even though no user-visible quota
+		// was actually exhausted. Loop-prevention header set by
+		// cache-keepalive-scheduler.ts; only synthetic replays carry it.
+		const isKeepalive =
+			requestMeta?.headers?.get("x-better-ccflare-keepalive") === "true";
+		if (isKeepalive) {
+			log.warn(
+				`Keepalive replay for ${account.name} got 429 — skipping cooldown (synthetic burst, not a real per-account rate limit)`,
+			);
+		} else if (rateLimitInfo.resetTime) {
 			handleRateLimitResponse(account, rateLimitInfo, ctx);
 		} else {
 			// Mark as rate-limited even without reset time. Use a short
@@ -277,10 +291,6 @@ export async function processProxyResponse(
 			// 5h hard-ban: a reset-less 429 is more likely a transient than
 			// a real rate-limit window, and a 5h ban on every transient
 			// error chains pool exhaustion under burst load.
-			// Use `||` (not `??`) so an empty-string or non-numeric env
-			// var (Number("") === 0, Number("abc") === NaN) falls through
-			// to the default. With `??` the empty string would coalesce
-			// to 0 and silently disable the cooldown entirely.
 			const cooldownMs =
 				Number(process.env.CCFLARE_DEFAULT_COOLDOWN_NO_RESET_MS) ||
 				TIME_CONSTANTS.DEFAULT_RATE_LIMIT_NO_RESET_COOLDOWN_MS;

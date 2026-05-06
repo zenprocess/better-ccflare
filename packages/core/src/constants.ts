@@ -48,12 +48,12 @@ export const TIME_CONSTANTS = {
 
 	// Default cooldown applied when an upstream returns 429 *without* a
 	// reset hint (no `retry-after`, no rate-limit-reset header, no SSE
-	// reset frame). Previously 5h — pessimistic and prone to taking healthy
-	// accounts out of rotation on transient errors. The new default treats
-	// reset-less 429s as a probe interval rather than a hard ban: the
-	// account is excluded for a short window, then the next request will
-	// re-probe. Real Anthropic rate limits ship a `retry-after` and use
-	// the precise value from the header — those flows are unaffected.
+	// reset frame, no usage-cache window reset). Treats the cooldown
+	// as a probe interval rather than a hard ban: the account is
+	// excluded for a short window, then the next request re-probes.
+	// Real upstream rate-limit replies ship a retry-after / reset
+	// header and use the precise value from the header — those flows
+	// are unaffected by this default.
 	// Override at runtime via CCFLARE_DEFAULT_COOLDOWN_NO_RESET_MS.
 	DEFAULT_RATE_LIMIT_NO_RESET_COOLDOWN_MS: 60 * 1000, // 60s
 } as const;

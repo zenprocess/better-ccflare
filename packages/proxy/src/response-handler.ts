@@ -18,21 +18,13 @@ type ResponseWithAnalyticsStream = Response & {
 // Default cooldown for rate-limit errors detected mid-stream. SSE error
 // frames don't carry reset headers (HTTP headers were sent before the
 // error occurred), so we fall back to the same probe-friendly default
-// that response-processor.ts uses for headerless 429 responses
-// (TIME_CONSTANTS.DEFAULT_RATE_LIMIT_NO_RESET_COOLDOWN_MS, default 60s,
-// override via CCFLARE_DEFAULT_COOLDOWN_NO_RESET_MS). Previously 5h —
-// changed to a probe interval to avoid chaining pool exhaustion when a
-// transient SSE error trips the cooldown.
+// that response-processor.ts uses for headerless 429 responses.
 //
-// Read on every call (not at module load) so a runtime change to the env
-// var is picked up without a server restart, matching the per-call read
-// in response-processor.ts.
+// Read on every call (not module load) so a runtime change to the env
+// var is picked up without a server restart. Use `||` (not `??`) so an
+// empty-string env value (Number("") === 0) falls through to the default
+// instead of silently disabling the cooldown.
 function getMidStreamRateLimitCooldownMs(): number {
-	// Use `||` (not `??`) so empty-string and non-numeric env values
-	// (Number("") === 0, Number("abc") === NaN) fall through to the
-	// default — `??` would coalesce the empty string to 0 and silently
-	// disable the cooldown entirely. Symmetric with the per-call read
-	// in response-processor.ts.
 	return (
 		Number(process.env.CCFLARE_DEFAULT_COOLDOWN_NO_RESET_MS) ||
 		TIME_CONSTANTS.DEFAULT_RATE_LIMIT_NO_RESET_COOLDOWN_MS
