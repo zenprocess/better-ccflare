@@ -1,1 +1,0 @@
-export { OpenAICompatibleProvider } from "./provider";

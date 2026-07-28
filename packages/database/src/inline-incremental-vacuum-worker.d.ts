@@ -1,1 +1,0 @@
-export declare const EMBEDDED_INCREMENTAL_VACUUM_WORKER_CODE: string;

@@ -1,1 +1,0 @@
-export { OpenRouterProvider } from "./provider";
