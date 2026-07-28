@@ -1,8 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, mock } from "bun:test";
+import { logBus } from "@better-ccflare/logger";
+import { MINIMAX_USAGE_REQUEST_TIMEOUT_MS } from "@better-ccflare/providers";
 import {
 	bootstrapMinimaxUsagePolling,
+	clampMinimaxPollingInterval,
 	registerMinimaxUsagePolling,
 	type UsageCacheRegistrar,
 	supportsRefreshBackedUsagePolling,
@@ -286,6 +289,188 @@ describe("bootstrapMinimaxUsagePolling", () => {
 		for (const call of startPolling.mock.calls) {
 			expect(call[3]).toBe(12_345);
 		}
+	});
+
+	// F6 — clamp poll interval to at least the request timeout, log once
+	// when clamped. The realistic regression is an operator setting
+	// usage_poll_interval_ms to 1000 while MINIMAX_USAGE_REQUEST_TIMEOUT_MS
+	// stays at 5000; without the clamp, the UsageCache starts the next poll
+	// before the previous one's HTTP body has been read, in-flight requests
+	// stack, and MiniMax sees a small fleet of overlapping GETs every poll
+	// cycle. The test below proves that an interval below the timeout does
+	// not produce overlapping in-flight polls — the registrar receives a
+	// clamped interval and never a value that would undercut the request
+	// timeout.
+	//
+	// IMPORTANT ORDERING: the "logs WARN exactly once" test MUST run before
+	// any other test that triggers clamping, because the implementation
+	// emits the WARN at most once per process. bun:test runs tests in
+	// declaration order, so this is the first F6 test in the suite. After
+	// it runs, the "do NOT clamp / do NOT warn" tests below exercise the
+	// post-emission steady state.
+
+	it("logs WARN exactly once when clamping fires (silent clamping is its own bug)", () => {
+		interface LogEvent {
+			ts: number;
+			level: string;
+			msg: string;
+			data?: unknown;
+		}
+		const warnEvents: LogEvent[] = [];
+		const handler = (event: LogEvent) => {
+			if (event.level === "WARN") warnEvents.push(event);
+		};
+		logBus.on("log", handler);
+
+		const { registrar, startPolling } = makeRegistrar();
+		const accounts = [
+			makeAccount({
+				id: "minimax-clamp",
+				name: "clamp",
+				provider: "minimax",
+				api_key: "k",
+			}),
+		];
+
+		try {
+			// First call with a low interval — fires the WARN.
+			bootstrapMinimaxUsagePolling(accounts, registrar, 500);
+			// Second call with the same low interval — must NOT fire
+			// another WARN. One warn per process is enough; spamming
+			// would drown out real signals on every Minimax account.
+			bootstrapMinimaxUsagePolling(accounts, registrar, 500);
+			// And a third call with a different low interval — same rule.
+			bootstrapMinimaxUsagePolling(accounts, registrar, 1_000);
+
+			const clampWarns = warnEvents.filter(
+				(e) =>
+					e.msg.includes("Minimax usage poll interval") &&
+					e.msg.includes("clamping"),
+			);
+			expect(clampWarns.length).toBe(1);
+			// The single WARN must name the clamp target so an operator
+			// tailing logs can immediately see why their setting did not
+			// take effect.
+			const firstWarn = clampWarns[0];
+			expect(firstWarn.msg).toContain(
+				String(MINIMAX_USAGE_REQUEST_TIMEOUT_MS),
+			);
+
+			// All three calls still registered polling — clamping is a
+			// "raise the floor" operation, not a "skip the call" one.
+			expect(startPolling).toHaveBeenCalledTimes(3);
+		} finally {
+			logBus.off("log", handler);
+		}
+	});
+
+	it("clamps an interval below the request timeout up to the timeout", () => {
+		const { registrar, startPolling } = makeRegistrar();
+		const accounts = [
+			makeAccount({
+				id: "minimax-low",
+				name: "low",
+				provider: "minimax",
+				api_key: "k",
+			}),
+		];
+
+		// 1000 ms is well below the 5000 ms request timeout. Before the
+		// clamp, this would have been forwarded to UsageCache.startPolling
+		// and a new request would have started before the previous one
+		// finished, stacking in-flight calls.
+		bootstrapMinimaxUsagePolling(accounts, registrar, 1_000);
+
+		expect(startPolling).toHaveBeenCalledTimes(1);
+		const forwardedIntervalMs = startPolling.mock.calls[0]?.[3];
+		expect(forwardedIntervalMs).toBe(MINIMAX_USAGE_REQUEST_TIMEOUT_MS);
+	});
+
+	it("does NOT clamp an interval that is already >= the request timeout", () => {
+		const { registrar, startPolling } = makeRegistrar();
+		const accounts = [
+			makeAccount({
+				id: "minimax-ok",
+				name: "ok",
+				provider: "minimax",
+				api_key: "k",
+			}),
+		];
+
+		// 90000 ms is the default in UsageCache — well above the 5000 ms
+		// request timeout. The clamp must be a no-op here, otherwise the
+		// operator would get a longer effective interval than they asked
+		// for and the WARN would fire on every healthy configuration.
+		bootstrapMinimaxUsagePolling(accounts, registrar, 90_000);
+
+		expect(startPolling).toHaveBeenCalledTimes(1);
+		const forwardedIntervalMs = startPolling.mock.calls[0]?.[3];
+		expect(forwardedIntervalMs).toBe(90_000);
+	});
+
+	it("does NOT log a clamp WARN when the configured interval is already >= the request timeout", () => {
+		interface LogEvent {
+			ts: number;
+			level: string;
+			msg: string;
+			data?: unknown;
+		}
+		const warnEvents: LogEvent[] = [];
+		const handler = (event: LogEvent) => {
+			if (event.level === "WARN") warnEvents.push(event);
+		};
+		logBus.on("log", handler);
+
+		const { registrar } = makeRegistrar();
+		const accounts = [
+			makeAccount({
+				id: "minimax-healthy",
+				name: "healthy",
+				provider: "minimax",
+				api_key: "k",
+			}),
+		];
+
+		try {
+			// Healthy config — 90000 ms >= 5000 ms timeout. The WARN
+			// specifically targets misconfiguration, so a correct
+			// configuration must stay silent.
+			bootstrapMinimaxUsagePolling(accounts, registrar, 90_000);
+
+			const clampWarns = warnEvents.filter((e) =>
+				e.msg.includes("clamping"),
+			);
+			expect(clampWarns.length).toBe(0);
+		} finally {
+			logBus.off("log", handler);
+		}
+	});
+});
+
+describe("clampMinimaxPollingInterval (F6 unit-level guard)", () => {
+	// Stand-alone clamp helper. Exercised here without going through the
+	// full bootstrap so a regression in the clamp math (e.g. someone
+	// flipping the comparison to `>` and accepting a value at exactly the
+	// boundary) is caught before the integration path even runs.
+
+	it("returns MINIMAX_USAGE_REQUEST_TIMEOUT_MS when the input is below it", () => {
+		expect(clampMinimaxPollingInterval(0)).toBe(
+			MINIMAX_USAGE_REQUEST_TIMEOUT_MS,
+		);
+		expect(clampMinimaxPollingInterval(1)).toBe(
+			MINIMAX_USAGE_REQUEST_TIMEOUT_MS,
+		);
+		expect(clampMinimaxPollingInterval(4_999)).toBe(
+			MINIMAX_USAGE_REQUEST_TIMEOUT_MS,
+		);
+	});
+
+	it("returns the input unchanged when the input is at or above MINIMAX_USAGE_REQUEST_TIMEOUT_MS", () => {
+		expect(clampMinimaxPollingInterval(MINIMAX_USAGE_REQUEST_TIMEOUT_MS)).toBe(
+			MINIMAX_USAGE_REQUEST_TIMEOUT_MS,
+		);
+		expect(clampMinimaxPollingInterval(5_001)).toBe(5_001);
+		expect(clampMinimaxPollingInterval(90_000)).toBe(90_000);
 	});
 });
 

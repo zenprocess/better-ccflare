@@ -37,6 +37,7 @@ import {
 	fetchCodexUsageOnDemand,
 	getProvider,
 	getRepresentativeUtilizationForProvider,
+	MINIMAX_USAGE_REQUEST_TIMEOUT_MS,
 	usageCache,
 } from "@better-ccflare/providers";
 import {
@@ -188,20 +189,68 @@ export function registerMinimaxUsagePolling(
  * removed but this helper still exists and is unit-tested in isolation, the
  * startup-time wiring has no test coverage — that is the gap this function
  * exists to close. Keep the bootstrap block in `startServer()` calling this.
+ *
+ * Poll-interval clamp (review finding F6):
+ * The configured `intervalMs` is clamped up to `MINIMAX_USAGE_REQUEST_TIMEOUT_MS`
+ * (5000 ms). A poll interval shorter than the per-request timeout would let
+ * a new request start before the previous one finishes and stack in-flight
+ * calls — risking socket exhaustion and upstream rate-limiting. When the
+ * configured value was below the clamp, a single WARN is emitted so the
+ * operator learns why their setting did not take effect (silent clamping is
+ * its own bug — it would hide a misconfiguration behind a "looks fine"
+ * startup). Subsequent invocations within the same process are not warned
+ * again; one warn is enough.
  */
 export function bootstrapMinimaxUsagePolling(
 	accounts: readonly Account[],
 	usageCache: UsageCacheRegistrar,
 	intervalMs: number,
 ): string[] {
+	const effectiveIntervalMs = clampMinimaxPollingInterval(intervalMs);
 	const minimaxAccounts = accounts.filter((a) => a.provider === "minimax");
 	const registered: string[] = [];
 	for (const account of minimaxAccounts) {
-		if (registerMinimaxUsagePolling(account, usageCache, intervalMs)) {
+		if (registerMinimaxUsagePolling(account, usageCache, effectiveIntervalMs)) {
 			registered.push(account.id);
 		}
 	}
 	return registered;
+}
+
+/**
+ * Clamp a configured poll interval up to the per-request timeout and emit a
+ * single WARN when clamping fires. Exported so the clamp logic is unit-
+ * testable without going through the full bootstrap, and so the "logged
+ * once" invariant is pinned by a test that can fail RED if a refactor
+ * starts warning on every call (review finding F6).
+ *
+ * Returns the effective interval to use (always >= MINIMAX_USAGE_REQUEST_TIMEOUT_MS).
+ */
+export function clampMinimaxPollingInterval(intervalMs: number): number {
+	if (
+		typeof intervalMs === "number" &&
+		Number.isFinite(intervalMs) &&
+		intervalMs < MINIMAX_USAGE_REQUEST_TIMEOUT_MS
+	) {
+		logMinimaxPollIntervalClampOnce(intervalMs);
+		return MINIMAX_USAGE_REQUEST_TIMEOUT_MS;
+	}
+	return intervalMs;
+}
+
+// Module-level flag + cached logger: ensures the clamp WARN is emitted at
+// most once per process, even if the bootstrap helper is called repeatedly
+// (tests, hot reloads, multiple startServer calls). Without this, a low
+// configured value would spam the log on every restart of every Minimax
+// account, drowning the real signals.
+let minimaxClampWarnedThisProcess = false;
+function logMinimaxPollIntervalClampOnce(configuredIntervalMs: number): void {
+	if (minimaxClampWarnedThisProcess) return;
+	minimaxClampWarnedThisProcess = true;
+	const log = new Logger("Server");
+	log.warn(
+		`Minimax usage poll interval ${configuredIntervalMs}ms is below the request timeout ${MINIMAX_USAGE_REQUEST_TIMEOUT_MS}ms; clamping to ${MINIMAX_USAGE_REQUEST_TIMEOUT_MS}ms to prevent overlapping in-flight polls`,
+	);
 }
 
 // Helper function to resolve dashboard assets with fallback
