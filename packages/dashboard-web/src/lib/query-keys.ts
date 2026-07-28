@@ -1,0 +1,38 @@
+export const queryKeys = {
+	all: ["better-ccflare"] as const,
+	accounts: () => [...queryKeys.all, "accounts"] as const,
+	agents: () => [...queryKeys.all, "agents"] as const,
+	stats: (errorsSinceHours?: number) =>
+		errorsSinceHours !== undefined
+			? ([...queryKeys.all, "stats", { errorsSinceHours }] as const)
+			: ([...queryKeys.all, "stats"] as const),
+	analytics: (
+		timeRange?: string,
+		filters?: unknown,
+		viewMode?: string,
+		modelBreakdown?: boolean,
+	) =>
+		[
+			...queryKeys.all,
+			"analytics",
+			{ timeRange, filters, viewMode, modelBreakdown },
+		] as const,
+	insightsCache: (timeRange?: string, threshold?: number) =>
+		[...queryKeys.all, "insights", "cache", { timeRange, threshold }] as const,
+	insightsContext: (timeRange?: string) =>
+		[...queryKeys.all, "insights", "context", { timeRange }] as const,
+	insightsAlerts: () => [...queryKeys.all, "insights", "alerts"] as const,
+	requests: (limit?: number) =>
+		[...queryKeys.all, "requests", { limit }] as const,
+	logs: () => [...queryKeys.all, "logs"] as const,
+	logHistory: () => [...queryKeys.all, "logs", "history"] as const,
+	defaultAgentModel: () =>
+		[...queryKeys.all, "config", "defaultAgentModel"] as const,
+	combos: () => [...queryKeys.all, "combos"] as const,
+	families: () => [...queryKeys.all, "families"] as const,
+	apiKeys: () => [...queryKeys.all, "api-keys"] as const,
+	storage: () => [...queryKeys.all, "storage"] as const,
+	usageHistory: (account?: string, range?: string) =>
+		[...queryKeys.all, "usage-history", { account, range }] as const,
+	models: () => [...queryKeys.all, "models"] as const,
+} as const;

@@ -1,0 +1,22 @@
+{
+	"name": "@ccflare/desktop",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build:runtime": "bun run src/build-runtime.ts",
+		"dev": "bun run build:runtime && electrobun dev",
+		"dev:watch": "bun run build:runtime && electrobun dev --watch",
+		"start": "bun run build:runtime && electrobun dev",
+		"build": "bun run build:runtime && electrobun build",
+		"build:stable": "bun run build:runtime && electrobun build --env=stable",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"electrobun": "^1.16.0",
+		"@ccflare/runtime-server": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/three": "^0.183.1"
+	}
+}

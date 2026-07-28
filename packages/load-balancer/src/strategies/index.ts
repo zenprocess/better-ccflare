@@ -1,0 +1,391 @@
+import { isAccountAvailable, TIME_CONSTANTS } from "@better-ccflare/core";
+import { Logger } from "@better-ccflare/logger";
+import type {
+	Account,
+	LoadBalancingStrategy,
+	RequestMeta,
+	StrategyStore,
+} from "@better-ccflare/types";
+import {
+	PROVIDER_NAMES,
+	requiresSessionDurationTracking,
+} from "@better-ccflare/types";
+import { isPeekAvailable } from "./peek-availability";
+
+export { LeastUsedStrategy } from "./least-used";
+export { SessionAffinityStrategy } from "./session-affinity";
+export { SessionDrainSoonestStrategy } from "./session-drain-soonest";
+
+export class SessionStrategy implements LoadBalancingStrategy {
+	private sessionDurationMs: number;
+	private store: StrategyStore | null = null;
+	private log = new Logger("SessionStrategy");
+
+	constructor(
+		sessionDurationMs: number = TIME_CONSTANTS.ANTHROPIC_SESSION_DURATION_DEFAULT,
+	) {
+		this.sessionDurationMs = sessionDurationMs;
+	}
+
+	initialize(store: StrategyStore): void {
+		this.store = store;
+	}
+
+	private resetSessionIfExpired(account: Account): void {
+		const now = Date.now();
+
+		// Check if session has exceeded the fixed duration (only for providers that require session duration tracking)
+		const fixedDurationExpired =
+			requiresSessionDurationTracking(account.provider) &&
+			(!account.session_start ||
+				now - account.session_start >= this.sessionDurationMs);
+
+		// Check if the account's rate limit window has reset
+		// This helps Anthropic accounts better utilize their usage windows
+		// Usage windows: Anthropic accounts with proactive rate limit headers (usage-based accounts)
+		// No usage windows: Other account types or Anthropic console keys without usage windows
+		const rateLimitWindowReset =
+			account.provider === PROVIDER_NAMES.ANTHROPIC && // Explicit provider check for Anthropic usage windows
+			account.rate_limit_reset &&
+			account.rate_limit_reset < now - 1000; // 1 second buffer for clock skew protection
+
+		if (fixedDurationExpired || rateLimitWindowReset) {
+			// Reset session
+			if (this.store) {
+				const wasExpired = account.session_start !== null;
+				const resetReason = rateLimitWindowReset
+					? "rate limit window reset"
+					: "fixed duration expired";
+				this.log.info(
+					wasExpired
+						? `Session expired for account ${account.name} due to ${resetReason}, starting new session`
+						: `Starting new session for account ${account.name}`,
+				);
+				this.store.resetAccountSession(account.id, now);
+
+				// Update the account object to reflect changes
+				account.session_start = now;
+				account.session_request_count = 0;
+			}
+		}
+	}
+
+	/**
+	 * Determines if an account has an active session based on provider requirements
+	 * For Anthropic providers: checks if session is within the 5-hour window AND
+	 * the account is not currently rate-limited
+	 * For other providers: always returns false (no session stickiness for pay-as-you-go)
+	 * @param account The account to check
+	 * @param now Current timestamp
+	 * @returns true if session is active (Anthropic only), false otherwise
+	 */
+	private hasActiveSession(account: Account, now: number): boolean {
+		// Non-Anthropic providers (API-key-based, etc.) should not have persistent sessions
+		// since they're pay-as-you-go and don't benefit from session stickiness
+		if (!requiresSessionDurationTracking(account.provider)) {
+			return false;
+		}
+
+		// An account that is currently rate-limited has no usable session, even
+		// if its session_start is still inside the 5h Anthropic session window.
+		// Treating it as active would re-pin requests to a known-throttled
+		// upstream for the entire rate-limit window. Note we do NOT clear
+		// session_start here — when the rate-limit window elapses the session
+		// is conceptually still valid (5h Anthropic prompt-cache windows are
+		// independent of rate-limit windows), so we'll resume the cached
+		// session naturally on the next request after recovery. See issue #115.
+		if (account.rate_limited_until && account.rate_limited_until > now) {
+			return false;
+		}
+
+		// For Anthropic providers: check if session is active (within duration window)
+		return (
+			!!account.session_start &&
+			now - account.session_start < this.sessionDurationMs
+		);
+	}
+
+	peek(accounts: Account[]): string | null {
+		const now = Date.now();
+
+		// isPeekAvailable simulates the auto-unpause that select() performs on
+		// safe-reason paused accounts (auto_fallback_enabled + window elapsed).
+		// Without it, peek() and select() disagree whenever such an account is
+		// the would-be Primary, flagging the wrong row on the dashboard while
+		// real traffic goes to the auto-unpaused one.
+		const isAvailable = (account: Account): boolean =>
+			isPeekAvailable(account, now);
+
+		// Mirror the auto-fallback path from select(), but without unpausing.
+		// When fallback would trigger, select() re-evaluates the priority queue
+		// and returns the highest-priority available account — chosenFallback
+		// only ends up first if it happens to outrank everyone else. Peek must
+		// match that, otherwise a lower-priority fallback candidate gets
+		// flagged Primary while a higher-priority non-fallback account is the
+		// one that would actually be picked.
+		const fallbackCandidates = this.checkForAutoFallbackAccounts(accounts, now);
+		const fallbackTriggered = fallbackCandidates.some((c) => isAvailable(c));
+		if (fallbackTriggered) {
+			const sorted = accounts
+				.filter((a) => isAvailable(a))
+				.sort((a, b) => a.priority - b.priority);
+			return sorted[0]?.id ?? null;
+		}
+
+		let activeAccount: Account | null = null;
+		let mostRecentSessionStart = 0;
+		for (const account of accounts) {
+			if (
+				this.hasActiveSession(account, now) &&
+				account.session_start &&
+				account.session_start > mostRecentSessionStart
+			) {
+				activeAccount = account;
+				mostRecentSessionStart = account.session_start;
+			}
+		}
+
+		if (activeAccount && isAvailable(activeAccount)) {
+			const higherPriorityAccount = accounts
+				.filter(
+					(a) =>
+						a.id !== activeAccount.id &&
+						isAvailable(a) &&
+						a.priority < activeAccount.priority,
+				)
+				.sort((a, b) => a.priority - b.priority)[0];
+
+			if (!higherPriorityAccount) {
+				return activeAccount.id;
+			}
+		}
+
+		const available = accounts
+			.filter((a) => isAvailable(a))
+			.sort((a, b) => {
+				if (a.priority !== b.priority) return a.priority - b.priority;
+				const utilA =
+					this.store?.getAccountUtilization?.(a.id, a.provider) ?? 0;
+				const utilB =
+					this.store?.getAccountUtilization?.(b.id, b.provider) ?? 0;
+				return utilA - utilB;
+			});
+
+		return available[0]?.id ?? null;
+	}
+
+	select(accounts: Account[], meta: RequestMeta): Account[] {
+		const now = Date.now();
+
+		// Check if session tracking should be bypassed (for auto-refresh messages)
+		const bypassHeader = meta.headers?.get("x-better-ccflare-bypass-session");
+		const bypassSession = bypassHeader === "true";
+
+		this.log.info(
+			`Bypass header: ${bypassHeader}, bypassSession: ${bypassSession}`,
+		);
+
+		if (bypassSession) {
+			this.log.info("Session tracking bypassed due to bypass header");
+		}
+
+		// Cache availability checks within this request lifecycle
+		const availabilityCache = new Map<string, boolean>();
+		const getCachedAvailability = (account: Account): boolean => {
+			if (!availabilityCache.has(account.id)) {
+				availabilityCache.set(account.id, isAccountAvailable(account, now));
+			}
+			return availabilityCache.get(account.id) || false;
+		};
+
+		// Check for higher priority accounts that have become available due to rate limit reset.
+		// Iterate through all candidates in priority order to find the first usable one.
+		const fallbackCandidates = this.checkForAutoFallbackAccounts(accounts, now);
+		let chosenFallback: Account | null = null;
+		const skippedByReason = new Map<string, string[]>();
+		for (const candidate of fallbackCandidates) {
+			// If the candidate is paused, only auto-unpause if it was paused due to
+			// overage, or `rate_limit_window` (reserved/future pause reason) — never auto-unpause
+			// manual or failure_threshold pauses.
+			if (candidate.paused && this.store?.resumeAccount) {
+				const canAutoUnpause =
+					!candidate.pause_reason ||
+					candidate.pause_reason === "overage" ||
+					candidate.pause_reason === "rate_limit_window";
+				if (canAutoUnpause) {
+					this.log.info(
+						`Unpausing account ${candidate.name} due to auto-fallback reactivation`,
+					);
+					this.store.resumeAccount(candidate.id);
+					candidate.paused = false;
+					// Invalidate the cache so getCachedAvailability reflects the unpause
+					availabilityCache.delete(candidate.id);
+				} else {
+					const reason = candidate.pause_reason || "unknown";
+					if (!skippedByReason.has(reason)) {
+						skippedByReason.set(reason, []);
+					}
+					skippedByReason.get(reason)?.push(candidate.name);
+					continue;
+				}
+			}
+
+			if (getCachedAvailability(candidate)) {
+				chosenFallback = candidate;
+				break;
+			}
+		}
+
+		for (const [reason, names] of skippedByReason) {
+			this.log.info(
+				`Skipping auto-unpause of ${names.length} account(s) paused for '${reason}': ${names.join(", ")}`,
+			);
+		}
+
+		if (chosenFallback !== null) {
+			if (!bypassSession) {
+				this.resetSessionIfExpired(chosenFallback);
+			}
+			this.log.info(
+				`Auto-fallback triggered to account ${chosenFallback.name} (priority: ${chosenFallback.priority}, auto-fallback enabled)`,
+			);
+			// Return all available accounts sorted by priority — chosenFallback will appear
+			// first naturally if it is the highest-priority available account, avoiding
+			// priority inversion when other accounts rank higher.
+			return accounts
+				.filter((a) => getCachedAvailability(a))
+				.sort((a, b) => a.priority - b.priority);
+		}
+
+		// Find account with active session (most recent session_start within window)
+		// Only for providers that require session duration tracking
+		let activeAccount: Account | null = null;
+		let mostRecentSessionStart = 0;
+
+		for (const account of accounts) {
+			if (
+				this.hasActiveSession(account, now) &&
+				account.session_start &&
+				account.session_start > mostRecentSessionStart
+			) {
+				activeAccount = account;
+				mostRecentSessionStart = account.session_start;
+			}
+		}
+
+		// Log session tracking decisions for debugging
+		if (activeAccount) {
+			this.log.debug(
+				`Active session found for account ${activeAccount.name} (provider: ${activeAccount.provider})`,
+			);
+		} else {
+			this.log.debug(
+				`No active sessions found, will select from available accounts`,
+			);
+		}
+
+		// If we have an active account and it's available, use it — unless a higher-priority
+		// non-session account is available (priority is more important than stickiness).
+		if (activeAccount && getCachedAvailability(activeAccount)) {
+			// Check if any available account has strictly higher priority than the active session account
+			const higherPriorityAccount = accounts
+				.filter(
+					(a) =>
+						a.id !== activeAccount.id &&
+						getCachedAvailability(a) &&
+						a.priority < activeAccount.priority,
+				)
+				.sort((a, b) => a.priority - b.priority)[0];
+
+			if (higherPriorityAccount) {
+				this.log.info(
+					`Skipping session on account ${activeAccount.name} (priority: ${activeAccount.priority}) — higher-priority account ${higherPriorityAccount.name} (priority: ${higherPriorityAccount.priority}) is available`,
+				);
+				// Fall through to normal priority-based selection below by nulling activeAccount
+			} else {
+				// Reset session if expired (shouldn't happen but just in case)
+				if (!bypassSession) {
+					this.resetSessionIfExpired(activeAccount);
+				}
+				this.log.info(
+					`Continuing session for account ${activeAccount.name} (${activeAccount.session_request_count} requests in session)`,
+				);
+				// Return active account first, then others as fallback (sorted by priority)
+				const others = accounts
+					.filter((a) => a.id !== activeAccount.id && getCachedAvailability(a))
+					.sort((a, b) => a.priority - b.priority);
+				return [activeAccount, ...others];
+			}
+		}
+
+		// No active session or active account is rate limited
+		// Filter available accounts and sort by priority (lower number = higher priority).
+		// Within the same priority, break ties by utilization (ascending) so that the
+		// account with the most remaining capacity is chosen first.
+		const available = accounts
+			.filter((a) => getCachedAvailability(a))
+			.sort((a, b) => {
+				if (a.priority !== b.priority) return a.priority - b.priority;
+				// Treat null as 0: an account with no usage data is assumed fresh
+				// (maximum remaining capacity). This prevents newly-added accounts
+				// from being permanently sidelined until all others expire.
+				const utilA =
+					this.store?.getAccountUtilization?.(a.id, a.provider) ?? 0;
+				const utilB =
+					this.store?.getAccountUtilization?.(b.id, b.provider) ?? 0;
+				return utilA - utilB;
+			});
+
+		if (available.length === 0) return [];
+
+		// Pick the highest priority account (first in sorted list) and start a new session with it
+		const chosenAccount = available[0];
+		if (!bypassSession) {
+			this.resetSessionIfExpired(chosenAccount);
+		}
+
+		// Return chosen account first, then others as fallback (already sorted by priority)
+		const others = available.filter((a) => a.id !== chosenAccount.id);
+		return [chosenAccount, ...others];
+	}
+
+	/**
+	 * Check for higher priority accounts that have auto-fallback enabled and have become available
+	 * due to rate limit reset
+	 */
+	private checkForAutoFallbackAccounts(
+		accounts: Account[],
+		now: number,
+	): Account[] {
+		// Find accounts with auto-fallback enabled that:
+		// 1. Have an API reset time that has passed (usage window has reset)
+		// 2. Are not currently paused
+		// 3. Are not currently in a rate limited state (rate_limited_until is in the past or null)
+		const resetAccounts = accounts.filter((account) => {
+			if (!account.auto_fallback_enabled) return false;
+			// Note: We check paused status AFTER filtering for auto-fallback enabled accounts
+			// This allows paused accounts with auto-fallback to be considered for reactivation
+
+			// Check if the API usage window has reset for auto-fallback
+			const supportsWindowReset =
+				account.provider === PROVIDER_NAMES.ANTHROPIC ||
+				account.provider === PROVIDER_NAMES.CODEX ||
+				account.provider === PROVIDER_NAMES.ZAI;
+			const providerWindowReset =
+				supportsWindowReset &&
+				account.rate_limit_reset &&
+				account.rate_limit_reset < now - 1000; // 1 second buffer for clock skew protection
+
+			// Check if the account is not currently rate limited by our system
+			const notRateLimited =
+				!account.rate_limited_until || account.rate_limited_until <= now;
+
+			return providerWindowReset && notRateLimited;
+		});
+
+		if (resetAccounts.length === 0) return [];
+
+		// Sort by priority (lower number = higher priority)
+		return resetAccounts.sort((a, b) => a.priority - b.priority);
+	}
+}

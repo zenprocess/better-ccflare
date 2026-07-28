@@ -1,0 +1,715 @@
+import { computeWindowStartMs, registerUIRefresh } from "@better-ccflare/core";
+import type { AnthropicUsageData, FullUsageData } from "@better-ccflare/types";
+import { useEffect, useState } from "react";
+import { cn } from "../../lib/utils";
+import {
+	isAnthropicPeakHour,
+	isZaiPeakHour,
+	providerShowsCreditsBalance,
+	providerShowsWeeklyUsage,
+} from "../../utils/provider-utils";
+import { Progress } from "../ui/progress";
+import {
+	collectAnthropicUsageRows,
+	formatWindowName,
+	isWeeklyWindow,
+	severityColor,
+	type UsageDisplay,
+} from "./rate-limit-helpers";
+
+interface RateLimitProgressProps {
+	resetIso: string | null;
+	usageUtilization?: number | null; // Actual utilization from API (0-100)
+	usageWindow?: string | null; // Window name (e.g., "five_hour")
+	usageData?: FullUsageData | null; // Full usage data from API
+	usageRateLimitedUntil?: number | null; // Timestamp (ms) until usage API 429 clears
+	usageThrottledUntil?: number | null; // Timestamp (ms) until proactive usage throttling clears
+	usageThrottledWindows?: string[]; // Exact usage windows currently being throttled
+	provider: string;
+	className?: string;
+	showWeekly?: boolean; // Whether to show weekly usage as well
+}
+
+const WINDOW_MS = 5 * 60 * 60 * 1000; // 5 hours in milliseconds
+
+function computeExpectedPct(
+	resetTime: string | null,
+	window: string | null,
+	now: number,
+): number | null {
+	if (!resetTime || !window) return null;
+	const resetMs = new Date(resetTime).getTime();
+	const startMs = computeWindowStartMs(resetMs, window);
+	if (startMs === null) return null;
+	const durationMs = resetMs - startMs;
+	const elapsed = now - startMs;
+	return Math.min(100, Math.max(0, (elapsed / durationMs) * 100));
+}
+
+function computeWindowThrottleUntil(
+	resetTime: string | null,
+	window: string | null,
+	percentage: number | null,
+	now: number,
+): number | null {
+	if (!resetTime || !window || percentage === null) return null;
+
+	const resetMs = new Date(resetTime).getTime();
+	if (!Number.isFinite(resetMs) || resetMs <= now) return null;
+
+	const startMs = computeWindowStartMs(resetMs, window);
+	if (startMs === null || startMs >= resetMs) return null;
+
+	const durationMs = resetMs - startMs;
+	const elapsedMs = now - startMs;
+	if (elapsedMs <= 0) return null;
+
+	const expectedPct = Math.min(
+		100,
+		Math.max(0, (elapsedMs / durationMs) * 100),
+	);
+	if (percentage <= expectedPct) return null;
+
+	const resumeAt = Math.min(startMs + (percentage / 100) * durationMs, resetMs);
+	return resumeAt > now ? resumeAt : null;
+}
+
+function formatDuration(ms: number): string {
+	const totalMinutes = Math.round(ms / 60000);
+	const hours = Math.floor(totalMinutes / 60);
+	const minutes = totalMinutes % 60;
+	if (hours > 0) return `${hours}h ${minutes}m`;
+	return `${minutes}m`;
+}
+
+function formatThrottledUntil(throttledUntilMs: number, now: number): string {
+	const remainingMs = throttledUntilMs - now;
+	if (remainingMs < 60 * 1000) {
+		return "Less than 1 minute";
+	}
+
+	const roundedUpToMinuteMs = Math.ceil(throttledUntilMs / 60000) * 60000;
+	return new Date(roundedUpToMinuteMs).toLocaleTimeString(undefined, {
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+}
+
+// Map an Anthropic severity (or a >=100% fallback) to a Progress indicator class.
+function severityIndicatorClass(
+	severity: string | undefined,
+	utilization: number | null,
+): string | undefined {
+	const c = severityColor(severity, utilization);
+	if (c === "critical") return "bg-red-500 dark:bg-red-400";
+	if (c === "warning") return "bg-amber-500 dark:bg-amber-400";
+	return undefined;
+}
+
+function computeProjectedMessage(
+	resetTime: string | null,
+	window: string | null,
+	percentage: number | null,
+	now: number,
+): string | null {
+	if (!resetTime || !window || percentage === null) return null;
+	const resetMs = new Date(resetTime).getTime();
+	const startMs = computeWindowStartMs(resetMs, window);
+	if (startMs === null) return null;
+	const elapsed = now - startMs;
+	const remaining = resetMs - now;
+	if (elapsed <= 0 || remaining <= 0) return null;
+	const f = percentage / 100;
+	if (f <= 0) return "No usage recorded yet in this window";
+	const timeToExhaustMs = ((1 - f) / f) * elapsed;
+	if (timeToExhaustMs < remaining) {
+		return `Runs out ${formatDuration(remaining - timeToExhaustMs)} before reset`;
+	}
+	return `Resets ${formatDuration(timeToExhaustMs - remaining)} before exhaustion`;
+}
+
+export function RateLimitProgress({
+	resetIso,
+	usageUtilization,
+	usageWindow,
+	usageData,
+	usageRateLimitedUntil,
+	usageThrottledUntil,
+	usageThrottledWindows = [],
+	provider,
+	className,
+	showWeekly = false,
+}: RateLimitProgressProps) {
+	const [now, setNow] = useState(Date.now());
+
+	useEffect(() => {
+		const unregisterInterval = registerUIRefresh({
+			id: "rate-limit-progress-update",
+			callback: () => setNow(Date.now()),
+			seconds: 30,
+			description: "Rate limit progress UI update",
+		});
+		return unregisterInterval;
+	}, []);
+
+	// Allow null resetIso for providers that show usage data (like NanoGPT in PayG mode)
+	// but still render null if there's no resetIso and no usage data to show
+	if (!resetIso && !usageData && !usageRateLimitedUntil) return null;
+
+	// Show explicit rate-limited state when the Anthropic usage API returned 429
+	// and we have no cached data to show.
+	if (
+		usageRateLimitedUntil != null &&
+		!usageData &&
+		(provider === "anthropic" || provider === "codex")
+	) {
+		const retryAfterDate = new Date(usageRateLimitedUntil);
+		const retryTimeText = retryAfterDate.toLocaleTimeString(undefined, {
+			hour: "2-digit",
+			minute: "2-digit",
+		});
+		return (
+			<div className={cn("space-y-2", className)}>
+				<div className="flex items-center justify-between">
+					<span className="text-xs text-amber-600 dark:text-amber-400">
+						Rate limited — usage data unavailable
+					</span>
+					<span className="text-xs text-muted-foreground">
+						Retry after {retryTimeText}
+					</span>
+				</div>
+			</div>
+		);
+	}
+
+	// Kilo Gateway: show credit balance in USD instead of a utilization window
+	if (providerShowsCreditsBalance(provider) && usageData) {
+		const kiloData = usageData as {
+			remainingUsd?: number;
+			totalMicrodollarsAcquired?: number;
+		};
+		if (typeof kiloData.remainingUsd === "number") {
+			const hasCredits = (kiloData.totalMicrodollarsAcquired ?? 0) > 0;
+			return (
+				<div className={cn("space-y-2", className)}>
+					<div className="flex items-center justify-between">
+						<span className="text-xs text-muted-foreground">
+							Kilo Gateway credits
+						</span>
+						<span className="text-xs font-medium text-muted-foreground">
+							{hasCredits
+								? `$${kiloData.remainingUsd.toFixed(2)} remaining`
+								: "No credits"}
+						</span>
+					</div>
+				</div>
+			);
+		}
+	}
+
+	const resetTime = resetIso ? new Date(resetIso).getTime() : Date.now();
+	const remainingMs = Math.max(0, resetTime - now);
+	const remainingMinutes = Math.ceil(remainingMs / 60000);
+	const _remainingHours = Math.floor(remainingMinutes / 60);
+	const _remainingMins = remainingMinutes % 60;
+
+	// Determine which usage windows to display
+	const usages: UsageDisplay[] = [];
+
+	// Check if this is NanoGPT usage data (has 'active' and 'daily' properties)
+	const isNanoGPTData =
+		usageData &&
+		"active" in usageData &&
+		"daily" in usageData &&
+		"monthly" in usageData;
+
+	// Check if this is Zai usage data (has 'time_limit' and 'tokens_limit' properties)
+	const isZaiData =
+		usageData && ("time_limit" in usageData || "tokens_limit" in usageData);
+
+	// Check if this is xAI/Grok usage data
+	const isXaiData = usageData && "credits" in usageData;
+
+	// Check if this is Alibaba Coding Plan usage data
+	const isAlibabaData =
+		usageData && "five_hour" in usageData && "weekly" in usageData;
+
+	// Anthropic-style quota data is shared by Anthropic and Codex; detect by shape, not provider name.
+	const hasAnthropicStyleData =
+		usageData != null &&
+		// Legacy flat windows OR the new generic limits[] array. Never NanoGPT's
+		// object-shaped `limits` — disambiguated with Array.isArray.
+		(("five_hour" in usageData && "seven_day" in usageData) ||
+			Array.isArray((usageData as { limits?: unknown }).limits)) &&
+		!isAlibabaData &&
+		!isZaiData &&
+		!isNanoGPTData;
+
+	if (isAlibabaData && showWeekly) {
+		const alibabaData = usageData as {
+			five_hour: { percentUsed: number; resetAt: number | null };
+			weekly: { percentUsed: number; resetAt: number | null };
+			monthly: { percentUsed: number; resetAt: number | null };
+		};
+		usages.push({
+			utilization: alibabaData.five_hour.percentUsed,
+			window: "five_hour",
+			resetTime: alibabaData.five_hour.resetAt
+				? new Date(alibabaData.five_hour.resetAt).toISOString()
+				: null,
+		});
+		usages.push({
+			utilization: alibabaData.weekly.percentUsed,
+			window: "weekly",
+			resetTime: alibabaData.weekly.resetAt
+				? new Date(alibabaData.weekly.resetAt).toISOString()
+				: null,
+		});
+		usages.push({
+			utilization: alibabaData.monthly.percentUsed,
+			window: "monthly",
+			resetTime: alibabaData.monthly.resetAt
+				? new Date(alibabaData.monthly.resetAt).toISOString()
+				: null,
+		});
+	} else if (isXaiData && showWeekly) {
+		// xAI/Grok usage data - show Grok Build credits utilization.
+		const xaiData = usageData as {
+			credits?: { utilization: number; resets_at: string | null };
+		};
+		if (xaiData.credits) {
+			usages.push({
+				utilization: xaiData.credits.utilization,
+				window: "credits",
+				resetTime: xaiData.credits.resets_at,
+			});
+		}
+	} else if (isZaiData && showWeekly) {
+		// Zai usage data - show tokens_limit (5-hour token quota) and time_limit (peak-hour limit)
+		const zaiData = usageData as {
+			time_limit?: { percentage: number; resetAt: number } | null;
+			tokens_limit?: { percentage: number; resetAt: number } | null;
+		};
+
+		// Tokens limit usage (5-hour token quota)
+		if (zaiData.tokens_limit) {
+			usages.push({
+				utilization: zaiData.tokens_limit.percentage,
+				window: "tokens_limit",
+				resetTime: zaiData.tokens_limit.resetAt
+					? new Date(zaiData.tokens_limit.resetAt).toISOString()
+					: null,
+			});
+		}
+
+		// Time limit usage (peak-hour quota)
+		if (zaiData.time_limit) {
+			usages.push({
+				utilization: zaiData.time_limit.percentage,
+				window: "time_limit",
+				resetTime: zaiData.time_limit.resetAt
+					? new Date(zaiData.time_limit.resetAt).toISOString()
+					: null,
+			});
+		}
+	} else if (isNanoGPTData && showWeekly) {
+		// NanoGPT usage data - show daily and monthly windows
+		const nanogptData = usageData as {
+			active: boolean;
+			daily: { percentUsed: number; resetAt: number };
+			monthly: { percentUsed: number; resetAt: number };
+		};
+
+		// Only show usage if subscription is active
+		if (nanogptData.active) {
+			// Daily usage
+			if (nanogptData.daily) {
+				usages.push({
+					utilization: nanogptData.daily.percentUsed * 100, // Convert 0-1 to 0-100
+					window: "daily",
+					resetTime: new Date(nanogptData.daily.resetAt).toISOString(),
+				});
+			}
+
+			// Monthly usage
+			if (nanogptData.monthly) {
+				usages.push({
+					utilization: nanogptData.monthly.percentUsed * 100, // Convert 0-1 to 0-100
+					window: "monthly",
+					resetTime: new Date(nanogptData.monthly.resetAt).toISOString(),
+				});
+			}
+		} else {
+			// PayG mode - show that no subscription is active
+			usages.push({
+				utilization: null,
+				window: "daily",
+				resetTime: null,
+			});
+		}
+	} else if (hasAnthropicStyleData && showWeekly) {
+		// Anthropic usage data - show 5-hour, weekly, and any per-model weekly
+		// tier (opus, sonnet, and future tiers such as Fable) generically.
+		usages.push(
+			...collectAnthropicUsageRows(usageData as unknown as AnthropicUsageData, {
+				utilization: usageUtilization ?? null,
+				resetTime: resetIso,
+			}),
+		);
+	} else if (
+		providerShowsWeeklyUsage(provider) &&
+		usageUtilization !== null &&
+		usageUtilization !== undefined &&
+		usageWindow
+	) {
+		// Fallback: show only the most restrictive window
+		usages.push({
+			utilization: usageUtilization,
+			window: usageWindow,
+			resetTime: resetIso,
+		});
+	} else {
+		// Use time-based percentage for non-Anthropic or when no usage data is available
+		const percentage = Math.min(
+			100,
+			Math.max(0, ((now - (resetTime - WINDOW_MS)) / WINDOW_MS) * 100),
+		);
+		usages.push({
+			utilization: percentage as number | null,
+			window: null,
+			resetTime: resetIso,
+		});
+	}
+
+	const isZaiPeak = provider === "zai" && isZaiPeakHour(now);
+	const isAnthropicPeak = provider === "anthropic" && isAnthropicPeakHour(now);
+	const throttledWindowSet = new Set(usageThrottledWindows);
+
+	return (
+		<div className={cn("space-y-3", className)}>
+			{provider === "zai" && (
+				<div className="flex items-center gap-2">
+					<span
+						className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${
+							isZaiPeak
+								? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+								: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+						}`}
+					>
+						<span
+							className={`h-1.5 w-1.5 rounded-full ${isZaiPeak ? "bg-orange-500" : "bg-green-500"}`}
+						/>
+						{isZaiPeak ? "Peak hours (14:00–18:00 SGT)" : "Off-peak hours"}
+					</span>
+				</div>
+			)}
+			{provider === "anthropic" && (
+				<div className="flex items-center gap-2">
+					<span
+						className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${
+							isAnthropicPeak
+								? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+								: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+						}`}
+					>
+						<span
+							className={`h-1.5 w-1.5 rounded-full ${isAnthropicPeak ? "bg-orange-500" : "bg-green-500"}`}
+						/>
+						{isAnthropicPeak
+							? "Peak hours (5–11am PT, weekdays)"
+							: "Off-peak hours"}
+					</span>
+				</div>
+			)}
+			{usages.map((usage, _index) => {
+				const percentage = usage.utilization;
+				const isAvailable = percentage !== null;
+
+				// Group header shown before the first row of each group (limits[] rows).
+				const showGroupHeader =
+					usage.group != null && usage.group !== usages[_index - 1]?.group;
+				const groupTitle = usage.group === "session" ? "Session" : "Weekly";
+
+				// Calculate time remaining for this specific window
+				let windowTimeText = "";
+				if (usage.resetTime) {
+					const windowResetTime = new Date(usage.resetTime).getTime();
+					const windowRemainingMs = Math.max(0, windowResetTime - now);
+					const windowRemainingMinutes = Math.ceil(windowRemainingMs / 60000);
+					const windowRemainingHours = Math.floor(windowRemainingMinutes / 60);
+					const windowRemainingMins = windowRemainingMinutes % 60;
+
+					if (windowRemainingMs <= 0) {
+						windowTimeText = "Ready to refresh";
+					} else if (windowRemainingHours > 0) {
+						windowTimeText = `${windowRemainingHours}h ${windowRemainingMins}m`;
+					} else {
+						windowTimeText = `${windowRemainingMinutes}m`;
+					}
+				} else if (usage.window && isWeeklyWindow(usage.window)) {
+					// Weekly account/tier windows (seven_day, seven_day_opus,
+					// seven_day_sonnet, seven_day_fable, …) when reset time is unavailable.
+					windowTimeText = "Data unavailable";
+				} else if (usage.window === "daily" || usage.window === "monthly") {
+					// Special handling for NanoGPT when no subscription is active (PayG mode)
+					windowTimeText = "No subscription (PayG mode)";
+				}
+
+				// Special rendering for PayG mode - just show message without progress bar
+				if (
+					(usage.window === "daily" || usage.window === "monthly") &&
+					!usage.resetTime
+				) {
+					return (
+						<div
+							key={`${usage.window ?? "row"}:${usage.label ?? "default"}`}
+							className="space-y-2"
+						>
+							<div className="flex items-center justify-between">
+								<span className="text-xs text-muted-foreground">
+									No subscription (PayG mode)
+								</span>
+							</div>
+						</div>
+					);
+				}
+
+				return (
+					<div
+						key={`${usage.window ?? "row"}:${usage.label ?? "default"}`}
+						className="space-y-2"
+					>
+						{showGroupHeader && (
+							<div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+								{groupTitle}
+							</div>
+						)}
+						{(() => {
+							const expectedPct = computeExpectedPct(
+								usage.resetTime,
+								usage.window,
+								now,
+							);
+							const isOverPacing =
+								expectedPct !== null && (percentage ?? 0) > expectedPct;
+							const isWindowThrottled = usage.window
+								? throttledWindowSet.has(usage.window)
+								: false;
+							const windowThrottleUntil = isWindowThrottled
+								? computeWindowThrottleUntil(
+										usage.resetTime,
+										usage.window,
+										percentage ?? null,
+										now,
+									)
+								: null;
+							const throttleDisplayUntil =
+								windowThrottleUntil ?? usageThrottledUntil;
+							const windowLabel = usage.window
+								? (usage.label ?? formatWindowName(usage.window))
+								: "Rate limit";
+							const projectedMessage = computeProjectedMessage(
+								usage.resetTime,
+								usage.window,
+								percentage ?? null,
+								now,
+							);
+							return (
+								<>
+									<div className="flex items-center justify-between">
+										<span className="text-xs text-muted-foreground">
+											{usage.window
+												? (usage.label ??
+													`Usage (${formatWindowName(usage.window)})`)
+												: "Rate limit window"}
+										</span>
+										<span
+											className={cn(
+												"text-xs font-medium text-muted-foreground",
+												isWindowThrottled &&
+													"text-amber-600 dark:text-amber-400",
+											)}
+										>
+											{isAvailable ? `${percentage?.toFixed(0)}%` : "N/A"}
+											{usage.isActive && (
+												<span className="ml-1.5 text-[10px] font-normal uppercase tracking-wide text-red-500 dark:text-red-400">
+													binding
+												</span>
+											)}
+										</span>
+									</div>
+									<div className="group relative">
+										<div
+											className="pointer-events-none absolute bottom-full z-10 mb-2 hidden w-max max-w-xs -translate-x-1/2 rounded bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md group-hover:block"
+											style={{ left: `clamp(10%, ${expectedPct ?? 50}%, 90%)` }}
+										>
+											<div className="mb-1 font-medium">
+												{windowLabel} usage
+											</div>
+											{projectedMessage && (
+												<div
+													className={
+														(percentage ?? 0) <= 0
+															? "text-muted-foreground"
+															: isOverPacing
+																? "text-red-400"
+																: "text-green-400"
+													}
+												>
+													{projectedMessage}
+												</div>
+											)}
+										</div>
+										<Progress
+											value={isAvailable ? percentage : 0}
+											className="h-2"
+											indicatorClassName={
+												isWindowThrottled
+													? "bg-amber-500 dark:bg-amber-400"
+													: severityIndicatorClass(
+															usage.severity,
+															// Time-based fallback row (window == null) uses elapsed
+															// time as its bar %, not usage -- never color it by that.
+															usage.window == null
+																? null
+																: (percentage ?? null),
+														)
+											}
+										/>
+										{expectedPct !== null && (
+											<div
+												className="absolute w-0.5 pointer-events-none"
+												style={{
+													left: `${expectedPct}%`,
+													top: "-3px",
+													height: "14px",
+													zIndex: 10,
+													backgroundColor: "rgba(255,255,255,0.95)",
+													boxShadow:
+														"1px 0 2px rgba(0,0,0,0.5), -1px 0 2px rgba(0,0,0,0.5)",
+												}}
+											/>
+										)}
+									</div>
+									{isWindowThrottled && throttleDisplayUntil && (
+										<div className="flex items-center justify-between">
+											<span className="text-xs text-amber-600 dark:text-amber-400">
+												Usage throttling enabled; requests are being delayed
+											</span>
+											<span className="text-xs text-amber-600 dark:text-amber-400">
+												{(() => {
+													const throttledLabel = formatThrottledUntil(
+														throttleDisplayUntil,
+														now,
+													);
+													return throttledLabel.startsWith("Less than")
+														? throttledLabel
+														: `Until ${throttledLabel}`;
+												})()}
+											</span>
+										</div>
+									)}
+								</>
+							);
+						})()}
+						{usage.resetTime && (
+							<div className="flex items-center justify-between">
+								<span className="text-xs text-muted-foreground">
+									{windowTimeText === "Ready to refresh"
+										? windowTimeText
+										: `${windowTimeText} until refresh`}
+								</span>
+								<span className="text-xs text-muted-foreground">
+									{(usage.window && isWeeklyWindow(usage.window)) ||
+									usage.window === "weekly" ||
+									usage.window === "monthly" ||
+									usage.window === "time_limit" ||
+									usage.window === "tokens_limit"
+										? `Resets ${new Date(usage.resetTime).toLocaleString(
+												undefined,
+												{
+													month: "short",
+													day: "numeric",
+													hour: "2-digit",
+													minute: "2-digit",
+												},
+											)} (local)`
+										: `Resets ${new Date(usage.resetTime).toLocaleTimeString(
+												undefined,
+												{
+													hour: "2-digit",
+													minute: "2-digit",
+												},
+											)} (local)`}
+								</span>
+							</div>
+						)}
+						{!usage.resetTime &&
+							((usage.window && isWeeklyWindow(usage.window)) ||
+								usage.window === "daily" ||
+								usage.window === "monthly") && (
+								<div className="flex items-center justify-between">
+									<span className="text-xs text-muted-foreground">
+										{windowTimeText}
+									</span>
+									<span className="text-xs text-muted-foreground">
+										{usage.window === "daily" || usage.window === "monthly"
+											? "Using pay-as-you-go"
+											: "No reset data available"}
+									</span>
+								</div>
+							)}
+					</div>
+				);
+			})}
+			{hasAnthropicStyleData &&
+				(() => {
+					const spend = (
+						usageData as {
+							spend?: {
+								enabled?: boolean;
+								percent?: number | null;
+								used?: {
+									amount_minor: number;
+									currency: string;
+									exponent?: number;
+								} | null;
+								currency?: string | null;
+							};
+						}
+					).spend;
+					if (!spend?.enabled) return null;
+					const used = spend.used;
+					const exponent = used?.exponent ?? 2;
+					const rawAmount =
+						used != null ? used.amount_minor / 10 ** exponent : null;
+					const amount =
+						rawAmount != null && Number.isFinite(rawAmount) ? rawAmount : null;
+					const cur = used?.currency ?? spend.currency ?? "USD";
+					const pct = spend.percent ?? null;
+					return (
+						<div className="space-y-2">
+							<div className="flex items-center justify-between">
+								<span className="text-xs text-muted-foreground">
+									Overage credits
+								</span>
+								<span className="text-xs font-medium text-muted-foreground">
+									{amount != null
+										? `${cur} ${amount.toFixed(2)}`
+										: pct != null
+											? `${pct.toFixed(0)}%`
+											: "—"}
+								</span>
+							</div>
+							{pct != null && (
+								<Progress
+									value={Math.min(100, Math.max(0, pct))}
+									className="h-2"
+								/>
+							)}
+						</div>
+					);
+				})()}
+		</div>
+	);
+}

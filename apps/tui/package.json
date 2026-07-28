@@ -1,0 +1,45 @@
+{
+	"name": "ccflare",
+	"version": "1.0.0",
+	"description": "TUI for ccflare load balancer",
+	"bin": {
+		"ccflare": "./dist/ccflare"
+	},
+	"type": "module",
+	"scripts": {
+		"dev": "bun run src/main.ts",
+		"build": "bun build src/main.ts --compile --outfile dist/ccflare --target=bun",
+		"prepublishOnly": "bun run build",
+		"postpublish": "chmod +x dist/ccflare"
+	},
+	"dependencies": {
+		"@ccflare/config": "workspace:*",
+		"@ccflare/core": "workspace:*",
+		"@ccflare/database": "workspace:*",
+		"@ccflare/logger": "workspace:*",
+		"@ccflare/oauth-flow": "workspace:*",
+		"@ccflare/runtime-server": "workspace:*",
+		"@ccflare/types": "workspace:*",
+		"@ccflare/ui": "workspace:*",
+		"@opentui/core": "^0.1.98",
+		"@opentui/react": "^0.1.98",
+		"open": "^10.0.0",
+		"react": "^19.0.0"
+	},
+	"devDependencies": {
+		"@types/react": "^19.0.0",
+		"@types/node": "^20.0.0"
+	},
+	"files": [
+		"dist"
+	],
+	"keywords": [
+		"ccflare",
+		"load-balancer",
+		"tui",
+		"cli"
+	],
+	"publishConfig": {
+		"access": "public"
+	}
+}

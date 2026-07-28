@@ -1,0 +1,15 @@
+{
+	"name": "@better-ccflare/oauth-flow",
+	"version": "0.1.0",
+	"type": "module",
+	"main": "./src/index.ts",
+	"scripts": {
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"@better-ccflare/config": "workspace:*",
+		"@better-ccflare/database": "workspace:*",
+		"@better-ccflare/providers": "workspace:*",
+		"@better-ccflare/types": "workspace:*"
+	}
+}

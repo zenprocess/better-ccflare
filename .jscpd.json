@@ -1,0 +1,21 @@
+{
+	"reporters": ["console", "json"],
+	"output": "./artifacts/jscpd",
+	"absolute": true,
+	"gitignore": true,
+	"minLines": 5,
+	"minTokens": 50,
+	"threshold": 0,
+	"ignore": [
+		"**/node_modules/**",
+		"**/dist/**",
+		"**/build/**",
+		"**/artifacts/**",
+		"**/tmp/**",
+		"**/.desktop-runtime/**",
+		"**/*.test.*",
+		"**/*.spec.*",
+		"**/test-helpers/**",
+		"apps/lander/src/index.html"
+	]
+}

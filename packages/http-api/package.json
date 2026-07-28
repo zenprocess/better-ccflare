@@ -1,0 +1,22 @@
+{
+	"name": "@better-ccflare/http-api",
+	"version": "0.1.0",
+	"type": "module",
+	"main": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"@better-ccflare/agents": "workspace:*",
+		"@better-ccflare/core": "workspace:*",
+		"@better-ccflare/database": "workspace:*",
+		"@better-ccflare/config": "workspace:*",
+		"@better-ccflare/oauth-flow": "workspace:*",
+		"@better-ccflare/providers": "workspace:*",
+		"@better-ccflare/proxy": "workspace:*",
+		"@better-ccflare/types": "workspace:*"
+	}
+}

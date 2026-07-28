@@ -1,0 +1,131 @@
+import type { RateLimitReason } from "@better-ccflare/types";
+
+export type ErrorSeverity = "warning" | "error";
+
+export interface ErrorMeta {
+	title: string;
+	description: string;
+	suggestion: string;
+	severity: ErrorSeverity;
+}
+
+export interface ErrorContext {
+	provider?: string | null;
+	otherAccountsAvailable?: boolean;
+}
+
+const KNOWN_ERROR_META: Record<
+	Exclude<RateLimitReason, "model_fallback_429">,
+	ErrorMeta
+> = {
+	upstream_429_with_reset: {
+		title: "Provider rate limit",
+		description: "The upstream provider returned 429 with a known reset time.",
+		suggestion: "The account will recover automatically at the reset time.",
+		severity: "warning",
+	},
+	upstream_429_no_reset_probe_cooldown: {
+		title: "Provider rate limit (no reset)",
+		description:
+			"The upstream provider returned 429 without a reset header; entering probe cooldown.",
+		suggestion:
+			"Cooldown defaults to 60s. Set `CCFLARE_DEFAULT_COOLDOWN_NO_RESET_MS` in your environment to change it.",
+		severity: "warning",
+	},
+	upstream_429_no_reset_default_5h: {
+		title: "Provider rate limit (legacy 5h ban)",
+		description:
+			"Legacy ban from ccflare ≤ v3.5.x. No longer emitted by current code.",
+		suggestion: "Historical record — no action needed.",
+		severity: "warning",
+	},
+	all_models_exhausted_429: {
+		title: "All fallback models rate-limited",
+		description: "Every fallback model also returned 429.",
+		suggestion: "Wait for cooldown, or add more diverse fallback models.",
+		severity: "error",
+	},
+	upstream_529_overloaded_with_reset: {
+		title: "Provider overload",
+		description:
+			"The upstream provider returned 529 (overloaded) with a Retry-After header. Account temporarily cooled down for that duration.",
+		suggestion:
+			"No action needed — the account will recover automatically. Traffic will shift to other configured accounts in the meantime.",
+		severity: "warning",
+	},
+	upstream_529_overloaded_no_reset: {
+		title: "Provider overload (no Retry-After)",
+		description:
+			"The upstream provider returned 529 (overloaded) without a Retry-After header; entering probe cooldown. This also covers mid-stream overloaded_error detections, which never carry a Retry-After header — HTTP headers were already sent before the error occurred in that path.",
+		suggestion:
+			"Cooldown defaults to 10s and pairs with a single-flight recovery probe (only one request re-probes the account once it expires, as long as another account is available to defer to — if every account is currently suppressed, the request runs ungated instead). Set `CCFLARE_OVERLOAD_COOLDOWN_MS` in your environment to change it.",
+		severity: "warning",
+	},
+	out_of_credits: {
+		title: "Account out of credits",
+		description:
+			"Anthropic returned 429 with `overage-disabled-reason: out_of_credits` — credits/overage for a specific model/beta (e.g. context-1m) is depleted. This is model-scoped, so the account stays in rotation for other models and the request fails over automatically.",
+		suggestion:
+			"Top up the account's credits or raise its overage allowance. Meanwhile, traffic for other models continues to use this account, and the rejected model shifts to other accounts.",
+		severity: "error",
+	},
+	extra_usage_exhausted: {
+		title: "Extra usage credits depleted",
+		description:
+			"Anthropic returned 400 invalid_request_error: this OAuth account's " +
+			"extra-usage credit balance is $0. Anthropic bills third-party-app " +
+			"traffic on Claude OAuth accounts from a separate extra-usage pool, " +
+			"not the plan's included quota — Haiku requests may still succeed " +
+			"since routing/exemption can differ by model.",
+		suggestion:
+			"Add credits or enable auto-reload at claude.ai/settings/usage. This " +
+			"is an Anthropic billing state, not a proxy failure — the account " +
+			"stays in rotation and the request is passed through unchanged.",
+		severity: "error",
+	},
+};
+
+function getModelFallbackMeta(context?: ErrorContext): ErrorMeta {
+	const provider = context?.provider ?? null;
+	const otherAccountsAvailable = context?.otherAccountsAvailable;
+
+	const isOAuthOnlyProvider = provider === "anthropic" || provider === "codex";
+
+	const suggestion = isOAuthOnlyProvider
+		? "No action needed — Claude/Codex accounts only serve their native models, so the proxy will use the next account until this one recovers."
+		: 'To retry on the same account before failing over, open this account\'s More actions → Model Mappings and add comma-separated alternates (e.g. "primary, fallback-1").';
+
+	const baseDescription =
+		"This account hit a 429 with only one model configured, so the proxy failed over to the next account in priority order.";
+
+	if (otherAccountsAvailable === false) {
+		return {
+			title: "Account rate-limited — no in-account fallback",
+			description: `No other accounts are available — requests will fail until this account recovers. ${baseDescription}`,
+			suggestion,
+			severity: "error",
+		};
+	}
+
+	return {
+		title: "Account rate-limited — no in-account fallback",
+		description: baseDescription,
+		suggestion,
+		severity: "warning",
+	};
+}
+
+export function getErrorMeta(code: string, context?: ErrorContext): ErrorMeta {
+	if (code === "model_fallback_429") {
+		return getModelFallbackMeta(context);
+	}
+	if (code in KNOWN_ERROR_META) {
+		return KNOWN_ERROR_META[code as keyof typeof KNOWN_ERROR_META];
+	}
+	return {
+		title: code || "Unknown error",
+		description: "No additional context is available for this error code.",
+		suggestion: "Check the server logs or the original request for details.",
+		severity: "error",
+	};
+}
