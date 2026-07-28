@@ -1,0 +1,5 @@
+[
+  {"label": "consume", "N": 500, "r0": 22692, "r1": 27812, "delta_kb": 5120, "per_req_kb": 10.24},
+  {"label": "cancel-body", "N": 500, "r0": 28136, "r1": 21380, "delta_kb": -6756, "per_req_kb": -13.51},
+  {"label": "held", "N": 500, "r0": 22020, "r1": 60684, "delta_kb": 38664, "per_req_kb": 77.33}
+]

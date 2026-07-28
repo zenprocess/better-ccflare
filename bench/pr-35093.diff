@@ -1,0 +1,391 @@
+diff --git a/src/jsc/bindings/webcore/streams/WebStreamsExports.cpp b/src/jsc/bindings/webcore/streams/WebStreamsExports.cpp
+index b9fe8315aea..7f7a178f0e0 100644
+--- a/src/jsc/bindings/webcore/streams/WebStreamsExports.cpp
++++ b/src/jsc/bindings/webcore/streams/WebStreamsExports.cpp
+@@ -168,6 +168,20 @@ extern "C" void ReadableStream__cancelWithReason(JSC::EncodedJSValue possibleRea
+     markPromiseAsHandled(vm, result);
+ }
+ 
++extern "C" void ReadableStream__error(JSC::EncodedJSValue possibleReadableStream, Zig::GlobalObject* globalObject, JSC::EncodedJSValue reason)
++{
++    auto* stream = dynamicDowncast<JSReadableStream>(JSValue::decode(possibleReadableStream));
++    if (!stream) [[unlikely]]
++        return;
++
++    auto& vm = JSC::getVM(globalObject);
++    // See ReadableStream__cancel: never return to the native caller with a pending exception.
++    auto catchScope = DECLARE_TOP_EXCEPTION_SCOPE(vm);
++    Bun::WebStreams::webStreamControllerError(globalObject, stream, JSValue::decode(reason));
++    if (catchScope.exception()) [[unlikely]]
++        catchScope.clearExceptionExceptTermination();
++}
++
+ extern "C" void ReadableStream__detach(JSC::EncodedJSValue possibleReadableStream, Zig::GlobalObject* globalObject)
+ {
+     auto* stream = dynamicDowncast<JSReadableStream>(JSValue::decode(possibleReadableStream));
+diff --git a/src/runtime/webcore/ReadableStream.rs b/src/runtime/webcore/ReadableStream.rs
+index 03e9b121f38..e4d84e4c6cc 100644
+--- a/src/runtime/webcore/ReadableStream.rs
++++ b/src/runtime/webcore/ReadableStream.rs
+@@ -116,6 +116,7 @@ unsafe extern "C" {
+         global: &JSGlobalObject,
+         reason: JSValue,
+     );
++    safe fn ReadableStream__error(stream: JSValue, global: &JSGlobalObject, reason: JSValue);
+     safe fn ReadableStream__detach(stream: JSValue, global: &JSGlobalObject);
+     safe fn ZigGlobalObject__createNativeReadableStream(
+         global: &JSGlobalObject,
+@@ -247,6 +248,15 @@ impl ReadableStream {
+         self.cancel(global_this);
+     }
+ 
++    /// Transition the stream to the `errored` state (rejecting every pending
++    /// and future read request with `reason`) and release the native source.
++    /// Unlike [`Self::cancel`], pending reads reject instead of resolving
++    /// `{ done: true }`.
++    pub fn error(&self, global_this: &JSGlobalObject, reason: JSValue) {
++        ReadableStream__error(self.value, global_this, reason);
++        self.done(global_this);
++    }
++
+     pub fn force_detach(&self, global_object: &JSGlobalObject) {
+         // SAFETY: FFI call; value is a valid ReadableStream JSValue.
+         ReadableStream__detach(self.value, global_object);
+diff --git a/src/runtime/webcore/Response.rs b/src/runtime/webcore/Response.rs
+index 54fdeb59501..6abd7a242c4 100644
+--- a/src/runtime/webcore/Response.rs
++++ b/src/runtime/webcore/Response.rs
+@@ -1,8 +1,10 @@
+ use core::cell::Cell;
++use core::ffi::c_void;
+ use core::mem;
+ use core::ptr::NonNull;
+ 
+ use bun_jsc::JsCell;
++use bun_jsc::{AbortSignal, AbortSignalRef, GlobalRef};
+ 
+ use crate::webcore::BlobExt as _;
+ use crate::webcore::jsc::{
+@@ -16,7 +18,7 @@ use bun_core::{
+ use bun_http_types::Method::Method;
+ 
+ use super::blob::Internal as InternalBlob;
+-use super::body::{Body, BodyMixin, Value as BodyValue};
++use super::body::{Body, BodyMixin, Value as BodyValue, ValueError as BodyValueError};
+ use super::{FetchHeaders, ReadableStream, Request};
+ 
+ // Codegen (`generated_classes.rs`) re-exports `Blob` from
+@@ -116,6 +118,64 @@ impl Drop for HeadersRef {
+     }
+ }
+ 
++/// `AbortSignal` listener owned by a fetch `Response`. Fetch spec §"abort a
++/// fetch" step 4: if response's body is non-null and readable, error the
++/// stream with the abort reason. `FetchTasklet` detaches its own listener once
++/// the body is fully received, so without this a fully-buffered body is never
++/// errored on abort (the `ByteBlobLoader` store is only released by GC).
++pub(crate) struct BodyAbortListener {
++    signal: AbortSignalRef,
++    /// The owning `Response` holds this `Box<Self>`, so a ref-counted pointer
++    /// here would cycle; [`ParentRef`] encodes the owned-by-parent invariant.
++    response: bun_ptr::ParentRef<Response>,
++    global: GlobalRef,
++}
++
++impl BodyAbortListener {
++    unsafe extern "C" fn on_abort(ctx: *mut c_void, reason: JSValue) {
++        reason.ensure_still_alive();
++        // SAFETY: `ctx` is the `Box<BodyAbortListener>` registered in
++        // `attach_abort_signal`; `clean_native_bindings` removes it before the
++        // box is dropped, so it is live here. Copy everything out up front:
++        // erroring a still-streaming body can re-enter
++        // `FetchTasklet::ignore_remaining_response_body` → `Response::unref`,
++        // which may destroy the Response (and this box) mid-call.
++        let (response, global) =
++            unsafe { ((*ctx.cast::<Self>()).response, (*ctx.cast::<Self>()).global) };
++        // `ParentRef` invariant: `ref_count >= 1` while this box exists. The
++        // guard keeps it there so a re-entrant unref cannot free the Response
++        // until we return.
++        Response::ref_(response.as_mut_ptr());
++        let _keepalive =
++            scopeguard::guard((), move |()| Response::unref(response.as_mut_ptr()));
++        // R-2: re-derive `get_body_value()` per statement; the calls between
++        // project their own `&mut BodyValue` / run JS.
++        if !matches!(
++            response.get_body_value(),
++            BodyValue::Used | BodyValue::Error(_) | BodyValue::Null | BodyValue::Empty
++        ) {
++            if let Some(readable) = response.get_body_readable_stream(&global) {
++                readable.value.ensure_still_alive();
++                readable.error(&global, reason);
++            }
++            let err = BodyValueError::JSValue(bun_jsc::strong::Optional::create(reason, &global));
++            let _ = response.get_body_value().to_error_instance(err, &global);
++        }
++    }
++}
++
++impl Drop for BodyAbortListener {
++    fn drop(&mut self) {
++        let ctx = core::ptr::from_mut(self).cast::<c_void>();
++        self.signal.clean_native_bindings(ctx);
++        // Keeping the pending-activity count positive until the listener is
++        // gone suppresses `eventListenersDidChange`'s last-observer deref on
++        // a timeout signal whose `m_timeout` ref `cancel_all_timeout_objects`
++        // may have already released. Field drop then `unref()`s `signal`.
++        self.signal.pending_activity_unref();
++    }
++}
++
+ // `jsc.Codegen.JSResponse` — generated by `.classes.ts`. The Rust bindings
+ // live in `bun_jsc::generated::JSResponse` (emitted by `js_class_module!`):
+ // `from_js` / `from_js_direct` / `to_js` / `get_constructor` /
+@@ -183,6 +243,11 @@ pub struct Response {
+ 
+     // We must report a consistent value for this
+     reported_estimated_size: Cell<usize>,
++
++    /// Fetch's `AbortSignal` listener. Owned by this Response so that aborting
++    /// after the `FetchTasklet` has torn down (body fully buffered) still
++    /// errors the body stream and releases the buffered bytes.
++    abort_listener: JsCell<Option<Box<BodyAbortListener>>>,
+ }
+ 
+ impl Default for Response {
+@@ -196,6 +261,7 @@ impl Default for Response {
+             weak_ptr_data: WeakPtrData::EMPTY,
+             js_ref: JsCell::new(JsRef::empty()),
+             reported_estimated_size: Cell::new(0),
++            abort_listener: JsCell::new(None),
+         }
+     }
+ }
+@@ -445,6 +511,37 @@ impl Response {
+         <Self as BodyMixin>::detach_readable_stream(self, global_object)
+     }
+ 
++    /// Install a native `AbortSignal` listener that errors this response's
++    /// body on abort. Called from `FetchTasklet::on_resolve` so the abort
++    /// continues to reach the body after the tasklet has detached its own
++    /// listener.
++    ///
++    /// # Safety
++    /// `this` must be a live heap `Response` allocated via `heap::into_raw`
++    /// (the `Box<BodyAbortListener>` stores it as a [`ParentRef`]).
++    pub(crate) unsafe fn attach_abort_signal(
++        this: *mut Response,
++        global: &JSGlobalObject,
++        signal: &AbortSignal,
++    ) {
++        // SAFETY: `signal` is live (borrowed from the caller); `ref_()` bumps
++        // the intrusive refcount and returns the same non-null pointer.
++        let signal_ref = unsafe { AbortSignalRef::adopt(signal.ref_()) };
++        signal.pending_activity_ref();
++        let mut listener = Box::new(BodyAbortListener {
++            signal: signal_ref,
++            // SAFETY: caller contract; `this` is live and owns the box.
++            response: unsafe { bun_ptr::ParentRef::from_raw_mut(this) },
++            global: GlobalRef::new(global),
++        });
++        signal.add_listener(
++            core::ptr::from_mut(&mut *listener).cast::<c_void>(),
++            BodyAbortListener::on_abort,
++        );
++        // SAFETY: caller contract; `this` is live.
++        unsafe { (*this).abort_listener.set(Some(listener)) };
++    }
++
+     #[inline]
+     pub fn set_size_hint(&self, size_hint: super::blob::SizeType) {
+         if let BodyValue::Locked(locked) = self.body.get().value_mut() {
+@@ -852,6 +949,7 @@ impl Response {
+             (*this).body.get_mut().reset();
+             (*this).url.set(OwnedString::new(BunString::empty()));
+             (*this).js_ref.set(JsRef::empty());
++            (*this).abort_listener.set(None);
+ 
+             // Contents are gone; the allocation itself stays until any outstanding
+             // WeakRef derefs (RequestContext.response_weakref). WeakRef.get() returns
+diff --git a/src/runtime/webcore/fetch/FetchTasklet.rs b/src/runtime/webcore/fetch/FetchTasklet.rs
+index 54f81b55103..d3e9bf80277 100644
+--- a/src/runtime/webcore/fetch/FetchTasklet.rs
++++ b/src/runtime/webcore/fetch/FetchTasklet.rs
+@@ -752,15 +752,23 @@ impl FetchTasklet {
+                 }
+             }
+ 
++            // `body` (&mut response.body.value) and `get_fetch_headers()`
++            // (&response.init.headers) are disjoint fields, but borrowck can't see
++            // through the accessor methods. Hold `body` as a raw ptr.
++            let body: *mut BodyValue = response.get_body_value();
++            // `BodyAbortListener::on_abort` may have already transitioned the
++            // body to `Error` while this callback was queued; don't clobber a
++            // terminal state with the late-arriving bytes. Checked before
++            // `buffer_reset.set(false)` so the defer still drops them.
++            // SAFETY: just obtained from live `response`.
++            if !matches!(unsafe { &*body }, BodyValue::Locked(_)) {
++                return Ok(());
++            }
+             // we will reach here when not streaming, this is also the only case we dont wanna to reset the buffer
+             buffer_reset.set(false);
+             if !self.result.has_more {
+                 let scheduled_response_buffer =
+                     core::mem::take(&mut self.scheduled_response_buffer.list);
+-                // `body` (&mut response.body.value) and `get_fetch_headers()`
+-                // (&response.init.headers) are disjoint fields, but borrowck can't see
+-                // through the accessor methods. Hold `body` as a raw ptr.
+-                let body: *mut BodyValue = response.get_body_value();
+                 // done resolve body
+                 let old = core::mem::replace(
+                     // SAFETY: just obtained from live `response`; uniquely accessed here.
+@@ -1865,6 +1873,13 @@ impl FetchTasklet {
+         // SAFETY: `response` is the live heap allocation owned by JSC after
+         // `make_maybe_pooled`; `ref_` bumps the intrusive refcount.
+         self.native_response = Some(Response::ref_(response));
++        // This tasklet's own abort listener is detached once the body is fully
++        // received; give the Response its own so aborting after that still
++        // errors the body (Fetch spec "abort a fetch" step 4).
++        if let Some(signal) = self.abort_signal() {
++            // SAFETY: `response` is the live heap allocation owned by JSC.
++            unsafe { Response::attach_abort_signal(response, &global_this, signal) };
++        }
+         response_js
+     }
+ 
+diff --git a/test/js/web/fetch/fetch-abort-stream-body.test.ts b/test/js/web/fetch/fetch-abort-stream-body.test.ts
+index 98ed1ebf5b0..98b320424ee 100644
+--- a/test/js/web/fetch/fetch-abort-stream-body.test.ts
++++ b/test/js/web/fetch/fetch-abort-stream-body.test.ts
+@@ -40,3 +40,74 @@ test("aborting fetch with a ReadableStream request body does not double-cancel t
+   expect(stdout).toBe("done 50\n");
+   expect(exitCode).toBe(0);
+ });
++
++// Fetch spec "abort a fetch" step 4: if response's body is non-null and
++// readable, error the stream with the abort reason. When the body is fully
++// received before .body is touched, the stream is backed by a ByteBlobLoader
++// and abort() used to be a no-op on it (FetchTasklet had already detached its
++// listener), so the reader drained the full body and the off-heap store was
++// only released by GC. https://github.com/oven-sh/bun/issues/32659
++test.concurrent("abort() errors a fully-buffered fetch response body", async () => {
++  await using server = Bun.serve({
++    port: 0,
++    fetch: () => new Response(new Uint8Array(1024)),
++  });
++  // Small body with Content-Length arrives with the headers, so by the time
++  // the fetch promise resolves the body is an InternalBlob (ByteBlobLoader
++  // path) rather than a still-streaming ByteStream.
++  const wait = () => new Promise(r => setImmediate(() => setImmediate(r)));
++
++  // abort() before .body: reader rejects, store not drainable.
++  {
++    const ac = new AbortController();
++    const res = await fetch(server.url, { signal: ac.signal });
++    await wait();
++    ac.abort();
++    const reader = res.body!.getReader();
++    const result = await reader.read().then(
++      r => ({ rejected: false, bytes: r.value?.byteLength ?? 0 }),
++      e => ({ rejected: true, name: (e as Error).name }),
++    );
++    expect(result).toEqual({ rejected: true, name: "AbortError" });
++  }
++
++  // abort() after .body.getReader().read(): next read rejects.
++  {
++    const ac = new AbortController();
++    const res = await fetch(server.url, { signal: ac.signal });
++    await wait();
++    const reader = res.body!.getReader();
++    const first = await reader.read();
++    expect(first).toEqual({ done: false, value: new Uint8Array(1024) });
++    ac.abort();
++    const second = await reader.read().then(
++      r => ({ rejected: false, done: r.done }),
++      e => ({ rejected: true, name: (e as Error).name }),
++    );
++    expect(second).toEqual({ rejected: true, name: "AbortError" });
++  }
++
++  // abort() before a body consumer: arrayBuffer() rejects.
++  {
++    const ac = new AbortController();
++    const res = await fetch(server.url, { signal: ac.signal });
++    await wait();
++    ac.abort();
++    const result = await res.arrayBuffer().then(
++      buf => ({ rejected: false, bytes: buf.byteLength }),
++      e => ({ rejected: true, name: (e as Error).name }),
++    );
++    expect(result).toEqual({ rejected: true, name: "AbortError" });
++  }
++
++  // Custom abort reason propagates.
++  {
++    const ac = new AbortController();
++    const res = await fetch(server.url, { signal: ac.signal });
++    await wait();
++    const reader = res.body!.getReader();
++    const reason = new Error("boom");
++    ac.abort(reason);
++    await expect(reader.read()).rejects.toBe(reason);
++  }
++});
+diff --git a/test/js/web/fetch/fetch-leak.test.ts b/test/js/web/fetch/fetch-leak.test.ts
+index 6f75c576eaf..1b87857ed7c 100644
+--- a/test/js/web/fetch/fetch-leak.test.ts
++++ b/test/js/web/fetch/fetch-leak.test.ts
+@@ -817,3 +817,53 @@ test(
+   },
+   isASAN ? 30_000 : 5_000,
+ );
++
++// The Response's abort listener takes a +1 on the AbortSignal; Response::destroy
++// must release it. Run in a subprocess so heapStats is not polluted by the
++// suite's other concurrent tests, and so the destruct-on-exit teardown of a
++// timeout signal with the listener still attached is exercised.
++// https://github.com/oven-sh/bun/issues/32659
++test.concurrent(
++  "fetch Response's abort-signal listener does not leak the AbortSignal",
++  async () => {
++    const script = `
++    const { heapStats } = require("bun:jsc");
++    const server = Bun.serve({ port: 0, fetch: () => new Response(new Uint8Array(8)) });
++    // Response::destroy releases the signal ref from its finalizer, so the
++    // signal becomes collectable only on the *next* GC.
++    const count = async () => {
++      Bun.gc(true);
++      await new Promise(r => setImmediate(r));
++      Bun.gc(true);
++      return heapStats().objectTypeCounts.AbortSignal || 0;
++    };
++    async function once() {
++      const ac = new AbortController();
++      const res = await fetch(server.url, { signal: ac.signal });
++      await res.arrayBuffer().catch(() => {});
++    }
++    for (let i = 0; i < 8; i++) await once();
++    const baseline = await count();
++    for (let i = 0; i < 64; i++) await once();
++    const after = await count();
++    // One more with a pending AbortSignal.timeout() so exit teardown runs
++    // BodyAbortListener::drop on a signal whose m_timeout is still set.
++    const res = await fetch(server.url, { signal: AbortSignal.timeout(60_000) });
++    await res.arrayBuffer().catch(() => {});
++    server.stop(true);
++    console.log(JSON.stringify({ baseline, after }));
++    process.exit(after > baseline + 4 ? 1 : 0);
++  `;
++    await using proc = Bun.spawn({
++      cmd: [bunExe(), "-e", script],
++      env: bunEnv,
++      stdout: "pipe",
++      stderr: "pipe",
++    });
++    const [stdout, stderr, exitCode] = await Promise.all([proc.stdout.text(), proc.stderr.text(), proc.exited]);
++    expect(stderr).toBe("");
++    expect(stdout).toContain('"after"');
++    expect(exitCode).toBe(0);
++  },
++  isASAN ? 30_000 : 5_000,
++);

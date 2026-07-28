@@ -1,0 +1,21 @@
+[
+  {
+    "_note": "Cross-check with a 502 KB body (https://github.com/oven-sh/bun) to confirm the cancel-flat result holds at a different body size. Body is fully buffered in all three binaries, so the code path is the same; only the absolute leak magnitude scales.",
+    "binary": "Bun 1.3.2",
+    "body_size_bytes": 513946,
+    "label": "cancel",
+    "per_req_kb": 601.92
+  },
+  {
+    "binary": "Bun 1.3.14",
+    "body_size_bytes": 513947,
+    "label": "cancel",
+    "per_req_kb": 557.4
+  },
+  {
+    "binary": "PR 35093 (1.4.0-canary.1)",
+    "body_size_bytes": 513946,
+    "label": "cancel",
+    "per_req_kb": -26.84
+  }
+]
