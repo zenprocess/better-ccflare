@@ -370,3 +370,124 @@ Expected output: 4–5 pass, 0 fail (depending on the timeout-bumped test).
   modified. The harness inlines copies of the strategies for self-contained
   execution.
 - **No push, no PR, no issue comment, no remote calls.** Per task constraints.
+
+---
+
+## Addendum (from ccflare-20 additional input)
+
+Two follow-up questions from the orchestrator were folded into this
+verification: (1) whether schema drift on `rateLimitStatus` /
+`sessionInfo` affects the session-affinity decision path; (2) the
+exact availability of `SessionAffinityStrategy` across the three
+branches that any live deployment could be running.
+
+### A. Three-branch availability matrix (the "is it the default?" question, refined)
+
+The original question "is `SessionAffinityStrategy` the default?" has
+three distinct answers depending on which branch a deployment is
+running. Verified by `git cat-file -p` on each ref:
+
+| Branch / ref | `StrategyName` enum | `DEFAULT_STRATEGY` | `SessionAffinityStrategy` reachable? |
+|---|---|---|---|
+| `upstream/main` @ `053746c1` | `{ Session, LeastUsed, SessionAffinity, SessionDrainSoonest }` | `Session` | **Yes — but not default.** Must opt in via `LB_STRATEGY=session-affinity` env or `lb_strategy: "session-affinity"` config. |
+| `origin/main` @ `9c44de10` | `{ Session }` | `Session` | **No — absent entirely.** Only `SessionStrategy` is compiled in. `apps/server/src/server.ts` `buildStrategy()` switch has no `case StrategyName.SessionAffinity`. |
+| `origin/zenprocess-deploy` @ `b2c8688e` | `{ Session, LeastUsed }` | `Session` | **No — absent entirely.** Verified by `git cat-file -p origin/zenprocess-deploy:packages/types/src/strategy.ts` which shows `enum StrategyName { Session = "session", LeastUsed = "least-used" }` with no affinity or drain-soonest entries. |
+
+So the three categories the orchestrator asked for:
+
+- **(a) upstream default** — `SessionAffinityStrategy` is NOT the default
+  even on `upstream/main`. `DEFAULT_STRATEGY = StrategyName.Session` in
+  `packages/core/src/strategy.ts:13`. A stock install on upstream/main
+  still uses the OLD `SessionStrategy`.
+- **(b) present-but-not-default** — applies to `upstream/main` only.
+  `SessionAffinityStrategy` exists in the enum and is wired in
+  `apps/server/src/server.ts:87`, but requires opt-in.
+- **(c) absent entirely** — applies to `origin/main` and
+  `origin/zenprocess-deploy`. Neither build can run `SessionAffinityStrategy`
+  — the enum doesn't even name it. Any deployment running either of these
+  branches is stuck on `SessionStrategy` regardless of config.
+
+This refines the headline finding: #240 is live on every stock install
+in all three branches. It is **doubly** live on `origin/main` and
+`origin/zenprocess-deploy` because the fix doesn't even compile into
+those builds.
+
+### B. Schema drift — does it affect session-affinity decisions?
+
+The orchestrator's concern: live ccmax returns `rateLimitStatus` and
+`sessionInfo` as **strings**; the current fork (`origin/main`) types
+them as **objects** (`AccountRateLimitInfo`, `AccountSessionInfo`).
+If the affinity code path reads either field, a string-vs-object
+mismatch could silently break affinity at runtime even when unit
+tests pass against the typed shape.
+
+**Verdict: schema drift does NOT affect session-affinity decisions.**
+
+Evidence (verified by `git grep`):
+
+1. `SessionAffinityStrategy.select()` reads only these fields on `Account`:
+   - `account.id`, `account.name`, `account.provider`,
+     `account.priority`, `account.paused`, `account.rate_limited_until`,
+     `account.requires_reauth`, `account.pause_reason`,
+     `account.rate_limit_reset`.
+   - Plus `store.getAccountUtilization(accountId, provider): number | null`
+     via the `StrategyStore` interface.
+   - Source: `git show upstream/main:packages/load-balancer/src/strategies/session-affinity.ts`
+     — no `rateLimitStatus`, `sessionInfo`, `AccountRateLimitInfo`, or
+     `AccountSessionInfo` references anywhere in the file.
+2. The companion helper `peek-availability.ts` reads: `account.paused`,
+   `account.auto_fallback_enabled`, `account.provider`,
+   `account.rate_limit_reset`, `account.pause_reason`,
+   `account.rate_limited_until`. No `rateLimitStatus` / `sessionInfo`.
+3. The object-typed accessors `getAccountRateLimitInfo()` and
+   `getAccountSessionInfo()` exist ONLY in `origin/main` (introduced by
+   the v2 refactor) and are referenced ONLY from:
+   - `packages/api/src/serializers/account.ts` (API response serializer)
+   - `packages/ui/src/account-display.ts` (UI presenter)
+   - `packages/types/src/account.test.ts` (unit tests)
+   - `git grep` on `packages/proxy/src/`, `packages/load-balancer/src/`,
+     and `packages/core/src/` returns **zero** references. The
+     strategies never call these accessors.
+4. `upstream/main` does not contain `getAccountRateLimitInfo` or
+   `getAccountSessionInfo` at all (these are origin/main-only
+   additions). `git grep "getAccountRateLimitInfo\|getAccountSessionInfo"
+   upstream/main` returns no results. So even the schema drift
+   premise doesn't apply to upstream's code — the upstream types
+   are derived from primitives (`rate_limited_until`, `session_start`,
+   `session_request_count`) at the API/UI boundary and composed into
+   strings there.
+
+What the drift WOULD affect (out of scope here):
+
+- The `/api/accounts` response payload, where the fork types
+  `rateLimitStatus: AccountRateLimitInfo` (object with `code`,
+  `isLimited`, `until`, `resetAt`, `remaining`) but live ccmax
+  returns a string (e.g., `"allowed_warning (5m)"`). A client of
+  the API expecting an object and calling `.code` on the string
+  would get `undefined`. This is a display/serialization concern,
+  not an affinity decision concern.
+
+**Conclusion on the headline question:** the orchestrator's "this
+would be a headline finding" worry does not materialize. The schema
+drift exists at the API output layer, but it does not reach the
+session-affinity decision code path. SessionAffinityStrategy (when
+present in the build) operates on primitives and a `number | null`
+store interface; it does not touch the drifted fields.
+
+### C. Combined net answer (incorporating both addenda)
+
+- **Upstream/main builds**: #240 is live by default, mitigable by
+  opt-in to `SessionAffinityStrategy`. Schema drift does not apply
+  (upstream doesn't have the object-typed accessors).
+- **Origin/main builds**: #240 is live by default AND
+  `SessionAffinityStrategy` is absent from the compiled code. No
+  config change can resolve #240. Schema drift exists at the API
+  layer but doesn't reach the (single) strategy's decisions.
+- **Origin/zenprocess-deploy builds**: same as origin/main —
+  `SessionAffinityStrategy` absent, schema drift at API layer only.
+
+For all three branches, the cache-thrash mitigation in upstream's
+`SessionAffinityStrategy` is not available without first back-porting
+the strategy into the fork. The orchestrator's branch-fact is
+correct: deployment branches without `SessionAffinityStrategy`
+compiled in cannot opt into it.
