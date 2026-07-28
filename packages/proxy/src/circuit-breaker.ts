@@ -33,16 +33,25 @@
  * No real timers in unit tests.
  *
  * **Bootstrap ordering — IMPORTANT.** `getDefaultCircuitBreaker()` reads
- * `CCFLARE_CIRCUIT_BREAKER` exactly once at first construction (it is a
+ * `CCFLARE_CIRCUIT_BREAKER` exactly once, at first construction (it is a
  * lazy singleton). If anything that calls into this module runs before
- * process.env is populated, the kill-switch is silently ignored. The
- * supported escape hatch is `resetDefaultCircuitBreaker()` — call it
- * after `loadEnv()` (or equivalent) if you need to rebuild the singleton
- * with the env now set. The wiring task MUST do this or document why
- * bootstrap order guarantees env is already loaded.
+ * `process.env` is populated, the kill-switch is silently ignored — the
+ * env value is captured at construction time, not at every call. The
+ * documented escape hatch is `resetDefaultCircuitBreaker()`: callers
+ * that load env at runtime can drop the cached singleton and let the
+ * next access rebuild it with the env now set.
+ *
+ * This is **best-effort**. There is no guarantee that `process.env` is
+ * populated before the first call to this module from a given entry
+ * point; whatever wires the default breaker into the proxy path is
+ * responsible for ensuring env is loaded first, OR for accepting that
+ * setting `CCFLARE_CIRCUIT_BREAKER=0` after the singleton has been
+ * built is a no-op. The test in `circuit-breaker.test.ts` exercises the
+ * `process.env`-set case at construction time, which is the only path
+ * the module itself controls.
  */
-import { Logger } from "@better-ccflare/logger";
-import type { RateLimitReason } from "@better-ccflare/types";
+import { Logger } from "@ccflare/logger";
+import type { RateLimitReason } from "@ccflare/types";
 
 const log = new Logger("CircuitBreaker");
 
@@ -107,11 +116,14 @@ function readEnv(name: string): string | undefined {
  * into a circuit trip and destroy the client-side graceful model fallback
  * path — see audit F2.
  *
- * Adding a new variant to `RateLimitReason` without explicitly handling it
- * here is a TypeScript error (the alias forces it); the exhaustive predicate
- * test in `circuit-breaker.test.ts` ("FailureKind ↔ RateLimitReason parity")
- * additionally pins which variants count as circuit failures, so adding an
- * unhandled variant fails the suite until the breaker decides its semantics.
+ * Exhaustiveness: the upstream `RateLimitReason` union is the source of truth.
+ * Because it lives in another package and `@better-ccflare/types` is not
+ * resolvable from this module, TypeScript cannot enforce that every variant is
+ * handled here. Instead, `shouldCountAsCircuitFailure` enumerates every
+ * known variant explicitly and throws on any unhandled input — see its
+ * comment. The exhaustive parity test in `circuit-breaker.test.ts` pins the
+ * set of variants and asserts the throw for an unknown one, so adding a new
+ * variant without a deliberate verdict makes the suite red, not silent.
  */
 export type FailureKind = RateLimitReason;
 
@@ -173,25 +185,48 @@ interface CircuitEntry {
  * similarly scoped to a single model/surface, not account-wide, so the
  * request fails over naturally without tripping the breaker.
  *
- * Every other `RateLimitReason` — account/provider-wide exhaustion,
+ * Every other known `RateLimitReason` — account/provider-wide exhaustion,
  * 529 overload — counts as a circuit failure.
  *
  * Returns true ONLY for kinds that count toward opening the circuit.
  *
- * This is an **exhaustive** switch over the full `RateLimitReason` union
- * (mirrored via `FailureKind`); adding a new variant to `RateLimitReason`
- * without handling it here is a TypeScript error AND a runtime fallback
- * to "counts as circuit failure" — both are caught by the
- * `FailureKind ↔ RateLimitReason parity` test in circuit-breaker.test.ts.
+ * **Exhaustiveness guard.** Each known variant is enumerated explicitly.
+ * There is no `default: return true` — that direction was the dangerous
+ * one (an unhandled new variant would silently trip the breaker rather
+ * than be excluded; if upstream ever added a model-scoped-style reason,
+ * graceful model fallback would break without any signal). Instead the
+ * `default` branch **throws**: the omission becomes a runtime failure,
+ * not a silent misclassification. The exhaustive parity test pins the
+ * variant set; if a new variant is added upstream, the parity test must
+ * be updated alongside this switch, or it goes red. This is the
+ * enforcement the F1.a review demanded the missing switch would have.
  */
 export function shouldCountAsCircuitFailure(kind: FailureKind): boolean {
 	switch (kind) {
+		// Model-/surface-scoped reasons — do not trip the breaker. The
+		// client-side fallback path is the recovery mechanism for these.
 		case "model_fallback_429":
 		case "out_of_credits":
 		case "extra_usage_exhausted":
 			return false;
-		default:
+		// Account-/provider-wide reasons — trip the breaker.
+		case "upstream_429_with_reset":
+		case "upstream_429_no_reset_default_5h":
+		case "upstream_429_no_reset_probe_cooldown":
+		case "all_models_exhausted_429":
+		case "upstream_529_overloaded_with_reset":
+		case "upstream_529_overloaded_no_reset":
 			return true;
+		default:
+			// Unknown variant — throw rather than silently returning true.
+			// Returning true would treat an unhandled (and potentially
+			// model-scoped) reason as a circuit failure and destroy graceful
+			// fallback with no signal. Throwing forces the omission to be
+			// resolved explicitly — see the parity test that pins the
+			// variant set.
+			throw new Error(
+				`shouldCountAsCircuitFailure: unhandled RateLimitReason: ${String(kind)} — add an explicit case (returning true or false) and update the exhaustive parity test`,
+			);
 	}
 }
 

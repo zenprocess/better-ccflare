@@ -499,16 +499,19 @@ describe("F2: FailureKind ↔ RateLimitReason parity", () => {
 	});
 
 	test("the breaker accepts every variant of the upstream RateLimitReason enum", () => {
-		// Exhaustiveness contract: every variant of `RateLimitReason`
-		// must be accepted by `shouldCountAsCircuitFailure` (which is
-		// now an exhaustive switch over the union). If a new variant
-		// is added to the upstream enum, the type alias makes this test
-		// a compile error until `shouldCountAsCircuitFailure` is
-		// updated to handle it explicitly.
+		// Exhaustiveness contract: every known variant of `RateLimitReason`
+		// must be accepted by `shouldCountAsCircuitFailure` (which is now
+		// an exhaustive switch with NO `default: return true` — see the
+		// "F1.a" test below for the runtime guard).
 		//
-		// Concrete variants are pinned here; a missing literal in this
-		// list ALSO causes a compile error. Either failure mode is
-		// caught at typecheck time.
+		// NOTE on compile-time enforcement: `@better-ccflare/types` is
+		// not resolvable from this package (see circuit-breaker.ts
+		// imports), so `FailureKind = RateLimitReason` does not yield a
+		// literal-union type at compile time. We therefore pin the
+		// variant list here AND assert the runtime throw for any unknown
+		// literal — see the "F1.a" test. A new upstream variant that is
+		// not in this list will: (a) not be in the predicate's switch
+		// arms, (b) hit the throw at runtime, (c) flip this suite RED.
 		const everyVariant = [
 			"upstream_429_with_reset",
 			"upstream_429_no_reset_default_5h",
@@ -520,10 +523,68 @@ describe("F2: FailureKind ↔ RateLimitReason parity", () => {
 			"out_of_credits",
 			"extra_usage_exhausted",
 		] as const;
-		// And every verdict must be a boolean (i.e. the predicate covers
-		// the variant rather than letting it fall through to undefined).
+		// Every verdict must be a boolean (the predicate must cover the
+		// variant rather than letting it fall through to undefined).
 		for (const variant of everyVariant) {
 			expect(typeof shouldCountAsCircuitFailure(variant)).toBe("boolean");
+		}
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// F1.a — exhaustiveness guard: the predicate must NOT silently classify
+// an unhandled variant. The pre-fix `default: return true` did exactly
+// that — an unhandled new `RateLimitReason` (potentially a new
+// model-scoped-style reason) would silently trip the breaker and destroy
+// graceful model fallback with no signal. The fix replaces the silent
+// fallthrough with an explicit throw; this test pins that behavior.
+// ─────────────────────────────────────────────────────────────────────────
+describe("F1.a: unknown RateLimitReason does NOT silently count as a circuit failure", () => {
+	// Cast helpers — the test deliberately probes the predicate with
+	// values OUTSIDE the `RateLimitReason` union. TypeScript correctly
+	// rejects the bare literals at compile time (which is the second
+	// line of defense — a regression that drops a known variant from
+	// the union fails the parity test above AND the typecheck here).
+	const asUnknown = (s: string): unknown => s;
+	const asKind = (s: string) => asUnknown(s) as Parameters<typeof shouldCountAsCircuitFailure>[0];
+
+	test("an unknown variant throws — it does NOT return true (the dangerous direction)", () => {
+		// A previous audit flagged that `default: return true` in
+		// `shouldCountAsCircuitFailure` made adding a new
+		// `RateLimitReason` variant a silent fallthrough into "trip
+		// the breaker" — the dangerous direction for any variant that
+		// happens to be model-/surface-scoped. The fix enumerates every
+		// known variant and throws on anything else. This test pins
+		// the throw, so a future regression to `default: return true`
+		// flips this RED.
+		const FRESH_VARIANT_THAT_DOES_NOT_EXIST =
+			"future_model_scoped_reason_yet_to_be_invented";
+		expect(() =>
+			shouldCountAsCircuitFailure(asKind(FRESH_VARIANT_THAT_DOES_NOT_EXIST)),
+		).toThrow(/unhandled RateLimitReason/i);
+	});
+
+	test("an unknown variant does NOT return false either (exclusion must also be explicit)", () => {
+		// Symmetric: the throw is the only acceptable behavior. A
+		// regression to `default: return false` would silently treat
+		// an unhandled variant as non-circuit (and conversely could
+		// miss a real circuit trip). The throw is what forces the
+		// omission to be resolved explicitly.
+		expect(() =>
+			shouldCountAsCircuitFailure(asKind("totally_unknown_thing")),
+		).toThrow();
+	});
+
+	test("the throw message names the unhandled variant (so the operator sees what to add)", () => {
+		// Operator experience: the throw must name the literal so the
+		// dev fixing the omission can grep / pattern-match the message.
+		try {
+			shouldCountAsCircuitFailure(asKind("hypothetical_new_kind_429"));
+			// If we get here, no throw — fail the test explicitly.
+			expect.unreachable("expected shouldCountAsCircuitFailure to throw");
+		} catch (err) {
+			expect(err instanceof Error).toBe(true);
+			expect((err as Error).message).toContain("hypothetical_new_kind_429");
 		}
 	});
 });
