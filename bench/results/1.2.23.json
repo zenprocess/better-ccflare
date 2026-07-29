@@ -1,0 +1,65 @@
+[
+  {
+    "case": "consume",
+    "bun_revision": "cf1367137da5775dc23cb57f0e4071776e1ff90f",
+    "bun_version": "1.2.23",
+    "target_url": "https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js",
+    "body_size_bytes": 73015,
+    "N": 500,
+    "warmup": 50,
+    "rss_before_kb": 24512,
+    "rss_after_kb": 32248,
+    "delta_kb": 7736,
+    "per_req_kb": 15.47,
+    "rss_samples_kb": [
+      24512,
+      26680,
+      27744,
+      29192,
+      31012,
+      32248
+    ]
+  },
+  {
+    "case": "cancel",
+    "bun_revision": "cf1367137da5775dc23cb57f0e4071776e1ff90f",
+    "bun_version": "1.2.23",
+    "target_url": "https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js",
+    "body_size_bytes": 73015,
+    "N": 500,
+    "warmup": 50,
+    "rss_before_kb": 33600,
+    "rss_after_kb": 41368,
+    "delta_kb": 7768,
+    "per_req_kb": 15.54,
+    "rss_samples_kb": [
+      33600,
+      40084,
+      45380,
+      52704,
+      35852,
+      41368
+    ]
+  },
+  {
+    "case": "held",
+    "bun_revision": "cf1367137da5775dc23cb57f0e4071776e1ff90f",
+    "bun_version": "1.2.23",
+    "target_url": "https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js",
+    "body_size_bytes": 73015,
+    "N": 500,
+    "warmup": 50,
+    "rss_before_kb": 40888,
+    "rss_after_kb": 45440,
+    "delta_kb": 4552,
+    "per_req_kb": 9.1,
+    "rss_samples_kb": [
+      40888,
+      30424,
+      26712,
+      29996,
+      37656,
+      45440
+    ]
+  }
+]

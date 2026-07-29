@@ -1,0 +1,21 @@
+{
+  "case": "cancel",
+  "bun_revision": "cf1367137da5775dc23cb57f0e4071776e1ff90f",
+  "bun_version": "1.2.23",
+  "target_url": "https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js",
+  "body_size_bytes": 73015,
+  "N": 500,
+  "warmup": 50,
+  "rss_before_kb": 25008,
+  "rss_after_kb": 27364,
+  "delta_kb": 2356,
+  "per_req_kb": 4.71,
+  "rss_samples_kb": [
+    25008,
+    25944,
+    23488,
+    25240,
+    33876,
+    27364
+  ]
+}

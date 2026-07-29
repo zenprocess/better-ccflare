@@ -1,0 +1,21 @@
+{
+  "case": "held",
+  "bun_revision": "cf1367137da5775dc23cb57f0e4071776e1ff90f",
+  "bun_version": "1.2.23",
+  "target_url": "https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js",
+  "body_size_bytes": 73015,
+  "N": 500,
+  "warmup": 50,
+  "rss_before_kb": 24820,
+  "rss_after_kb": 24432,
+  "delta_kb": -388,
+  "per_req_kb": -0.78,
+  "rss_samples_kb": [
+    24820,
+    25604,
+    22320,
+    21988,
+    30044,
+    24432
+  ]
+}
