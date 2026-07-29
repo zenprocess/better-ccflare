@@ -1,0 +1,19 @@
+{
+  "name": "bun-pr",
+  "version": "1.0.41",
+  "module": "bun-pr.ts",
+  "type": "module",
+  "bin": {
+    "bun-pr": "bun-pr.ts",
+    "bun-reduce": "bun-reduce.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "files": [
+    "bun-pr.ts",
+    "bun-reduce.ts",
+    "package.json",
+    "README.md"
+  ]
+}
