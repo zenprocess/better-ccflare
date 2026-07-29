@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { Database } from "bun:sqlite";
-import { CLAUDE_MODEL_IDS } from "@better-ccflare/core";
-import { Logger } from "@better-ccflare/logger";
+import { Logger } from "@ccflare/logger";
+import type { DatabaseOperations } from "./database-operations";
 import { resolveDbPath } from "./paths";
 import { analyzeIndexUsage } from "./performance-indexes";
 
@@ -39,7 +39,7 @@ function analyzeQueryPerformance(db: Database) {
 			name: "Success rate calculation",
 			query: `
 				SELECT 
-					SUM(CASE WHEN success = TRUE THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as success_rate
+					SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as success_rate
 				FROM requests 
 				WHERE timestamp > ?
 			`,
@@ -82,7 +82,7 @@ function analyzeQueryPerformance(db: Database) {
 				WHERE row_num = CAST(CEIL(total_count * 0.95) AS INTEGER)
 				LIMIT 1
 			`,
-			params: [CLAUDE_MODEL_IDS.SONNET_5],
+			params: ["claude-3-5-sonnet-20241022"],
 		},
 	];
 
@@ -164,6 +164,15 @@ function showIndexStats(db: Database) {
 /**
  * Main function
  */
+export function analyzeDatabasePerformance(dbOps: DatabaseOperations): void {
+	const db = dbOps.getDatabase();
+	log.info("\n=== Database Performance Analysis ===\n");
+	analyzeIndexUsage(db);
+	showIndexStats(db);
+	analyzeQueryPerformance(db);
+	log.info("\n=== Analysis Complete ===\n");
+}
+
 function main() {
 	const dbPath = resolveDbPath();
 	log.info(`Analyzing database at: ${dbPath}\n`);
@@ -171,15 +180,9 @@ function main() {
 	const db = new Database(dbPath, { readonly: true });
 
 	try {
-		// Show basic index usage analysis
 		analyzeIndexUsage(db);
-
-		// Show detailed index statistics
 		showIndexStats(db);
-
-		// Analyze query performance
 		analyzeQueryPerformance(db);
-
 		log.info("\n=== Analysis Complete ===\n");
 	} finally {
 		db.close();

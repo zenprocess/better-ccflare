@@ -1,8 +1,34 @@
 import type { OAuthProvider, Provider } from "./types";
 
-class ProviderRegistry {
+type ProviderWithOAuth = Provider & {
+	supportsOAuth: () => boolean;
+	getOAuthProvider: () => OAuthProvider;
+};
+
+export interface ResolvedProvider {
+	provider: Provider;
+	upstreamPath: string;
+	query: string;
+}
+
+function supportsOAuth(provider: Provider): provider is ProviderWithOAuth {
+	return (
+		"supportsOAuth" in provider &&
+		typeof provider.supportsOAuth === "function" &&
+		"getOAuthProvider" in provider &&
+		typeof provider.getOAuthProvider === "function"
+	);
+}
+
+export class ProviderRegistry {
 	private providers = new Map<string, Provider>();
 	private oauthProviders = new Map<string, OAuthProvider>();
+
+	constructor(providers: Provider[] = []) {
+		for (const provider of providers) {
+			this.registerProvider(provider);
+		}
+	}
 
 	/**
 	 * Register a provider
@@ -11,19 +37,8 @@ class ProviderRegistry {
 		this.providers.set(provider.name, provider);
 
 		// Auto-register OAuth provider if supported
-		if (
-			"supportsOAuth" in provider &&
-			typeof provider.supportsOAuth === "function" &&
-			"getOAuthProvider" in provider &&
-			typeof provider.getOAuthProvider === "function"
-		) {
-			const supportsOAuth = provider.supportsOAuth as () => boolean;
-			if (supportsOAuth()) {
-				const getOAuthProvider =
-					provider.getOAuthProvider as () => OAuthProvider;
-				const oauthProvider = getOAuthProvider();
-				this.oauthProviders.set(provider.name, oauthProvider);
-			}
+		if (supportsOAuth(provider) && provider.supportsOAuth()) {
+			this.oauthProviders.set(provider.name, provider.getOAuthProvider());
 		}
 	}
 
@@ -56,6 +71,46 @@ class ProviderRegistry {
 	}
 
 	/**
+	 * Resolve a provider-prefixed route into a provider and upstream path.
+	 */
+	resolveProvider(pathname: string): ResolvedProvider | null {
+		const queryIndex = pathname.indexOf("?");
+		const path = queryIndex >= 0 ? pathname.slice(0, queryIndex) : pathname;
+		const query = queryIndex >= 0 ? pathname.slice(queryIndex) : "";
+
+		if (!path.startsWith("/v1/")) {
+			return null;
+		}
+
+		const remainder = path.slice("/v1/".length);
+		if (!remainder) {
+			return null;
+		}
+
+		const slashIndex = remainder.indexOf("/");
+		const providerName =
+			slashIndex >= 0 ? remainder.slice(0, slashIndex) : remainder;
+
+		if (!providerName) {
+			return null;
+		}
+
+		const provider = this.getProvider(providerName);
+		if (!provider) {
+			return null;
+		}
+
+		const upstreamPath =
+			slashIndex >= 0 ? remainder.slice(slashIndex) || "/" : "/";
+
+		return {
+			provider,
+			upstreamPath,
+			query,
+		};
+	}
+
+	/**
 	 * Unregister a provider (useful for testing)
 	 */
 	unregisterProvider(name: string): boolean {
@@ -74,12 +129,13 @@ class ProviderRegistry {
 
 // Create singleton registry instance
 export const registry = new ProviderRegistry();
+export const createProviderRegistry = (providers: Provider[] = []) =>
+	new ProviderRegistry(providers);
 
 // Export convenience functions
 export const registerProvider = (provider: Provider) =>
 	registry.registerProvider(provider);
-export const getProvider = (name: string) => registry.getProvider(name);
 export const getOAuthProvider = (name: string) =>
 	registry.getOAuthProvider(name);
-export const listProviders = () => registry.listProviders();
-export const listOAuthProviders = () => registry.listOAuthProviders();
+export const resolveProvider = (pathname: string) =>
+	registry.resolveProvider(pathname);

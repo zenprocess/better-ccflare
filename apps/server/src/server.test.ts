@@ -1,135 +1,199 @@
 import { describe, expect, it } from "bun:test";
-import { supportsRefreshBackedUsagePolling } from "./server";
+import { ProviderRegistry } from "@ccflare/providers";
+import type { ProxyContext } from "@ccflare/proxy";
+import { createServerFetchHandler, createStartupBanner } from "./server";
 
-describe("supportsRefreshBackedUsagePolling", () => {
-	it("includes pollable OAuth providers that need token refresh", () => {
-		expect(supportsRefreshBackedUsagePolling("anthropic")).toBe(true);
-		expect(supportsRefreshBackedUsagePolling("xai")).toBe(true);
+function createProxyContext(): ProxyContext {
+	return {
+		providerRegistry: new ProviderRegistry(),
+		strategy: {
+			select() {
+				return [];
+			},
+		},
+		dbOps: {
+			getAllAccounts() {
+				return [];
+			},
+			getAccountsByProvider() {
+				return [];
+			},
+		},
+		runtime: {
+			clientId: "test-client",
+			retry: {
+				attempts: 1,
+				delayMs: 0,
+				backoff: 1,
+			},
+			sessionDurationMs: 0,
+			port: 8080,
+		},
+		refreshInFlight: new Map(),
+		asyncWriter: {
+			enqueue() {},
+		},
+		usageWorker: {
+			postMessage() {},
+		} as unknown as Worker,
+	} as unknown as ProxyContext;
+}
+
+describe("createServerFetchHandler", () => {
+	it("describes multi-provider routing in the startup banner", () => {
+		const banner = createStartupBanner({
+			version: "1.0.0",
+			port: 8080,
+			withDashboard: true,
+			strategy: "session",
+			providers: ["anthropic", "openai"],
+		});
+
+		expect(banner).toContain("/v1/{provider}/*");
+		expect(banner).toContain("Proxy native provider APIs");
+		expect(banner).toContain("Supported providers: anthropic, openai");
+		expect(banner).not.toContain("Claude API");
 	});
 
-	it("does not include providers whose usage is not polled through this path", () => {
-		expect(supportsRefreshBackedUsagePolling("codex")).toBe(false);
-		expect(supportsRefreshBackedUsagePolling("qwen")).toBe(false);
-		expect(supportsRefreshBackedUsagePolling("nanogpt")).toBe(false);
-		expect(supportsRefreshBackedUsagePolling(null)).toBe(false);
+	it("routes provider-prefixed requests to the proxy handler", async () => {
+		let proxyCalls = 0;
+		const fetchHandler = createServerFetchHandler({
+			apiRouter: {
+				handleRequest: async () => null,
+			},
+			proxyContext: createProxyContext(),
+			withDashboard: true,
+			handleProxyRequest: async () => {
+				proxyCalls += 1;
+				return new Response("proxied");
+			},
+			serveDashboardAsset: () => null,
+		});
+
+		const response = await fetchHandler(
+			new Request("http://localhost:8080/v1/anthropic/v1/messages", {
+				method: "POST",
+			}),
+		);
+
+		if (!response) {
+			throw new Error("Expected an HTTP response");
+		}
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("proxied");
+		expect(proxyCalls).toBe(1);
 	});
-});
 
-describe("readShutdownDrainMs", () => {
-	const { readShutdownDrainMs, SHUTDOWN_DRAIN_MS_ENV } = require("./server");
+	it("routes /v1/ccflare compatibility requests before the provider proxy", async () => {
+		let compatibilityCalls = 0;
+		let proxyCalls = 0;
+		const fetchHandler = createServerFetchHandler({
+			apiRouter: {
+				handleRequest: async () => null,
+			},
+			proxyContext: createProxyContext(),
+			withDashboard: true,
+			handleCompatibilityRequest: async () => {
+				compatibilityCalls += 1;
+				return new Response("compat");
+			},
+			handleProxyRequest: async () => {
+				proxyCalls += 1;
+				return new Response("proxied");
+			},
+			serveDashboardAsset: () => null,
+		});
 
-	it("defaults to 60s and parses overrides", () => {
-		delete process.env[SHUTDOWN_DRAIN_MS_ENV];
-		expect(readShutdownDrainMs()).toBe(60_000);
-		process.env[SHUTDOWN_DRAIN_MS_ENV] = "5000";
-		expect(readShutdownDrainMs()).toBe(5_000);
-		process.env[SHUTDOWN_DRAIN_MS_ENV] = "0";
-		expect(readShutdownDrainMs()).toBe(0);
-		process.env[SHUTDOWN_DRAIN_MS_ENV] = "nonsense";
-		expect(readShutdownDrainMs()).toBe(60_000);
-		delete process.env[SHUTDOWN_DRAIN_MS_ENV];
+		const response = await fetchHandler(
+			new Request("http://localhost:8080/v1/ccflare/openai/chat/completions", {
+				method: "POST",
+				body: JSON.stringify({ model: "openai/gpt-4o-mini" }),
+				headers: { "content-type": "application/json" },
+			}),
+		);
+
+		if (!response) {
+			throw new Error("Expected an HTTP response");
+		}
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("compat");
+		expect(compatibilityCalls).toBe(1);
+		expect(proxyCalls).toBe(0);
 	});
 
-	it("rejects numeric prefixes and clamps oversized values", () => {
-		const { MAX_SHUTDOWN_DRAIN_MS } = require("./server");
-		// parseInt would read "1abc" as a 1ms drain; treat it as invalid.
-		process.env[SHUTDOWN_DRAIN_MS_ENV] = "1abc";
-		expect(readShutdownDrainMs()).toBe(60_000);
-		// Values beyond the clamp would overflow setTimeout's 32-bit delay and
-		// make the watchdog fire immediately.
-		process.env[SHUTDOWN_DRAIN_MS_ENV] = "99999999999";
-		expect(readShutdownDrainMs()).toBe(MAX_SHUTDOWN_DRAIN_MS);
-		// Beyond MAX_SAFE_INTEGER must still clamp, not fall back to 60s.
-		process.env[SHUTDOWN_DRAIN_MS_ENV] = "9007199254740992";
-		expect(readShutdownDrainMs()).toBe(MAX_SHUTDOWN_DRAIN_MS);
-		delete process.env[SHUTDOWN_DRAIN_MS_ENV];
-	});
-});
+	it("routes websocket upgrade requests through the websocket upgrader", async () => {
+		let proxyCalls = 0;
+		let upgradeCalls = 0;
+		const fetchHandler = createServerFetchHandler({
+			apiRouter: {
+				handleRequest: async () => null,
+			},
+			proxyContext: createProxyContext(),
+			withDashboard: true,
+			handleProxyRequest: async () => {
+				proxyCalls += 1;
+				return new Response("proxied");
+			},
+			handleWebSocketUpgrade: () => {
+				upgradeCalls += 1;
+				return undefined;
+			},
+			serveDashboardAsset: () => null,
+		});
 
-describe("trackStreamForShutdown", () => {
-	const { trackStreamForShutdown, abortInflightStreams } = require("./server");
-
-	const endlessResponse = () =>
-		new Response(
-			new ReadableStream<Uint8Array>({
-				async pull(controller) {
-					controller.enqueue(new TextEncoder().encode("tick\n"));
-					await new Promise((r) => setTimeout(r, 20));
+		const response = await fetchHandler(
+			new Request("http://localhost:8080/v1/codex/responses", {
+				method: "GET",
+				headers: {
+					connection: "Upgrade",
+					upgrade: "websocket",
 				},
 			}),
-			{ headers: { "content-type": "text/event-stream" } },
+			{
+				upgrade() {
+					return true;
+				},
+			} as unknown as Bun.Server<unknown>,
 		);
 
-	it("errors tracked never-ending streams on abort", async () => {
-		const wrapped = trackStreamForShutdown(endlessResponse());
-		const reader = wrapped.body?.getReader();
-		if (!reader) throw new Error("wrapped response lost its body");
-		await reader.read(); // stream is live
-		const first = abortInflightStreams();
-		expect(first.aborted).toBe(1);
-		await first.settled;
-		await expect(
-			(async () => {
-				while (true) {
-					const { done } = await reader.read();
-					if (done) break;
-				}
-			})(),
-		).rejects.toThrow(/drain deadline/);
-		// Registry is drained; a second sweep has nothing to abort.
-		const second = abortInflightStreams();
-		expect(second.aborted).toBe(0);
-		await second.settled;
+		expect(response).toBeUndefined();
+		expect(upgradeCalls).toBe(1);
+		expect(proxyCalls).toBe(0);
 	});
 
-	it("unregisters streams that complete normally", async () => {
-		const wrapped = trackStreamForShutdown(
-			new Response(
-				new ReadableStream<Uint8Array>({
-					start(controller) {
-						controller.enqueue(new TextEncoder().encode("done"));
-						controller.close();
-					},
-				}),
-			),
+	it("returns 404 for non-v1 proxy-like routes instead of falling back", async () => {
+		let proxyCalls = 0;
+		let dashboardCalls = 0;
+		const fetchHandler = createServerFetchHandler({
+			apiRouter: {
+				handleRequest: async () => null,
+			},
+			proxyContext: createProxyContext(),
+			withDashboard: true,
+			handleProxyRequest: async () => {
+				proxyCalls += 1;
+				return new Response("proxied");
+			},
+			serveDashboardAsset: () => {
+				dashboardCalls += 1;
+				return new Response("dashboard");
+			},
+		});
+
+		const response = await fetchHandler(
+			new Request("http://localhost:8080/v2/messages", {
+				method: "POST",
+			}),
 		);
-		expect(await wrapped.text()).toBe("done");
-		const result = abortInflightStreams();
-		expect(result.aborted).toBe(0);
-		await result.settled;
-	});
 
-	it("passes non-stream responses through untouched", () => {
-		const plain = new Response(null, { status: 204 });
-		expect(trackStreamForShutdown(plain)).toBe(plain);
-	});
+		if (!response) {
+			throw new Error("Expected an HTTP response");
+		}
 
-	it("resolves abort settlements after source cancellation, not a fixed sleep", async () => {
-		let cancelResolved = false;
-		const delayedCancelResponse = () =>
-			new Response(
-				new ReadableStream<Uint8Array>({
-					async pull(controller) {
-						controller.enqueue(new TextEncoder().encode("tick\n"));
-						await new Promise((r) => setTimeout(r, 20));
-					},
-					async cancel() {
-						await new Promise((r) => setTimeout(r, 30));
-						cancelResolved = true;
-					},
-				}),
-				{ headers: { "content-type": "text/event-stream" } },
-			);
-
-		const wrapped = trackStreamForShutdown(delayedCancelResponse());
-		const reader = wrapped.body?.getReader();
-		if (!reader) throw new Error("wrapped response lost its body");
-		await reader.read();
-		const { aborted, settled } = abortInflightStreams();
-		expect(aborted).toBe(1);
-		expect(cancelResolved).toBe(false);
-		await settled;
-		expect(cancelResolved).toBe(true);
-		reader.cancel().catch(() => {});
+		expect(response.status).toBe(404);
+		expect(proxyCalls).toBe(0);
+		expect(dashboardCalls).toBe(0);
 	});
 });

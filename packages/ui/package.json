@@ -1,0 +1,22 @@
+{
+	"name": "@ccflare/ui",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./*": "./src/*.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "bun test ./src"
+	},
+	"dependencies": {
+		"@ccflare/core": "workspace:*",
+		"@ccflare/types": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/node": "^22.10.2",
+		"typescript": "^5.7.2"
+	}
+}

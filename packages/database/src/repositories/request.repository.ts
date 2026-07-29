@@ -1,104 +1,35 @@
-import { Logger } from "@better-ccflare/logger";
-import type {
-	AgentAttributionSource,
-	ProjectAttributionSource,
-} from "@better-ccflare/types";
-import { decryptPayload, encryptPayload } from "../payload-encryption";
+import { Logger } from "@ccflare/logger";
+import {
+	type AccountProvider,
+	extractRequestLinkageFromPayload,
+	type HttpMethod,
+	isAccountProvider,
+	isHttpMethod,
+	type RequestSummary,
+	toRequestSummary,
+} from "@ccflare/types";
+import {
+	type RequestRow,
+	type RequestWithAccountName,
+	toRequest,
+	toRequestWithAccountName,
+} from "../models/request-row";
 import { BaseRepository } from "./base.repository";
 
 const log = new Logger("RequestRepository");
 
-// Source-authority ranks for the UPSERT conflict resolution below. Higher
-// number = higher authority. NULL and "none" both fall through to the ELSE
-// branch (rank 0) since neither is an explicit attribution.
-//
-// Project: header (explicit client header) > path (workspace path in the
-// system prompt) > heading (inferred from an H1 heading) > none.
-const PROJECT_SOURCE_RANK_SQL = `CASE %COL%
-	WHEN 'header_project' THEN 3
-	WHEN 'path_project' THEN 2
-	WHEN 'heading_project' THEN 1
-	ELSE 0
-END`;
-// Agent: header (explicit client header) > prompt (inferred from the prompt) > none.
-const AGENT_SOURCE_RANK_SQL = `CASE %COL%
-	WHEN 'header_agent' THEN 2
-	WHEN 'prompt_agent' THEN 1
-	ELSE 0
-END`;
-
-function projectRank(col: string): string {
-	return PROJECT_SOURCE_RANK_SQL.replace("%COL%", col);
-}
-
-function agentRank(col: string): string {
-	return AGENT_SOURCE_RANK_SQL.replace("%COL%", col);
-}
-
-/**
- * Decrypt a stored payload for a list endpoint, swallowing per-row errors
- * so a single corrupted/tampered row cannot take down the whole list.
- *
- * The error is logged so misconfiguration is still observable, and a JSON
- * placeholder is substituted that the dashboard can render as "unreadable".
- *
- * Single-row reads (`getPayload`) MUST stay strict and let the error
- * propagate — there's no fallback that makes sense for a single row.
- */
-async function decryptForList(id: string, json: string): Promise<string> {
-	try {
-		return await decryptPayload(json);
-	} catch (err) {
-		log.error(`Failed to decrypt payload ${id}:`, err);
-		return JSON.stringify({
-			error: "Payload could not be decrypted",
-			id,
-		});
-	}
-}
-
 export interface RequestData {
 	id: string;
-	method: string;
+	method: HttpMethod;
 	path: string;
+	provider: AccountProvider;
+	upstreamPath: string;
 	accountUsed: string | null;
 	statusCode: number | null;
 	success: boolean;
 	errorMessage: string | null;
 	responseTime: number;
 	failoverAttempts: number;
-	agentUsed?: string;
-	apiKeyId?: string;
-	apiKeyName?: string;
-	project?: string | null;
-	billingType?: string;
-	comboName?: string | null;
-	/**
-	 * Model the client originally requested and the model actually sent
-	 * upstream, when an agent-preference rewrite (`isRewriteTargetServable`
-	 * guard notwithstanding) changed it. Both are only populated when a swap
-	 * actually occurred; leave both `undefined`/null when no rewrite happened
-	 * so the columns stay unpopulated rather than duplicating the `model`
-	 * column with an unchanged value.
-	 */
-	originalModel?: string | null;
-	appliedModel?: string | null;
-	projectAttributionSource?: ProjectAttributionSource | null;
-	agentAttributionSource?: AgentAttributionSource | null;
-	/**
-	 * Real SSE termination state for Anthropic-Messages-shaped streams. One of
-	 * "complete" | "recovered" | "error" | "truncated" | "client_cancelled" |
-	 * null/undefined. Undefined/null for non-streaming responses or streams
-	 * not wrapped by the terminal-recovery observer. See
-	 * packages/proxy/src/anthropic-terminal-recovery.ts for the producer.
-	 */
-	streamTerminalState?:
-		| "complete"
-		| "recovered"
-		| "error"
-		| "truncated"
-		| "client_cancelled"
-		| null;
 	usage?: {
 		model?: string;
 		promptTokens?: number;
@@ -109,134 +40,204 @@ export interface RequestData {
 		cacheReadInputTokens?: number;
 		cacheCreationInputTokens?: number;
 		outputTokens?: number;
+		reasoningTokens?: number;
 		tokensPerSecond?: number;
+	};
+	timings?: {
+		ttftMs?: number | null;
+		proxyOverheadMs?: number | null;
+		upstreamTtfbMs?: number | null;
+		streamingDurationMs?: number | null;
 	};
 }
 
+interface PersistRequestData extends RequestData {
+	timestamp?: number;
+	payload?: unknown;
+}
+
 export class RequestRepository extends BaseRepository<RequestData> {
-	async save(data: RequestData): Promise<void> {
-		const { usage } = data;
-		const projectRankIncoming = projectRank(
-			"EXCLUDED.project_attribution_source",
-		);
-		const projectRankExisting = projectRank(
-			"requests.project_attribution_source",
-		);
-		const agentRankIncoming = agentRank("EXCLUDED.agent_attribution_source");
-		const agentRankExisting = agentRank("requests.agent_attribution_source");
-		// An incoming project/agent pair wins the conflict only when it carries a
-		// non-null value AND its source is at least as authoritative as the
-		// existing one. Equal rank still wins (keeps legacy no-source callers,
-		// where both sides rank 0, overwriting as before; and lets a fresh
-		// same-authority re-derivation replace a stale one). Strictly lower rank
-		// never wins, so an omitted/`none`/lower-authority source can no longer
-		// erase or downgrade a higher-authority attribution (e.g. header_*).
-		const projectWinsIncoming = `EXCLUDED.project IS NOT NULL AND ${projectRankIncoming} >= ${projectRankExisting}`;
-		const agentWinsIncoming = `EXCLUDED.agent_used IS NOT NULL AND ${agentRankIncoming} >= ${agentRankExisting}`;
-		await this.run(
+	saveMeta(
+		id: string,
+		method: HttpMethod,
+		path: string,
+		provider: AccountProvider,
+		upstreamPath: string,
+		accountUsed: string | null,
+		statusCode: number | null,
+		timestamp?: number,
+	): void {
+		this.run(
 			`
 			INSERT INTO requests (
-				id, timestamp, method, path, account_used,
-				status_code, success, error_message, response_time_ms, failover_attempts,
-				model, prompt_tokens, completion_tokens, total_tokens, cost_usd,
-				input_tokens, cache_read_input_tokens, cache_creation_input_tokens, output_tokens,
-				agent_used, output_tokens_per_second, api_key_id, api_key_name, project,
-				billing_type, combo_name, original_model, applied_model,
-				project_attribution_source, agent_attribution_source,
-				stream_terminal_state
+				id, timestamp, method, path, provider, upstream_path, account_used, 
+				status_code, success, error_message, response_time_ms, failover_attempts
 			)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-			ON CONFLICT (id) DO UPDATE SET
-				timestamp = EXCLUDED.timestamp,
-				method = EXCLUDED.method,
-				path = EXCLUDED.path,
-				account_used = EXCLUDED.account_used,
-				status_code = EXCLUDED.status_code,
-				success = EXCLUDED.success,
-				error_message = EXCLUDED.error_message,
-				response_time_ms = EXCLUDED.response_time_ms,
-				failover_attempts = EXCLUDED.failover_attempts,
-				model = EXCLUDED.model,
-				prompt_tokens = EXCLUDED.prompt_tokens,
-				completion_tokens = EXCLUDED.completion_tokens,
-				total_tokens = EXCLUDED.total_tokens,
-				cost_usd = EXCLUDED.cost_usd,
-				input_tokens = EXCLUDED.input_tokens,
-				cache_read_input_tokens = EXCLUDED.cache_read_input_tokens,
-				cache_creation_input_tokens = EXCLUDED.cache_creation_input_tokens,
-				output_tokens = EXCLUDED.output_tokens,
-				output_tokens_per_second = EXCLUDED.output_tokens_per_second,
-				api_key_id = EXCLUDED.api_key_id,
-				api_key_name = EXCLUDED.api_key_name,
-				billing_type = COALESCE(EXCLUDED.billing_type, requests.billing_type),
-				combo_name = COALESCE(EXCLUDED.combo_name, requests.combo_name),
-				original_model = COALESCE(EXCLUDED.original_model, requests.original_model),
-				applied_model = COALESCE(EXCLUDED.applied_model, requests.applied_model),
-				-- (project, project_attribution_source) and (agent_used, agent_attribution_source)
-				-- move in LOCKSTEP and are resolved by SOURCE AUTHORITY, not preserve-first or
-				-- unconditional-overwrite (see projectRank/agentRank above). The incoming pair
-				-- replaces the existing pair only when it has a non-null value AND a source rank
-				-- >= the existing source rank; otherwise the existing pair is kept verbatim. This
-				-- stops a re-save with an omitted/none/lower-authority source (e.g. a heading
-				-- re-derived on a later request) from erasing or downgrading a higher-authority
-				-- attribution (e.g. header_project) recorded earlier for the same request id.
-				project = CASE WHEN ${projectWinsIncoming} THEN EXCLUDED.project ELSE requests.project END,
-				project_attribution_source = CASE WHEN ${projectWinsIncoming} THEN EXCLUDED.project_attribution_source ELSE requests.project_attribution_source END,
-				agent_used = CASE WHEN ${agentWinsIncoming} THEN EXCLUDED.agent_used ELSE requests.agent_used END,
-				agent_attribution_source = CASE WHEN ${agentWinsIncoming} THEN EXCLUDED.agent_attribution_source ELSE requests.agent_attribution_source END,
-				-- stream_terminal_state uses preserve-first (COALESCE) — a later
-				-- re-finalization (e.g. updateUsage after handleEnd) shouldn't
-				-- blank out the real SSE termination state the handleEnd path
-				-- recorded. A null incoming value means "I have nothing new",
-				-- not "the stream was clean".
-				stream_terminal_state = COALESCE(EXCLUDED.stream_terminal_state, requests.stream_terminal_state)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 0)
 		`,
 			[
-				data.id,
-				Date.now(),
-				data.method,
-				data.path,
-				data.accountUsed,
-				data.statusCode,
-				data.success,
-				data.errorMessage,
-				data.responseTime,
-				data.failoverAttempts,
-				usage?.model || null,
-				usage?.promptTokens || null,
-				usage?.completionTokens || null,
-				usage?.totalTokens || null,
-				usage?.costUsd || null,
-				usage?.inputTokens || null,
-				usage?.cacheReadInputTokens || null,
-				usage?.cacheCreationInputTokens || null,
-				usage?.outputTokens || null,
-				data.agentUsed || null,
-				usage?.tokensPerSecond || null,
-				data.apiKeyId || null,
-				data.apiKeyName || null,
-				data.project || null,
-				data.billingType || null,
-				data.comboName || null,
-				data.originalModel || null,
-				data.appliedModel || null,
-				data.projectAttributionSource || null,
-				data.agentAttributionSource || null,
-				data.streamTerminalState ?? null,
+				id,
+				timestamp ?? Date.now(),
+				method,
+				path,
+				provider,
+				upstreamPath,
+				accountUsed,
+				statusCode,
 			],
 		);
 	}
 
-	async updateUsage(
+	save(data: PersistRequestData): void {
+		const { usage, timings } = data;
+		const payloadJson =
+			data.payload === undefined ? undefined : JSON.stringify(data.payload);
+		const linkage = extractRequestLinkageFromPayload(data.payload);
+		const responseChainId = this.resolveResponseChainId(
+			linkage.previousResponseId,
+			linkage.responseId,
+			data.id,
+		);
+
+		this.db.run("BEGIN");
+
+		try {
+			this.run(
+				`
+				INSERT OR IGNORE INTO requests (
+					id, timestamp, method, path, provider, upstream_path, account_used,
+					status_code, success, error_message, response_time_ms, failover_attempts
+				)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 0)
+			`,
+				[
+					data.id,
+					data.timestamp ?? Date.now(),
+					data.method,
+					data.path,
+					data.provider,
+					data.upstreamPath,
+					data.accountUsed,
+					data.statusCode,
+				],
+			);
+
+			this.run(
+				`
+				UPDATE requests
+				SET
+					method = ?,
+					path = ?,
+					provider = ?,
+					upstream_path = ?,
+					account_used = ?,
+					status_code = ?,
+					success = ?,
+					error_message = ?,
+					response_time_ms = ?,
+					failover_attempts = ?,
+					model = ?,
+					prompt_tokens = ?,
+					completion_tokens = ?,
+					total_tokens = ?,
+					cost_usd = ?,
+					input_tokens = ?,
+					cache_read_input_tokens = ?,
+					cache_creation_input_tokens = ?,
+					output_tokens = ?,
+					reasoning_tokens = ?,
+					output_tokens_per_second = ?,
+					ttft_ms = ?,
+					proxy_overhead_ms = ?,
+					upstream_ttfb_ms = ?,
+					streaming_duration_ms = ?,
+					response_id = ?,
+					previous_response_id = ?,
+					response_chain_id = ?,
+					client_session_id = ?
+				WHERE id = ?
+			`,
+				[
+					data.method,
+					data.path,
+					data.provider,
+					data.upstreamPath,
+					data.accountUsed,
+					data.statusCode,
+					data.success ? 1 : 0,
+					data.errorMessage,
+					data.responseTime,
+					data.failoverAttempts,
+					usage?.model ?? null,
+					usage?.promptTokens ?? null,
+					usage?.completionTokens ?? null,
+					usage?.totalTokens ?? null,
+					usage?.costUsd ?? null,
+					usage?.inputTokens ?? null,
+					usage?.cacheReadInputTokens ?? null,
+					usage?.cacheCreationInputTokens ?? null,
+					usage?.outputTokens ?? null,
+					usage?.reasoningTokens ?? null,
+					usage?.tokensPerSecond ?? null,
+					timings?.ttftMs ?? null,
+					timings?.proxyOverheadMs ?? null,
+					timings?.upstreamTtfbMs ?? null,
+					timings?.streamingDurationMs ?? null,
+					linkage.responseId,
+					linkage.previousResponseId,
+					responseChainId,
+					linkage.clientSessionId,
+					data.id,
+				],
+			);
+
+			if (payloadJson !== undefined) {
+				this.run(
+					`
+					INSERT INTO request_payloads (id, json)
+					VALUES (?, ?)
+					ON CONFLICT(id) DO UPDATE SET json = excluded.json
+				`,
+					[data.id, payloadJson],
+				);
+			}
+
+			this.db.run("COMMIT");
+		} catch (error) {
+			this.db.run("ROLLBACK");
+			throw error;
+		}
+	}
+
+	private resolveResponseChainId(
+		previousResponseId: string | null,
+		responseId: string | null,
 		requestId: string,
-		usage: RequestData["usage"],
-	): Promise<void> {
+	): string {
+		if (previousResponseId) {
+			const parentRow = this.get<{ response_chain_id: string | null }>(
+				`
+					SELECT response_chain_id
+					FROM requests
+					WHERE response_id = ?
+					LIMIT 1
+				`,
+				[previousResponseId],
+			);
+
+			return parentRow?.response_chain_id ?? previousResponseId;
+		}
+
+		return responseId ?? requestId;
+	}
+
+	updateUsage(requestId: string, usage: RequestData["usage"]): void {
 		if (!usage) return;
 
-		await this.run(
+		this.run(
 			`
 			UPDATE requests
-			SET
+			SET 
 				model = COALESCE(?, model),
 				prompt_tokens = COALESCE(?, prompt_tokens),
 				completion_tokens = COALESCE(?, completion_tokens),
@@ -246,71 +247,60 @@ export class RequestRepository extends BaseRepository<RequestData> {
 				cache_read_input_tokens = COALESCE(?, cache_read_input_tokens),
 				cache_creation_input_tokens = COALESCE(?, cache_creation_input_tokens),
 				output_tokens = COALESCE(?, output_tokens),
+				reasoning_tokens = COALESCE(?, reasoning_tokens),
 				output_tokens_per_second = COALESCE(?, output_tokens_per_second)
 			WHERE id = ?
 		`,
 			[
-				usage.model || null,
-				usage.promptTokens || null,
-				usage.completionTokens || null,
-				usage.totalTokens || null,
-				usage.costUsd || null,
-				usage.inputTokens || null,
-				usage.cacheReadInputTokens || null,
-				usage.cacheCreationInputTokens || null,
-				usage.outputTokens || null,
-				usage.tokensPerSecond || null,
+				usage.model ?? null,
+				usage.promptTokens ?? null,
+				usage.completionTokens ?? null,
+				usage.totalTokens ?? null,
+				usage.costUsd ?? null,
+				usage.inputTokens ?? null,
+				usage.cacheReadInputTokens ?? null,
+				usage.cacheCreationInputTokens ?? null,
+				usage.outputTokens ?? null,
+				usage.reasoningTokens ?? null,
+				usage.tokensPerSecond ?? null,
 				requestId,
 			],
 		);
 	}
 
 	// Payload management
-	async savePayload(id: string, data: unknown): Promise<void> {
+	savePayload(id: string, data: unknown): void {
 		const json = JSON.stringify(data);
-		const stored = await encryptPayload(json);
-		const ts = Date.now();
-		await this.run(
-			`INSERT INTO request_payloads (id, json, timestamp) VALUES (?, ?, ?)
-			 ON CONFLICT (id) DO UPDATE SET json = EXCLUDED.json, timestamp = EXCLUDED.timestamp`,
-			[id, stored, ts],
+		this.run(
+			`
+			INSERT INTO request_payloads (id, json)
+			VALUES (?, ?)
+			ON CONFLICT(id) DO UPDATE SET json = excluded.json
+		`,
+			[id, json],
 		);
 	}
 
-	async savePayloadRaw(id: string, json: string): Promise<void> {
-		const stored = await encryptPayload(json);
-		const ts = Date.now();
-		await this.run(
-			`INSERT INTO request_payloads (id, json, timestamp) VALUES (?, ?, ?)
-			 ON CONFLICT (id) DO UPDATE SET json = EXCLUDED.json, timestamp = EXCLUDED.timestamp`,
-			[id, stored, ts],
-		);
-	}
-
-	async getPayload(id: string): Promise<unknown | null> {
-		const row = await this.get<{ json: string }>(
+	getPayload(id: string): unknown | null {
+		const row = this.get<{ json: string }>(
 			`SELECT json FROM request_payloads WHERE id = ?`,
 			[id],
 		);
 
 		if (!row) return null;
 
-		// Decryption errors must propagate — they indicate tampering, a wrong key,
-		// or a missing key for an encrypted row. Silently returning null would
-		// hide real misconfiguration. Only JSON parse errors are tolerated, since
-		// historical rows may contain malformed payloads.
-		const decoded = await decryptPayload(row.json);
 		try {
-			return JSON.parse(decoded);
-		} catch {
+			return JSON.parse(row.json);
+		} catch (error) {
+			log.warn(`Failed to parse request payload for ${id}`, error);
 			return null;
 		}
 	}
 
-	async listPayloads(limit = 50): Promise<Array<{ id: string; json: string }>> {
-		const rows = await this.query<{ id: string; json: string }>(
+	listPayloads(limit = 50): Array<{ id: string; json: string }> {
+		return this.query<{ id: string; json: string }>(
 			`
-			SELECT rp.id, rp.json
+			SELECT rp.id, rp.json 
 			FROM request_payloads rp
 			JOIN requests r ON rp.id = r.id
 			ORDER BY r.timestamp DESC
@@ -318,105 +308,151 @@ export class RequestRepository extends BaseRepository<RequestData> {
 		`,
 			[limit],
 		);
-		return Promise.all(
-			rows.map(async (row) => ({
-				id: row.id,
-				json: await decryptForList(row.id, row.json),
-			})),
-		);
 	}
 
-	async listPayloadsWithAccountNames(limit = 50): Promise<
-		Array<{
+	listPayloadsWithAccountNames(
+		limit = 50,
+	): Array<{ id: string; json: string; account_name: string | null }> {
+		return this.query<{
 			id: string;
-			json: string | null;
-			timestamp: number;
-			account_name: string | null;
-		}>
-	> {
-		const rows = await this.query<{
-			id: string;
-			json: string | null;
-			timestamp: number;
+			json: string;
 			account_name: string | null;
 		}>(
 			`
-			SELECT r.id, r.timestamp, rp.json, a.name as account_name
-			FROM requests r
-			LEFT JOIN request_payloads rp ON rp.id = r.id
+			SELECT rp.id, rp.json, a.name as account_name
+			FROM request_payloads rp
+			JOIN requests r ON rp.id = r.id
 			LEFT JOIN accounts a ON r.account_used = a.id
 			ORDER BY r.timestamp DESC
 			LIMIT ?
 		`,
 			[limit],
 		);
-		return Promise.all(
-			rows.map(async (row) => ({
-				id: row.id,
-				timestamp: row.timestamp,
-				json: row.json ? await decryptForList(row.id, row.json) : null,
-				account_name: row.account_name,
-			})),
+	}
+
+	listResponseChainPayloadsWithAccountNames(
+		requestId: string,
+	): Array<{ id: string; json: string; account_name: string | null }> {
+		return this.query<{
+			id: string;
+			json: string;
+			account_name: string | null;
+		}>(
+			`
+				WITH RECURSIVE chain AS (
+					SELECT
+						r.id,
+						r.previous_response_id,
+						0 AS depth,
+						(',' || r.id || ',') AS visited
+					FROM requests r
+					WHERE r.id = ?
+					UNION ALL
+					SELECT
+						parent.id,
+						parent.previous_response_id,
+						chain.depth + 1 AS depth,
+						(chain.visited || parent.id || ',') AS visited
+					FROM chain
+					JOIN requests parent
+						ON parent.response_id = chain.previous_response_id
+					WHERE
+						chain.previous_response_id IS NOT NULL
+						AND instr(chain.visited, ',' || parent.id || ',') = 0
+				)
+				SELECT rp.id, rp.json, a.name AS account_name
+				FROM chain
+				JOIN requests r ON r.id = chain.id
+				JOIN request_payloads rp ON rp.id = r.id
+				LEFT JOIN accounts a ON r.account_used = a.id
+				ORDER BY chain.depth DESC, r.timestamp ASC
+			`,
+			[requestId],
 		);
 	}
 
 	// Analytics queries
-	async getRecentRequests(limit = 100): Promise<
-		Array<{
-			id: string;
-			timestamp: number;
-			method: string;
-			path: string;
-			account_used: string | null;
-			status_code: number | null;
-			success: boolean;
-			response_time_ms: number | null;
-		}>
-	> {
-		const rows = await this.query<{
-			id: string;
-			timestamp: number;
-			method: string;
-			path: string;
-			account_used: string | null;
-			status_code: number | null;
-			success: 0 | 1;
-			response_time_ms: number | null;
-		}>(
+	getRecentRequests(limit = 100) {
+		return this.query<RequestRow>(
 			`
-			SELECT id, timestamp, method, path, account_used, status_code, success, response_time_ms
-			FROM requests
-			ORDER BY timestamp DESC
-			LIMIT ?
-		`,
+				SELECT *
+				FROM requests
+				ORDER BY timestamp DESC
+				LIMIT ?
+			`,
 			[limit],
-		);
-		return rows.map((row) => ({
-			...row,
-			success: !!row.success,
-		}));
+		).flatMap((row) => {
+			if (!isHttpMethod(row.method) || !isAccountProvider(row.provider)) {
+				return [];
+			}
+
+			return [toRequest(row)];
+		});
 	}
 
-	async getRequestStats(since?: number): Promise<{
+	listSummaries(limit = 100): RequestSummary[] {
+		return this.query<RequestRow & { account_name: string | null }>(
+			`
+				SELECT r.*, a.name as account_name
+				FROM requests r
+				LEFT JOIN accounts a ON r.account_used = a.id
+				ORDER BY r.timestamp DESC
+				LIMIT ?
+			`,
+			[limit],
+		).flatMap((row) => {
+			if (!isHttpMethod(row.method) || !isAccountProvider(row.provider)) {
+				return [];
+			}
+
+			return [
+				{
+					...toRequestSummary(toRequest(row)),
+					accountName: row.account_name ?? null,
+				},
+			];
+		});
+	}
+
+	listWithAccountNames(limit = 100): RequestWithAccountName[] {
+		return this.query<RequestRow & { account_name: string | null }>(
+			`
+				SELECT r.*, a.name as account_name
+				FROM requests r
+				LEFT JOIN accounts a ON r.account_used = a.id
+				ORDER BY r.timestamp DESC
+				LIMIT ?
+			`,
+			[limit],
+		).flatMap((row) => {
+			if (!isHttpMethod(row.method) || !isAccountProvider(row.provider)) {
+				return [];
+			}
+
+			return [toRequestWithAccountName(row)];
+		});
+	}
+
+	getRequestStats(since?: number): {
 		totalRequests: number;
 		successfulRequests: number;
 		failedRequests: number;
 		avgResponseTime: number | null;
-	}> {
+	} {
 		const whereClause = since ? "WHERE timestamp > ?" : "";
 		const params = since ? [since] : [];
 
-		const result = await this.get<{
+		const result = this.get<{
 			total_requests: number;
 			successful_requests: number;
 			failed_requests: number;
 			avg_response_time: number | null;
 		}>(
 			`
-			SELECT
+			SELECT 
 				COUNT(*) as total_requests,
-				SUM(CASE WHEN success = TRUE THEN 1 ELSE 0 END) as successful_requests,
-				SUM(CASE WHEN success = FALSE THEN 1 ELSE 0 END) as failed_requests,
+				SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful_requests,
+				SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed_requests,
 				AVG(response_time_ms) as avg_response_time
 			FROM requests
 			${whereClause}
@@ -425,10 +461,10 @@ export class RequestRepository extends BaseRepository<RequestData> {
 		);
 
 		return {
-			totalRequests: result?.total_requests || 0,
-			successfulRequests: result?.successful_requests || 0,
-			failedRequests: result?.failed_requests || 0,
-			avgResponseTime: result?.avg_response_time || null,
+			totalRequests: result?.total_requests ?? 0,
+			successfulRequests: result?.successful_requests ?? 0,
+			failedRequests: result?.failed_requests ?? 0,
+			avgResponseTime: result?.avg_response_time ?? null,
 		};
 	}
 
@@ -436,8 +472,9 @@ export class RequestRepository extends BaseRepository<RequestData> {
 	 * Aggregate statistics with optional time range
 	 * Consolidates duplicate SQL queries from stats handlers
 	 */
-	async aggregateStats(rangeMs?: number): Promise<{
+	aggregateStats(rangeMs?: number): {
 		totalRequests: number;
+		completedRequests: number;
 		successfulRequests: number;
 		avgResponseTime: number | null;
 		totalTokens: number;
@@ -447,12 +484,13 @@ export class RequestRepository extends BaseRepository<RequestData> {
 		cacheReadInputTokens: number;
 		cacheCreationInputTokens: number;
 		avgTokensPerSecond: number | null;
-	}> {
+	} {
 		const whereClause = rangeMs ? "WHERE timestamp > ?" : "";
 		const params = rangeMs ? [Date.now() - rangeMs] : [];
 
-		const result = await this.get<{
+		const result = this.get<{
 			total_requests: number;
+			completed_requests: number;
 			successful_requests: number;
 			avg_response_time: number | null;
 			total_tokens: number | null;
@@ -464,11 +502,20 @@ export class RequestRepository extends BaseRepository<RequestData> {
 			avg_tokens_per_second: number | null;
 		}>(
 			`
-			SELECT
+			SELECT 
 				COUNT(*) as total_requests,
-				SUM(CASE WHEN success = TRUE THEN 1 ELSE 0 END) as successful_requests,
+				SUM(CASE WHEN success IS NOT NULL THEN 1 ELSE 0 END) as completed_requests,
+				SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful_requests,
 				AVG(response_time_ms) as avg_response_time,
-				SUM(total_tokens) as total_tokens,
+				SUM(
+					COALESCE(
+						total_tokens,
+						COALESCE(input_tokens, 0) +
+							COALESCE(output_tokens, 0) +
+							COALESCE(cache_read_input_tokens, 0) +
+							COALESCE(cache_creation_input_tokens, 0)
+					)
+				) as total_tokens,
 				SUM(cost_usd) as total_cost_usd,
 				SUM(input_tokens) as input_tokens,
 				SUM(output_tokens) as output_tokens,
@@ -482,25 +529,24 @@ export class RequestRepository extends BaseRepository<RequestData> {
 		);
 
 		return {
-			totalRequests: result?.total_requests || 0,
-			successfulRequests: result?.successful_requests || 0,
-			avgResponseTime: result?.avg_response_time || null,
-			totalTokens: result?.total_tokens || 0,
-			totalCostUsd: result?.total_cost_usd || 0,
-			inputTokens: result?.input_tokens || 0,
-			outputTokens: result?.output_tokens || 0,
-			cacheReadInputTokens: result?.cache_read_input_tokens || 0,
-			cacheCreationInputTokens: result?.cache_creation_input_tokens || 0,
-			avgTokensPerSecond: result?.avg_tokens_per_second || null,
+			totalRequests: result?.total_requests ?? 0,
+			completedRequests: result?.completed_requests ?? 0,
+			successfulRequests: result?.successful_requests ?? 0,
+			avgResponseTime: result?.avg_response_time ?? null,
+			totalTokens: result?.total_tokens ?? 0,
+			totalCostUsd: result?.total_cost_usd ?? 0,
+			inputTokens: result?.input_tokens ?? 0,
+			outputTokens: result?.output_tokens ?? 0,
+			cacheReadInputTokens: result?.cache_read_input_tokens ?? 0,
+			cacheCreationInputTokens: result?.cache_creation_input_tokens ?? 0,
+			avgTokensPerSecond: result?.avg_tokens_per_second ?? null,
 		};
 	}
 
 	/**
 	 * Get top models by usage
 	 */
-	async getTopModels(
-		limit = 10,
-	): Promise<Array<{ model: string; count: number }>> {
+	getTopModels(limit = 10): Array<{ model: string; count: number }> {
 		return this.query<{ model: string; count: number }>(
 			`
 			SELECT model, COUNT(*) as count
@@ -517,13 +563,20 @@ export class RequestRepository extends BaseRepository<RequestData> {
 	/**
 	 * Get recent error messages
 	 */
-	async getRecentErrors(limit = 10): Promise<string[]> {
-		const errors = await this.query<{ error_message: string }>(
+	getRecentErrors(limit = 10): string[] {
+		const errors = this.query<{ error_message: string }>(
 			`
 			SELECT error_message
-			FROM requests
-			WHERE success = FALSE AND error_message IS NOT NULL
-			ORDER BY timestamp DESC
+			FROM (
+				SELECT
+					error_message,
+					MAX(timestamp) as latest_timestamp
+				FROM requests
+				WHERE error_message IS NOT NULL
+					AND error_message != ''
+				GROUP BY error_message
+			)
+			ORDER BY latest_timestamp DESC
 			LIMIT ?
 		`,
 			[limit],
@@ -531,29 +584,28 @@ export class RequestRepository extends BaseRepository<RequestData> {
 		return errors.map((e: { error_message: string }) => e.error_message);
 	}
 
-	async getRequestsByAccount(since?: number): Promise<
-		Array<{
-			accountId: string;
-			accountName: string | null;
-			requestCount: number;
-			successRate: number;
-		}>
-	> {
+	getRequestsByAccount(since?: number): Array<{
+		accountId: string;
+		accountName: string | null;
+		requestCount: number;
+		successRate: number;
+	}> {
 		const whereClause = since ? "WHERE r.timestamp > ?" : "";
 		const params = since ? [since] : [];
 
-		const rows = await this.query<{
+		return this.query<{
 			account_id: string;
 			account_name: string | null;
 			request_count: number;
 			success_rate: number;
 		}>(
 			`
-			SELECT
+			SELECT 
 				r.account_used as account_id,
 				a.name as account_name,
 				COUNT(*) as request_count,
-				SUM(CASE WHEN r.success = TRUE THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as success_rate
+				SUM(CASE WHEN r.success = 1 THEN 1 ELSE 0 END) * 100.0 /
+					NULLIF(SUM(CASE WHEN r.success IS NOT NULL THEN 1 ELSE 0 END), 0) as success_rate
 			FROM requests r
 			LEFT JOIN accounts a ON r.account_used = a.id
 			${whereClause}
@@ -561,8 +613,7 @@ export class RequestRepository extends BaseRepository<RequestData> {
 			ORDER BY request_count DESC
 		`,
 			params,
-		);
-		return rows.map((row) => ({
+		).map((row) => ({
 			accountId: row.account_id,
 			accountName: row.account_name,
 			requestCount: row.request_count,
@@ -570,46 +621,26 @@ export class RequestRepository extends BaseRepository<RequestData> {
 		}));
 	}
 
-	async deleteOlderThan(cutoffTs: number): Promise<number> {
-		// Increased from 500 to 2000 for more aggressive cleanup of large databases.
-		// The covering index idx_requests_cleanup makes each batch faster.
-		const BATCH_SIZE = 2000;
-		let total = 0;
-		let deleted: number;
-		do {
-			deleted = await this.runWithChanges(
-				`DELETE FROM requests WHERE id IN (
-					SELECT id FROM requests WHERE timestamp < ? LIMIT ?
-				)`,
-				[cutoffTs, BATCH_SIZE],
-			);
-			total += deleted;
-		} while (deleted === BATCH_SIZE);
-		return total;
+	deleteOlderThan(cutoffTs: number): number {
+		return this.runWithChanges(`DELETE FROM requests WHERE timestamp < ?`, [
+			cutoffTs,
+		]);
 	}
 
-	async deleteOrphanedPayloads(): Promise<number> {
+	clear(): number {
+		return this.runWithChanges(`DELETE FROM requests`);
+	}
+
+	deleteOrphanedPayloads(): number {
 		return this.runWithChanges(
 			`DELETE FROM request_payloads WHERE id NOT IN (SELECT id FROM requests)`,
 		);
 	}
 
-	async deletePayloadsOlderThan(cutoffTs: number): Promise<number> {
-		// Increased from 500 to 2000 for more aggressive cleanup of large databases.
-		// The covering index idx_request_payloads_cleanup makes each batch faster.
-		const BATCH_SIZE = 2000;
-		let total = 0;
-		let deleted: number;
-		do {
-			// Direct timestamp-based deletion — avoids expensive subquery through requests table
-			deleted = await this.runWithChanges(
-				`DELETE FROM request_payloads WHERE id IN (
-					SELECT id FROM request_payloads WHERE timestamp IS NOT NULL AND timestamp < ? LIMIT ?
-				)`,
-				[cutoffTs, BATCH_SIZE],
-			);
-			total += deleted;
-		} while (deleted === BATCH_SIZE);
-		return total;
+	deletePayloadsOlderThan(cutoffTs: number): number {
+		return this.runWithChanges(
+			`DELETE FROM request_payloads WHERE id IN (SELECT id FROM requests WHERE timestamp < ?)`,
+			[cutoffTs],
+		);
 	}
 }

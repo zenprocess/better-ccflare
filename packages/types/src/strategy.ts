@@ -1,10 +1,17 @@
 import type { Account } from "./account";
 
-export enum StrategyName {
-	Session = "session",
-	LeastUsed = "least-used",
-	SessionAffinity = "session-affinity",
-	SessionDrainSoonest = "session-drain-soonest",
+export const StrategyName = {
+	Session: "session",
+} as const;
+
+export type StrategyName = (typeof StrategyName)[keyof typeof StrategyName];
+
+export const LB_STRATEGIES = Object.freeze(
+	Object.values(StrategyName),
+) as readonly StrategyName[];
+
+export function isLbStrategy(value: string): value is StrategyName {
+	return LB_STRATEGIES.includes(value as StrategyName);
 }
 
 /**
@@ -21,7 +28,7 @@ export interface StrategyStore {
 	/**
 	 * Get all accounts (optional method for strategies that need full account list)
 	 */
-	getAllAccounts?(): Account[] | Promise<Account[]>;
+	getAllAccounts?(): Account[];
 
 	/**
 	 * Update account request count
@@ -31,29 +38,5 @@ export interface StrategyStore {
 	/**
 	 * Get account by ID
 	 */
-	getAccount?(accountId: string): Account | null | Promise<Account | null>;
-
-	/**
-	 * Pause an account
-	 */
-	pauseAccount?(accountId: string): void;
-
-	/**
-	 * Resume a paused account
-	 */
-	resumeAccount?(accountId: string): void;
-
-	/**
-	 * Get the representative utilization (0–100) for an account based on its
-	 * most-constrained usage window. Returns null when no usage data is available.
-	 */
-	getAccountUtilization?(accountId: string, provider: string): number | null;
-
-	/**
-	 * Get the epoch-ms reset time of the account's weekly_all (all-models
-	 * weekly) usage window — the point at which unused capacity is lost and
-	 * fresh capacity becomes available. Returns null when unknown or when the
-	 * reset has already passed (stale telemetry that hasn't caught up yet).
-	 */
-	getAccountWeeklyReset?(accountId: string, provider: string): number | null;
+	getAccount?(accountId: string): Account | null;
 }

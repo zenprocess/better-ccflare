@@ -1,6 +1,6 @@
-# Contributing to better-ccflare
+# Contributing to ccflare
 
-Welcome to better-ccflare! We're thrilled that you're interested in contributing to our Claude load balancer project. This document provides guidelines and instructions for contributing to the project.
+Welcome to ccflare! We're thrilled that you're interested in contributing to our Claude load balancer project. This document provides guidelines and instructions for contributing to the project.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ Welcome to better-ccflare! We're thrilled that you're interested in contributing
 
 ## Welcome & Code of Conduct
 
-First off, thank you for considering contributing to better-ccflare! We welcome contributions from everyone, regardless of their background or experience level.
+First off, thank you for considering contributing to ccflare! We welcome contributions from everyone, regardless of their background or experience level.
 
 ### Our Pledge
 
@@ -64,13 +64,13 @@ Before you begin, ensure you have the following installed:
 
 2. **Clone your fork**:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/better-ccflare.git
-   cd better-ccflare
+   git clone https://github.com/YOUR_USERNAME/ccflare.git
+   cd ccflare
    ```
 
 3. **Add the upstream remote**:
    ```bash
-   git remote add upstream https://github.com/ORIGINAL_OWNER/better-ccflare.git
+   git remote add upstream https://github.com/ORIGINAL_OWNER/ccflare.git
    ```
 
 4. **Install dependencies**:
@@ -78,21 +78,14 @@ Before you begin, ensure you have the following installed:
    bun install
    ```
 
-5. **Build the dashboard and CLI** (required before first run):
-   ```bash
-   bun run build
-   ```
-
-   **Important**: You must run this build step at least once before starting the server. The `bun run build` command builds the web dashboard and CLI components. Without this step, the dashboard files won't be available when you start the server.
-
-6. **Verify the installation**:
+5. **Verify the installation**:
    ```bash
    # Run type checking
    bun run typecheck
-
+   
    # Run linting
    bun run lint
-
+   
    # Run formatting
    bun run format
    ```
@@ -110,29 +103,20 @@ The following environment variables can be used during development:
 
 ### Running the Development Environment
 
-**First time setup**: Make sure you've run `bun run build` at least once (see step 5 above).
-
 ```bash
 # Start the server in development mode with hot reload
 bun run dev:server
 
-# In another terminal, start the CLI
-bun run dev:cli
+# Start the TUI interface
+bun run dev
 
-# Or start the CLI interface
-bun run cli
-
-# Or work on the dashboard (rebuilds on changes)
+# Or work on the dashboard
 bun run dev:dashboard
 ```
 
-**Note**: If you're making changes to the dashboard, use `bun run dev:dashboard` for hot reloading. For other changes, you may need to run `bun run build:dashboard` or `bun run build:cli` to see your changes reflected.
-
 ### Running Tests
 
-**Note**: The project is currently in the process of setting up a comprehensive test suite. Test infrastructure is not yet implemented.
-
-When implemented, tests will use Bun's built-in test runner:
+Tests use Bun's built-in test runner:
 
 ```bash
 # Run all tests
@@ -172,27 +156,29 @@ When contributing, ensure any major architectural changes or new patterns are do
 
 ## Project Structure
 
-better-ccflare is organized as a Bun monorepo with clear separation of concerns:
+ccflare is organized as a Bun monorepo with clear separation of concerns:
 
 ```
-better-ccflare/
+ccflare/
 ├── apps/                    # Deployable applications
-│   ├── cli/                # Command-line interface
+│   ├── desktop/           # Desktop shell
 │   ├── lander/            # Static landing page
 │   ├── server/            # Main HTTP server
+│   ├── tui/               # Terminal UI (Ink-based)
+│   └── web/               # Browser dashboard
 ├── packages/              # Shared libraries
-│   ├── cli-commands/      # CLI command implementations
+│   ├── api/               # REST API handlers
 │   ├── config/            # Configuration management
-│   ├── core/              # Core utilities and types
-│   ├── core-di/           # Dependency injection
-│   ├── dashboard-web/     # React dashboard
+│   ├── core/              # Core utilities, lifecycle, DI
 │   ├── database/          # SQLite operations
-│   ├── http-api/          # REST API handlers
-│   ├── load-balancer/     # Load balancing strategies
+│   ├── http/              # Shared HTTP utilities
 │   ├── logger/            # Logging utilities
+│   ├── oauth-flow/        # OAuth authentication flow
 │   ├── providers/         # AI provider integrations
 │   ├── proxy/             # Request proxy logic
-│   └── types/             # Shared TypeScript types
+│   ├── runtime-server/    # Runtime bootstrap and server composition
+│   ├── types/             # Shared TypeScript types
+│   └── ui/                # Shared UI helpers and presenters
 ├── docs/                  # Documentation
 ├── biome.json            # Linting and formatting config
 ├── package.json          # Root workspace configuration
@@ -207,8 +193,8 @@ better-ccflare/
 
 ### Package Naming Convention
 
-- Apps: Simple names (e.g., `server`, `cli`, `lander`)
-- Packages: Prefixed with `@better-ccflare/` (e.g., `@better-ccflare/core`, `@better-ccflare/database`)
+- Apps: Simple names (e.g., `server`, `tui`, `web`)
+- Packages: Prefixed with `@ccflare/` (e.g., `@ccflare/core`, `@ccflare/database`)
 
 ## Coding Standards
 
@@ -227,7 +213,7 @@ We use Biome for both linting and formatting to maintain consistent code quality
    interface Account {
      id: string;
      name: string;
-     priority: number;
+     provider: "anthropic" | "openai" | "claude-code" | "codex";
    }
    
    function getAccount(id: string): Account | null {
@@ -303,7 +289,7 @@ bun run lint
 
 1. **Import Order** (automatically organized by Biome):
    - External packages
-   - Internal packages (`@better-ccflare/*`)
+   - Internal packages (`@ccflare/*`)
    - Relative imports
    - Type imports
 
@@ -314,10 +300,10 @@ bun run lint
 
    ```typescript
    // Good
-   import { Database } from '@better-ccflare/database';
-   import { LoadBalancer } from '@better-ccflare/load-balancer';
+   import { Database } from '@ccflare/database';
+   import { SessionStrategy } from '@ccflare/proxy';
    import { formatDate } from './utils';
-   import type { Account } from '@better-ccflare/types';
+   import type { Account } from '@ccflare/types';
    
    // Bad
    import { Database } from '../../../packages/database/src';
@@ -353,13 +339,13 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 ### Scope
 
 The scope should be the package or app name:
-- `server`, `cli`, `lander`
-- `core`, `database`, `proxy`, `load-balancer`, etc.
+- `server`, `cli`, `tui`, `lander`
+- `core`, `database`, `proxy`, `api`, etc.
 
 ### Examples
 
 ```bash
-feat(load-balancer): improve session persistence
+feat(proxy): improve session persistence
 
 Enhances the session-based strategy to better handle failover scenarios
 while maintaining session affinity. This reduces rate limit occurrences
@@ -461,25 +447,6 @@ Add screenshots for UI changes.
 Closes #(issue number)
 ```
 
-### Claude Code Review
-
-This repository includes an automated Claude code review system that can be triggered in two ways:
-
-1. **Automatic Review**: Runs automatically when a new pull request is opened
-2. **Manual Review**: Can be manually triggered by contributors by commenting `/claude-review` on the PR
-
-The manual trigger is only available to:
-- Repository members and collaborators
-- Users who are organization members
-- The pull request author
-
-Example manual trigger comment:
-```
-/claude-review
-```
-
-This will initiate a Claude code review of your pull request changes.
-
 ### Review Process
 
 1. **Manual Checks**: Run `bun run lint`, `bun run typecheck`, and `bun run format` locally
@@ -523,18 +490,12 @@ packages/core/
    - Use descriptive test names
 
    ```typescript
-   import { describe, it, expect, mock } from 'bun:test';
-   import { calculateAccountWeight } from './utils';
-   
-   describe('calculateAccountPriority', () => {
-     it('should return priority 0 for primary accounts', () => {
-       const account = { priority: 0, name: 'primary-account' };
-       expect(calculateAccountPriority(account)).toBe(0);
-     });
+   import { describe, expect, it } from "bun:test";
+   import { formatPercentage } from "./formatters";
 
-     it('should return priority 50 for medium priority accounts', () => {
-       const account = { priority: 50, name: 'medium-priority-account' };
-       expect(calculateAccountPriority(account)).toBe(50);
+   describe("formatPercentage", () => {
+     it("formats whole percentages without extra decimals", () => {
+       expect(formatPercentage(42, 0)).toBe("42%");
      });
    });
    ```
@@ -717,48 +678,46 @@ Contributors are recognized in:
 
 ### Working with the CLI
 
-The CLI functionality provides explicit commands for all operations. Use `bun run cli` with command-line flags:
+The CLI functionality is integrated into the TUI application. Use `ccflare` with command-line flags:
 
 ```bash
-# If better-ccflare is not installed globally, use:
-# bun run cli [options]
-# or build and run with: bun run better-ccflare
+# If ccflare is not installed globally, use:
+# bun run tui [options]
+# or build and run with: bun run ccflare
 
 # Add a new account
-bun run cli --add-account <name> --mode <max|console|zai|openai-compatible> --priority <number>
+ccflare --add-account <name> --provider <anthropic|openai|claude-code|codex>
 
 # List all accounts
-bun run cli --list
+ccflare --list
 
 # Remove an account
-bun run cli --remove <name>
+ccflare --remove <name>
 
 # Pause/resume accounts
-bun run cli --pause <name>
-bun run cli --resume <name>
+ccflare --pause <name>
+ccflare --resume <name>
 
 # Reset usage statistics
-bun run cli --reset-stats
+ccflare --reset-stats
 
 # Clear request history
-bun run cli --clear-history
+ccflare --clear-history
 
 # View statistics (JSON output)
-bun run cli --stats
+ccflare --stats
 
 # Stream logs
-bun run cli --logs [N]  # Show N lines of history then follow
+ccflare --logs [N]  # Show N lines of history then follow
 
 # Analyze database performance
-bun run cli --analyze
+ccflare --analyze
 
 # Start server with dashboard
-bun run cli --serve --port 8080
-# or simply:
-bun start
+ccflare --serve --port 8080
 
 # Show help
-bun run cli --help
+ccflare --help
 ```
 
 ### Running the Server
@@ -785,16 +744,18 @@ bun run build:dashboard
 bun run dev:dashboard
 ```
 
-### Working with the CLI
+### Working with the TUI
 
 ```bash
-# Run the CLI application
-bun run cli
+# Run the TUI application
+bun run tui
+# or
+bun run dev
 # or (builds first, then runs)
-bun run better-ccflare
+bun run ccflare
 
-# Build the CLI
-bun run build:cli
+# Build the TUI
+bun run build:tui
 ```
 
 ### Building for Production
@@ -805,7 +766,7 @@ bun run build
 
 # Build specific applications
 bun run build:dashboard
-bun run build:cli
+bun run build:tui
 bun run build:lander
 ```
 
@@ -813,7 +774,7 @@ bun run build:lander
 
 1. **TypeScript errors**: Run `bun run typecheck` to identify issues
 2. **Formatting issues**: Run `bun run format` to auto-fix
-3. **Import errors**: Ensure you're using workspace imports (`@better-ccflare/*`) for cross-package dependencies
+3. **Import errors**: Ensure you're using workspace imports (`@ccflare/*`) for cross-package dependencies
 4. **Database issues**: The SQLite database is created automatically in the data directory
 
-Thank you for contributing to better-ccflare! Your efforts help make Claude AI more accessible to everyone.
+Thank you for contributing to ccflare! Your efforts help make Claude AI more accessible to everyone.

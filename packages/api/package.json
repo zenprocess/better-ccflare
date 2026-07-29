@@ -1,0 +1,23 @@
+{
+	"name": "@ccflare/api",
+	"version": "0.1.0",
+	"type": "module",
+	"main": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "bunx tsc --noEmit",
+		"test": "bun test ./src"
+	},
+	"dependencies": {
+		"@ccflare/core": "workspace:*",
+		"@ccflare/database": "workspace:*",
+		"@ccflare/config": "workspace:*",
+		"@ccflare/http": "workspace:*",
+		"@ccflare/logger": "workspace:*",
+		"@ccflare/oauth-flow": "workspace:*",
+		"@ccflare/providers": "workspace:*",
+		"@ccflare/types": "workspace:*"
+	}
+}

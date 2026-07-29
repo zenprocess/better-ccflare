@@ -1,19 +1,19 @@
-# better-ccflare Documentation
+# ccflare Documentation
 
 ## Track Every Request. Go Low-Level. Never Hit Rate Limits Again.
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Bun](https://img.shields.io/badge/bun-%3E%3D1.2.8-f472b6)
 
 ## Overview
 
-better-ccflare is the ultimate Claude API proxy with intelligent load balancing across multiple accounts. Built with TypeScript and Bun runtime, it provides full visibility into every request, response, and rate limit, ensuring your AI applications never experience downtime due to rate limiting.
+ccflare is the ultimate Claude API proxy with intelligent load balancing across multiple accounts. Built with TypeScript and Bun runtime, it provides full visibility into every request, response, and rate limit, ensuring your AI applications never experience downtime due to rate limiting.
 
-### Why better-ccflare?
+### Why ccflare?
 
-When working with Claude API at scale, rate limits can become a significant bottleneck. better-ccflare solves this by:
+When working with Claude API at scale, rate limits can become a significant bottleneck. ccflare solves this by:
 
 - **🚀 Zero Rate Limit Errors**: Automatically distributes requests across multiple accounts with intelligent failover
 - **📊 Request-Level Analytics**: Track latency, token usage, and costs in real-time with <10ms overhead
@@ -28,10 +28,9 @@ When working with Claude API at scale, rate limits can become a significant bott
 - **⚠️ WARNING**: Other strategies (round-robin, least-requests, weighted) have been removed as they can trigger Claude's anti-abuse systems
 
 ### 📈 Real-Time Monitoring & Analytics
-- **Web Dashboard**: Interactive UI at `/dashboard` with live metrics
-- **Powerful CLI**: Comprehensive command-line interface for management and monitoring
+- **Web Dashboard**: Interactive UI at the server root (`/`) with live metrics
+- **Terminal UI**: Built-in TUI for server management and monitoring
 - **Request Tracking**: Complete history with token usage and costs
-- **Advanced Filtering**: Filter requests and analytics by accounts, models, API keys, and status
 - **Performance Metrics**: Response times, success rates, and error tracking
 
 ### 🛠️ Developer Experience
@@ -43,7 +42,6 @@ When working with Claude API at scale, rate limits can become a significant bott
 ### 🏗️ Production Ready
 - **SQLite Persistence**: Reliable data storage with migrations
 - **Configurable Retry Logic**: Smart exponential backoff
-- **Account Priority System**: Support for priority-based load balancing
 - **Extensible Architecture**: Provider-based design for future AI services
 
 ## Documentation
@@ -57,52 +55,45 @@ When working with Claude API at scale, rate limits can become a significant bott
 - [Load Balancing Strategy](./load-balancing.md) - Session-based strategy for safe account usage
 - [Provider System](./providers.md) - Provider abstraction and OAuth implementation
 - [Database Schema](./database.md) - SQLite structure, migrations, and maintenance
-- [Model Mappings](./models.md) - Claude AI model definitions and constants
 
 ### User Interfaces
-- [HTTP API Reference](./api-http.md) - Complete REST API documentation, including `/v1/messages`, `/v1/responses`, and `/v1/responses/compact`
-- [CLI Commands](./cli.md) - Comprehensive command-line interface reference
+- [HTTP API Reference](./api-http.md) - Complete REST API documentation
+- [CLI Commands](./cli.md) - Command-line interface reference
+- [Terminal UI Guide](./tui.md) - Interactive terminal interface documentation
 
 ### Operations
-- [Migration Guide: v2 to v3](./migration-v2-to-v3.md) - Upgrading from version 2.x to 3.x
 - [Deployment Guide](./deployment.md) - Production deployment with Docker, systemd, PM2, and Kubernetes
 - [Security Considerations](./security.md) - Authentication, encryption, and best practices
 - [Troubleshooting](./troubleshooting.md) - Common issues and solutions
 - [Contributing](./contributing.md) - Development setup and contribution guidelines
 
-### API Reference
-- [Anthropic API Changelog](./anthropic-api-changelog.md) - Track changes to Anthropic's usage API responses
-
 ## Quick Start
 
-### 1. Install better-ccflare
+### 1. Install ccflare
 
 ```bash
 # Clone the repository
-git clone https://github.com/snipeship/better-ccflare.git
-cd better-ccflare
+git clone https://github.com/snipeship/ccflare.git
+cd ccflare
 
 # Install dependencies
 bun install
 ```
 
-### 2. Start better-ccflare (CLI + Server)
+### 2. Start ccflare (TUI + Server)
 
 ```bash
-# Start better-ccflare with CLI (automatically starts server if no command specified)
-bun run cli
+# Start ccflare with interactive TUI (automatically starts server)
+bun run ccflare
 
-# Or start just the server
+# Or start just the server without TUI
 bun run server
-
-# Start server on specific port
-bun run server --port 8081
 
 # Specify session duration (default: 5 hours)
 SESSION_DURATION_MS=21600000 bun run server  # 6 hours
 
-# Run CLI directly with Bun (if not using npm scripts)
-bun run apps/cli/src/main.ts
+# Run TUI directly with Bun (if not using npm scripts)
+bun run apps/tui/src/main.ts
 ```
 
 ### 3. Add Your Claude Accounts
@@ -110,50 +101,59 @@ bun run apps/cli/src/main.ts
 ```bash
 # In another terminal, add your accounts
 # Add a work account
-bun run apps/cli/src/main.ts --add-account work-account --mode max --priority 0
+bun run apps/tui/src/main.ts --add-account work-account
 
-# Add a personal account
-bun run apps/cli/src/main.ts --add-account personal-account --mode max --priority 10
+# Add a personal account  
+bun run apps/tui/src/main.ts --add-account personal-account
 
-# Add accounts with specific priorities
-bun run apps/cli/src/main.ts --add-account pro-account --mode max --priority 0
-bun run apps/cli/src/main.ts --add-account max-account --mode max --priority 10
+# Add Anthropic and OpenAI API key accounts
+bun run apps/tui/src/main.ts --add-account work-account --provider anthropic
+bun run apps/tui/src/main.ts --add-account personal-account --provider openai
 
-# Or if you have better-ccflare command available globally
-better-ccflare --add-account work-account --mode max --priority 0
+# Start provider-scoped OAuth flows
+bun run apps/tui/src/main.ts --add-account claude-work --provider claude-code
+bun run apps/tui/src/main.ts --add-account codex-work --provider codex
+
+# Or if you have ccflare command available globally
+ccflare --add-account work-account
 ```
 
 ### 4. Configure Your Claude Client
 
 ```bash
-# Set the base URL to use better-ccflare
+# Set the base URL to use ccflare
 export ANTHROPIC_BASE_URL=http://localhost:8080
 ```
 
 ### 5. Monitor Your Usage
 
-- **Web Dashboard**: Open [http://localhost:8080/dashboard](http://localhost:8080/dashboard) for real-time analytics
-- **CLI**: Check status with `bun run apps/cli/src/main.ts --list`
-- **Stats**: View detailed statistics with `bun run apps/cli/src/main.ts --stats`
+- **Web Dashboard**: Open [http://localhost:8080](http://localhost:8080) for real-time analytics
+- **Terminal UI**: Use the interactive TUI started with `bun run ccflare`
+- **CLI**: Check status with `bun run apps/tui/src/main.ts --list`
 
 ## Project Structure
 
 ```
-better-ccflare/
+ccflare/
 ├── apps/               # Application packages
+│   ├── desktop/       # Desktop shell
+│   ├── lander/        # Landing page
 │   ├── server/        # Main proxy server
-│   ├── cli/           # CLI application
-│   └── lander/        # Landing page
-├── packages/          # Core packages
-│   ├── core/          # Core business logic
-│   ├── cli-commands/  # CLI command implementations
+│   ├── tui/           # Terminal UI with integrated CLI
+│   └── web/           # Browser dashboard
+├── packages/          # Shared packages
+│   ├── api/           # REST API handlers
+│   ├── config/        # Configuration management
+│   ├── core/          # Core utilities, lifecycle, DI, pricing
 │   ├── database/      # SQLite database layer
-│   ├── dashboard-web/ # Web dashboard UI
-│   ├── http-api/      # REST API handlers
-│   ├── load-balancer/ # Load balancing strategies
+│   ├── http/          # Shared HTTP utilities and HTTP errors
 │   ├── logger/        # Logging utilities
-│   ├── providers/     # OAuth provider system
-│   └── proxy/         # HTTP proxy implementation
+│   ├── oauth-flow/    # OAuth account onboarding
+│   ├── providers/     # Provider implementations
+│   ├── proxy/         # HTTP/WebSocket proxy implementation
+│   ├── runtime-server # Server bootstrap/runtime composition
+│   ├── types/         # Shared types and guards
+│   └── ui/            # Shared UI presenters, components, constants
 └── docs/              # Documentation
 
 ```
@@ -162,19 +162,20 @@ better-ccflare/
 
 ```bash
 # Main commands
-bun run cli            # Start CLI (builds dashboard first)
+bun run ccflare        # Start TUI (builds dashboard first)
 bun run server         # Start server only
+bun run tui            # Start TUI only
 bun run start          # Alias for bun run server
 
 # Development
-bun run dev            # Start CLI in development mode
+bun run dev            # Start TUI in development mode
 bun run dev:server     # Server with hot reload
 bun run dev:dashboard  # Dashboard development
 
 # Build & Quality
-bun run build          # Build dashboard and CLI
+bun run build          # Build dashboard and TUI
 bun run build:dashboard # Build web dashboard
-bun run build:cli      # Build CLI
+bun run build:tui      # Build TUI
 bun run build:lander   # Build landing page
 bun run typecheck      # Check TypeScript types
 bun run lint           # Fix linting issues
@@ -183,35 +184,34 @@ bun run format         # Format code
 
 ## CLI Commands
 
-The better-ccflare CLI provides comprehensive command-line interface for management and monitoring:
+The ccflare CLI is integrated into the TUI application. All CLI functionality is accessed through the same executable:
 
 ```bash
 # If running without global install, use the full path:
-bun run apps/cli/src/main.ts [command]
+bun run apps/tui/src/main.ts [command]
+
+# The commands below assume you're using the full path
 
 # Account management
-bun run apps/cli/src/main.ts --add-account <name> --mode <max|console|zai|openai-compatible> --priority <number>  # Add account
-bun run apps/cli/src/main.ts --list                   # List accounts
-bun run apps/cli/src/main.ts --remove <name>          # Remove account
-bun run apps/cli/src/main.ts --pause <name>           # Pause account
-bun run apps/cli/src/main.ts --resume <name>          # Resume account
-bun run apps/cli/src/main.ts --set-priority <name> <priority>  # Set account priority
-
-# Server management
-bun run apps/cli/src/main.ts --serve                  # Start server
-bun run apps/cli/src/main.ts --serve --port 8081    # Start on specific port
-bun run apps/cli/src/main.ts --logs [N]               # Stream logs
-bun run apps/cli/src/main.ts --stats                  # Show statistics (JSON)
+bun run apps/tui/src/main.ts --add-account <name>     # Add account
+bun run apps/tui/src/main.ts --list                   # List accounts
+bun run apps/tui/src/main.ts --remove <name>          # Remove account
+bun run apps/tui/src/main.ts --pause <name>           # Pause account
+bun run apps/tui/src/main.ts --resume <name>          # Resume account
 
 # Maintenance
-bun run apps/cli/src/main.ts --reset-stats            # Reset statistics
-bun run apps/cli/src/main.ts --clear-history          # Clear request history
-bun run apps/cli/src/main.ts --analyze                # Analyze database performance
+bun run apps/tui/src/main.ts --reset-stats            # Reset statistics
+bun run apps/tui/src/main.ts --clear-history          # Clear request history
+bun run apps/tui/src/main.ts --analyze                # Analyze database performance
 
-# Configuration
-bun run apps/cli/src/main.ts --get-model               # Show current model
-bun run apps/cli/src/main.ts --set-model <model>       # Set default model
-bun run apps/cli/src/main.ts --help                   # Show help
+# Other options
+bun run apps/tui/src/main.ts --serve                  # Start server only
+bun run apps/tui/src/main.ts --logs [N]               # Stream logs (optionally show last N lines)
+bun run apps/tui/src/main.ts --stats                  # Show statistics (JSON)
+bun run apps/tui/src/main.ts --help                   # Show help
+
+# Add account
+bun run apps/tui/src/main.ts --add-account <name> --provider <anthropic|openai|claude-code|codex>
 ```
 
 For more detailed CLI documentation, see [CLI Commands](./cli.md).
@@ -245,12 +245,12 @@ NODE_ENV=production            # Environment mode
 - [SQLite Documentation](https://www.sqlite.org/docs.html) - SQLite database docs
 
 ### Support
-- [GitHub Repository](https://github.com/snipeship/better-ccflare) - Source code and issues
-- [Contributing](./contributing.md) - How to contribute to better-ccflare
+- [GitHub Repository](https://github.com/snipeship/ccflare) - Source code and issues
+- [Contributing](./contributing.md) - How to contribute to ccflare
 
 ## License
 
-better-ccflare is open source software licensed under the MIT License. See the [LICENSE](../LICENSE) file for details.
+ccflare is open source software licensed under the MIT License. See the [LICENSE](../LICENSE) file for details.
 
 ---
 

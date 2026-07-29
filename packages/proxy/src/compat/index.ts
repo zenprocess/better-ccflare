@@ -1,0 +1,1 @@
+export { handleCompatibilityProxy } from "./handler";

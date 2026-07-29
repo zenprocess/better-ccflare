@@ -1,24 +1,19 @@
 {
-	"name": "@better-ccflare/providers",
+	"name": "@ccflare/providers",
 	"version": "0.1.0",
 	"type": "module",
 	"main": "./src/index.ts",
 	"exports": {
-		".": "./src/index.ts",
-		"./bedrock": "./src/providers/bedrock/index.ts",
-		"./codex": "./src/providers/codex/index.ts",
-		"./qwen": "./src/providers/qwen/index.ts",
-		"./xai": "./src/providers/xai/index.ts"
+		".": "./src/index.ts"
 	},
 	"scripts": {
-		"typecheck": "bunx tsc --noEmit"
+		"typecheck": "bunx tsc --noEmit",
+		"test": "bun test ./src"
 	},
 	"dependencies": {
-		"@aws-sdk/client-bedrock": "^3.991.0",
-		"@aws-sdk/client-bedrock-runtime": "^3.1014.0",
-		"@aws-sdk/credential-providers": "^3.1021.0",
-		"@better-ccflare/core": "workspace:*",
-		"@better-ccflare/openai-formats": "workspace:*",
-		"google-auth-library": "^10.6.2"
+		"@ccflare/core": "workspace:*",
+		"@ccflare/http": "workspace:*",
+		"@ccflare/logger": "workspace:*",
+		"@ccflare/types": "workspace:*"
 	}
 }

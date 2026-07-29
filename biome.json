@@ -6,24 +6,33 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"ignoreUnknown": false,
-		"includes": ["apps/**", "packages/**"]
+		"ignoreUnknown": true,
+		"includes": [
+			"apps/**/*.ts",
+			"apps/**/*.tsx",
+			"apps/**/*.js",
+			"apps/**/*.jsx",
+			"apps/**/*.json",
+			"packages/**/*.ts",
+			"packages/**/*.tsx",
+			"packages/**/*.js",
+			"packages/**/*.jsx",
+			"packages/**/*.json"
+		]
 	},
+
 	"formatter": {
 		"enabled": true,
 		"indentStyle": "tab"
 	},
-	"css": {
-		"parser": {
-			"cssModules": false,
-			"allowWrongLineComments": false,
-			"tailwindDirectives": true
-		}
-	},
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true
+			"recommended": true,
+			"suspicious": {
+				"noExplicitAny": "warn",
+				"noArrayIndexKey": "warn"
+			}
 		}
 	},
 	"javascript": {

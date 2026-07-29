@@ -1,77 +1,130 @@
-import { Logger } from "@better-ccflare/logger";
-import {
-	type Account,
-	type AccountRow,
-	type RateLimitReason,
-	toAccount,
-} from "@better-ccflare/types";
+import type { Account } from "@ccflare/types";
+import { type AccountRow, toAccount } from "../models/account-row";
 import { BaseRepository } from "./base.repository";
 
-const log = new Logger("AccountRepository");
-
-/**
- * Result of {@link AccountRepository.markAccountRateLimited}. `applied`
- * distinguishes an actually-persisted write from one the 529 forward guard
- * rejected (or that found no matching row) — callers must not assume the
- * write happened just because the call resolved.
- */
-export interface MarkAccountRateLimitedResult {
-	consecutiveRateLimits: number;
-	applied: boolean;
+export interface CreateAccountData {
+	name: string;
+	provider: Account["provider"];
+	auth_method: Account["auth_method"];
+	base_url?: string | null;
+	api_key?: string | null;
+	refresh_token?: string | null;
+	access_token?: string | null;
+	expires_at?: number | null;
+	weight?: number;
 }
 
+export interface UpdateAccountData {
+	name?: string;
+	base_url?: string | null;
+}
+
+const accountSelectFields = `
+	id, name, provider, auth_method, base_url, api_key, refresh_token, access_token,
+	expires_at, created_at, last_used, request_count, total_requests,
+	rate_limited_until, session_start, session_request_count,
+	COALESCE(weight, 1) as weight,
+	COALESCE(paused, 0) as paused,
+	rate_limit_reset, rate_limit_status, rate_limit_remaining
+`;
+
 export class AccountRepository extends BaseRepository<Account> {
-	async findAll(): Promise<Account[]> {
-		const rows = await this.query<AccountRow>(`
-			SELECT
-				id, name, provider, api_key, refresh_token, access_token,
-				expires_at, created_at, last_used, request_count, total_requests,
-				rate_limited_until, rate_limited_reason, rate_limited_at, session_start, session_request_count,
-				COALESCE(paused, 0) as paused,
-				COALESCE(requires_reauth, 0) as requires_reauth,
-				rate_limit_reset, rate_limit_status, rate_limit_remaining,
-				COALESCE(priority, 0) as priority,
-				COALESCE(auto_fallback_enabled, 0) as auto_fallback_enabled,
-				COALESCE(auto_refresh_enabled, 0) as auto_refresh_enabled,
-				COALESCE(auto_pause_on_overage_enabled, 0) as auto_pause_on_overage_enabled,
-				COALESCE(peak_hours_pause_enabled, 0) as peak_hours_pause_enabled,
-				custom_endpoint,
-				model_mappings,
-				cross_region_mode,
-				model_fallbacks,
-				billing_type,
-				pause_reason,
-				refresh_token_issued_at,
-				COALESCE(consecutive_rate_limits, 0) as consecutive_rate_limits
+	findAll(): Account[] {
+		const rows = this.query<AccountRow>(`
+			SELECT ${accountSelectFields}
 			FROM accounts
-			ORDER BY priority DESC
 		`);
 		return rows.map(toAccount);
 	}
 
-	async findById(accountId: string): Promise<Account | null> {
-		const row = await this.get<AccountRow>(
+	create(data: CreateAccountData): Account {
+		const id = crypto.randomUUID();
+		const createdAt = Date.now();
+
+		this.run(
+			`
+			INSERT INTO accounts (
+				id, name, provider, auth_method, base_url, api_key, refresh_token,
+				access_token, expires_at, created_at, request_count, total_requests, weight
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?)
+		`,
+			[
+				id,
+				data.name,
+				data.provider,
+				data.auth_method,
+				data.base_url ?? null,
+				data.api_key ?? null,
+				data.refresh_token ?? null,
+				data.access_token ?? null,
+				data.expires_at ?? null,
+				createdAt,
+				data.weight ?? 1,
+			],
+		);
+
+		return this.findById(id) as Account;
+	}
+
+	/**
+	 * Create an API-key account with duplicate-name check.
+	 * Throws if the name is already taken.
+	 */
+	createApiKeyAccount(opts: {
+		name: string;
+		provider: Account["provider"];
+		apiKey: string;
+		baseUrl?: string | null;
+		weight?: number;
+	}): Account {
+		if (this.findByName(opts.name)) {
+			throw new Error(`Account '${opts.name}' already exists`);
+		}
+
+		return this.create({
+			name: opts.name,
+			provider: opts.provider,
+			auth_method: "api_key",
+			api_key: opts.apiKey,
+			base_url: opts.baseUrl,
+			weight: opts.weight,
+		});
+	}
+
+	/**
+	 * Create an OAuth account with duplicate-name check.
+	 * Throws if the name is already taken.
+	 */
+	createOAuthAccount(opts: {
+		name: string;
+		provider: Account["provider"];
+		accessToken: string;
+		refreshToken?: string | null;
+		expiresAt?: number | null;
+		baseUrl?: string | null;
+		weight?: number;
+	}): Account {
+		if (this.findByName(opts.name)) {
+			throw new Error(`Account '${opts.name}' already exists`);
+		}
+
+		return this.create({
+			name: opts.name,
+			provider: opts.provider,
+			auth_method: "oauth",
+			access_token: opts.accessToken,
+			refresh_token: opts.refreshToken,
+			expires_at: opts.expiresAt,
+			base_url: opts.baseUrl,
+			weight: opts.weight,
+		});
+	}
+
+	findById(accountId: string): Account | null {
+		const row = this.get<AccountRow>(
 			`
 			SELECT
-				id, name, provider, api_key, refresh_token, access_token,
-				expires_at, created_at, last_used, request_count, total_requests,
-				rate_limited_until, rate_limited_reason, rate_limited_at, session_start, session_request_count,
-				COALESCE(paused, 0) as paused,
-				COALESCE(requires_reauth, 0) as requires_reauth,
-				rate_limit_reset, rate_limit_status, rate_limit_remaining,
-				COALESCE(priority, 0) as priority,
-				COALESCE(auto_fallback_enabled, 0) as auto_fallback_enabled,
-				COALESCE(auto_refresh_enabled, 0) as auto_refresh_enabled,
-				COALESCE(auto_pause_on_overage_enabled, 0) as auto_pause_on_overage_enabled,
-				COALESCE(peak_hours_pause_enabled, 0) as peak_hours_pause_enabled,
-				custom_endpoint,
-				model_mappings,
-				cross_region_mode,
-				model_fallbacks,
-				billing_type,
-				pause_reason,
-				refresh_token_issued_at,
-				COALESCE(consecutive_rate_limits, 0) as consecutive_rate_limits
+				${accountSelectFields}
 			FROM accounts
 			WHERE id = ?
 		`,
@@ -81,52 +134,130 @@ export class AccountRepository extends BaseRepository<Account> {
 		return row ? toAccount(row) : null;
 	}
 
-	async updateTokens(
+	findByName(name: string): Account | null {
+		const row = this.get<AccountRow>(
+			`
+			SELECT
+				${accountSelectFields}
+			FROM accounts
+			WHERE name = ?
+		`,
+			[name],
+		);
+
+		return row ? toAccount(row) : null;
+	}
+
+	findByProvider(provider: Account["provider"]): Account[] {
+		const rows = this.query<AccountRow>(
+			`
+			SELECT
+				${accountSelectFields}
+			FROM accounts
+			WHERE provider = ?
+		`,
+			[provider],
+		);
+
+		return rows.map(toAccount);
+	}
+
+	/**
+	 * Returns accounts available for routing: filters by provider and excludes
+	 * paused accounts and those currently rate-limited, all pushed into SQL.
+	 */
+	findAvailableForProvider(provider: Account["provider"]): Account[] {
+		const now = Date.now();
+		const rows = this.query<AccountRow>(
+			`
+			SELECT
+				${accountSelectFields}
+			FROM accounts
+			WHERE provider = ?
+				AND COALESCE(paused, 0) = 0
+				AND (rate_limited_until IS NULL OR rate_limited_until < ?)
+		`,
+			[provider, now],
+		);
+
+		return rows.map(toAccount);
+	}
+
+	update(accountId: string, data: UpdateAccountData): Account | null {
+		const updates: string[] = [];
+		const params: Array<string | null> = [];
+
+		if (data.name !== undefined) {
+			updates.push("name = ?");
+			params.push(data.name);
+		}
+
+		if ("base_url" in data) {
+			updates.push("base_url = ?");
+			params.push(data.base_url ?? null);
+		}
+
+		if (updates.length === 0) {
+			return this.findById(accountId);
+		}
+
+		params.push(accountId);
+		const changes = this.runWithChanges(
+			`UPDATE accounts SET ${updates.join(", ")} WHERE id = ?`,
+			params,
+		);
+
+		return changes > 0 ? this.findById(accountId) : null;
+	}
+
+	delete(accountId: string): boolean {
+		return (
+			this.runWithChanges(`DELETE FROM accounts WHERE id = ?`, [accountId]) > 0
+		);
+	}
+
+	count(): number {
+		const result = this.get<{ count: number }>(
+			"SELECT COUNT(*) as count FROM accounts",
+		);
+		return result?.count ?? 0;
+	}
+
+	updateTokens(
 		accountId: string,
 		accessToken: string,
-		expiresAt: number,
+		expiresAt: number | null,
 		refreshToken?: string,
-	): Promise<void> {
-		const now = Date.now();
+	): void {
 		if (refreshToken) {
-			await this.run(
-				`UPDATE accounts SET access_token = ?, expires_at = ?, refresh_token = ?, refresh_token_issued_at = ?, requires_reauth = 0 WHERE id = ?`,
-				[accessToken, expiresAt, refreshToken, now, accountId],
+			this.run(
+				`UPDATE accounts SET access_token = ?, expires_at = ?, refresh_token = ? WHERE id = ?`,
+				[accessToken, expiresAt, refreshToken, accountId],
 			);
 		} else {
-			await this.run(
-				`UPDATE accounts SET access_token = ?, expires_at = ?, requires_reauth = 0 WHERE id = ?`,
+			this.run(
+				`UPDATE accounts SET access_token = ?, expires_at = ? WHERE id = ?`,
 				[accessToken, expiresAt, accountId],
 			);
 		}
 	}
 
-	async setRequiresReauth(accountId: string, value: boolean): Promise<void> {
-		await this.run(`UPDATE accounts SET requires_reauth = ? WHERE id = ?`, [
-			value ? 1 : 0,
-			accountId,
-		]);
-	}
-
-	async incrementUsage(
-		accountId: string,
-		sessionDurationMs: number,
-	): Promise<void> {
+	incrementUsage(accountId: string, sessionDurationMs: number): void {
 		const now = Date.now();
-		await this.run(
+		this.run(
 			`
-			UPDATE accounts
-			SET
+			UPDATE accounts 
+			SET 
 				last_used = ?,
-				request_count = COALESCE(request_count, 0) + 1,
-				total_requests = COALESCE(total_requests, 0) + 1,
+				request_count = request_count + 1,
+				total_requests = total_requests + 1,
 				session_start = CASE
-					WHEN session_start IS NULL OR ? - COALESCE(session_start, 0) >= ? THEN ?
+					WHEN session_start IS NULL OR ? - session_start >= ? THEN ?
 					ELSE session_start
 				END,
 				session_request_count = CASE
-					WHEN session_start IS NULL OR ? - COALESCE(session_start, 0) >= ? THEN 1
-					ELSE COALESCE(session_request_count, 0) + 1
+					WHEN session_start IS NULL OR ? - session_start >= ? THEN 1
+					ELSE session_request_count + 1
 				END
 			WHERE id = ?
 		`,
@@ -134,212 +265,57 @@ export class AccountRepository extends BaseRepository<Account> {
 		);
 	}
 
-	async setRateLimited(
-		accountId: string,
-		until: number,
-		reason: RateLimitReason,
-	): Promise<void> {
-		await this.run(
-			`UPDATE accounts SET rate_limited_until = ?, rate_limited_reason = ?, rate_limited_at = ? WHERE id = ?`,
-			[until, reason, Date.now(), accountId],
-		);
+	setRateLimited(accountId: string, until: number): void {
+		this.run(`UPDATE accounts SET rate_limited_until = ? WHERE id = ?`, [
+			until,
+			accountId,
+		]);
 	}
 
-	async markAccountRateLimited(
-		accountId: string,
-		until: number,
-		reason: RateLimitReason,
-		incrementStreak = true,
-	): Promise<MarkAccountRateLimitedResult> {
-		let applied = true;
-		if (incrementStreak) {
-			await this.run(
-				`UPDATE accounts
-           SET consecutive_rate_limits = COALESCE(consecutive_rate_limits, 0) + 1,
-               rate_limited_until      = ?,
-               rate_limited_reason     = ?,
-               rate_limited_at         = ?
-         WHERE id = ?`,
-				[until, reason, Date.now(), accountId],
-			);
-		} else {
-			// 529 overload: cooldown state moves, but the 429 streak counter
-			// is left untouched — an overload is not a quota signal.
-			//
-			// WHERE-guarded against a concurrent writer having set a longer,
-			// still-active cooldown between this call's read and write (e.g. a
-			// real 429 quota bench applied by another in-flight request for the
-			// same account) — only apply this 529's cooldown when the account
-			// currently has none, or its existing one already expires at or
-			// before this one would. `<=`, not `<`: the in-process forward guard
-			// in rate-limit-cooldown.ts only REJECTS on a strictly longer existing
-			// cooldown (`account.rate_limited_until > cooldownUntil`) and lets an
-			// equal-expiry write proceed — a strict `<` here would reject that
-			// same equal-expiry case, leaving memory holding the new 529 reason
-			// while the DB silently keeps the old one. This mirrors the in-process
-			// guard but covers the cross-request DB race that guard can't see. A
-			// plain WHERE predicate (not GREATEST/MAX) so the same SQL runs
-			// unchanged on both SQLite and PostgreSQL.
-			const changes = await this.runWithChanges(
-				`UPDATE accounts
-           SET rate_limited_until      = ?,
-               rate_limited_reason     = ?,
-               rate_limited_at         = ?
-         WHERE id = ?
-           AND (rate_limited_until IS NULL OR rate_limited_until <= ?)`,
-				[until, reason, Date.now(), accountId, until],
-			);
-			applied = changes > 0;
-			if (!applied) {
-				// The guarded write was skipped. This has two distinct causes the
-				// row count alone can't distinguish: a longer cooldown is already
-				// active for this account (set by a concurrent request between
-				// this call's read and write), or the row itself no longer exists
-				// (account deleted/renamed since the caller last read it) — so this
-				// message states neither as fact. The caller (applyRateLimitCooldown
-				// in rate-limit-cooldown.ts) receives `applied` below and logs the
-				// correct outcome for its own event instead of asserting a cause.
-				log.warn(
-					`[ccflare] account=${accountId} rate_limited_write_skipped reason=${reason} candidate_until=${new Date(until).toISOString()} — guarded write skipped: existing rate_limited_until is later, or the row is absent`,
-				);
-			}
-		}
-		const row = await this.get<{ consecutive_rate_limits: number }>(
-			`SELECT consecutive_rate_limits FROM accounts WHERE id = ?`,
-			[accountId],
-		);
-		return {
-			consecutiveRateLimits: row?.consecutive_rate_limits ?? 0,
-			applied,
-		};
-	}
-
-	async resetConsecutiveRateLimits(accountId: string): Promise<void> {
-		await this.run(
-			`UPDATE accounts SET consecutive_rate_limits = 0, rate_limited_at = NULL WHERE id = ?`,
-			[accountId],
-		);
-	}
-
-	async updateRateLimitMeta(
+	updateRateLimitMeta(
 		accountId: string,
 		status: string,
 		reset: number | null,
 		remaining?: number | null,
-	): Promise<void> {
-		await this.run(
+	): void {
+		this.run(
 			`UPDATE accounts SET rate_limit_status = ?, rate_limit_reset = ?, rate_limit_remaining = ? WHERE id = ?`,
 			[status, reset, remaining ?? null, accountId],
 		);
 	}
 
-	async clearRateLimitState(accountId: string): Promise<number> {
-		return this.runWithChanges(
-			`UPDATE accounts
-			 SET
-			 	rate_limited_until = NULL,
-			 	rate_limited_reason = NULL,
-			 	rate_limited_at = NULL,
-			 	rate_limit_reset = NULL,
-			 	rate_limit_status = NULL,
-			 	rate_limit_remaining = NULL
-			 WHERE id = ?`,
-			[accountId],
-		);
+	pause(accountId: string): void {
+		this.run(`UPDATE accounts SET paused = 1 WHERE id = ?`, [accountId]);
 	}
 
-	async pause(accountId: string, reason = "manual"): Promise<void> {
-		await this.run(
-			`UPDATE accounts SET paused = 1, pause_reason = ? WHERE id = ?`,
-			[reason, accountId],
-		);
+	resume(accountId: string): void {
+		this.run(`UPDATE accounts SET paused = 0 WHERE id = ?`, [accountId]);
 	}
 
-	async resume(accountId: string): Promise<void> {
-		await this.run(
-			`UPDATE accounts SET paused = 0, pause_reason = NULL WHERE id = ?`,
-			[accountId],
-		);
-	}
-
-	async resetSession(accountId: string, timestamp: number): Promise<void> {
-		await this.run(
+	resetSession(accountId: string, timestamp: number): void {
+		this.run(
 			`UPDATE accounts SET session_start = ?, session_request_count = 0 WHERE id = ?`,
 			[timestamp, accountId],
 		);
 	}
 
-	async updateRequestCount(accountId: string, count: number): Promise<void> {
-		await this.run(
-			`UPDATE accounts SET session_request_count = ? WHERE id = ?`,
-			[count, accountId],
-		);
-	}
-
-	async rename(accountId: string, newName: string): Promise<void> {
-		await this.run(`UPDATE accounts SET name = ? WHERE id = ?`, [
-			newName,
+	updateRequestCount(accountId: string, count: number): void {
+		this.run(`UPDATE accounts SET session_request_count = ? WHERE id = ?`, [
+			count,
 			accountId,
 		]);
 	}
 
-	async updatePriority(accountId: string, priority: number): Promise<void> {
-		await this.run(`UPDATE accounts SET priority = ? WHERE id = ?`, [
-			priority,
-			accountId,
-		]);
-	}
+	resetStatistics(resetSessionStart = false): void {
+		if (resetSessionStart) {
+			this.run(
+				`UPDATE accounts SET request_count = 0, session_start = NULL, session_request_count = 0`,
+			);
+			return;
+		}
 
-	async setAutoFallbackEnabled(
-		accountId: string,
-		enabled: boolean,
-	): Promise<void> {
-		await this.run(
-			`UPDATE accounts SET auto_fallback_enabled = ? WHERE id = ?`,
-			[enabled ? 1 : 0, accountId],
+		this.run(
+			`UPDATE accounts SET request_count = 0, session_request_count = 0`,
 		);
-	}
-
-	async setAutoPauseOnOverageEnabled(
-		accountId: string,
-		enabled: boolean,
-	): Promise<void> {
-		await this.run(
-			`UPDATE accounts SET auto_pause_on_overage_enabled = ? WHERE id = ?`,
-			[enabled ? 1 : 0, accountId],
-		);
-	}
-
-	async setBillingType(
-		accountId: string,
-		billingType: string | null,
-	): Promise<void> {
-		await this.run(`UPDATE accounts SET billing_type = ? WHERE id = ?`, [
-			billingType,
-			accountId,
-		]);
-	}
-
-	/**
-	 * Clear expired rate_limited_until values from all accounts
-	 * @param now The current timestamp to compare against
-	 * @returns Number of accounts that had their rate_limited_until cleared
-	 */
-	async clearExpiredRateLimits(now: number): Promise<number> {
-		return this.runWithChanges(
-			`UPDATE accounts SET rate_limited_until = NULL WHERE rate_limited_until <= ?`,
-			[now],
-		);
-	}
-
-	/**
-	 * Check if there are any accounts for a specific provider
-	 */
-	async hasAccountsForProvider(provider: string): Promise<boolean> {
-		const result = await this.get<{ count: number }>(
-			`SELECT COUNT(*) as count FROM accounts WHERE provider = ?`,
-			[provider],
-		);
-		return result ? result.count > 0 : false;
 	}
 }

@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import type { LogEvent } from "@better-ccflare/types";
+import type { LogEvent } from "@ccflare/types";
 import { logFileWriter } from "./file-writer";
 
 export enum LogLevel {
@@ -10,56 +10,12 @@ export enum LogLevel {
 }
 
 export type LogFormat = "pretty" | "json";
+export type LoggerOptions = {
+	silentConsole?: boolean;
+};
 
 // Event emitter for log streaming
 export const logBus = new EventEmitter();
-
-// Error's name/message/stack are non-enumerable, so JSON.stringify(err) returns "{}".
-// Convert Errors to plain objects before they flow into formatMessage / LogEvent /
-// the file writer, which all use JSON.stringify downstream.
-// biome-ignore lint/suspicious/noExplicitAny: payload is intentionally untyped
-function normalizeLogData(data: any): any {
-	if (data === undefined || data === null) return data;
-	if (data instanceof Error) {
-		const out: Record<string, unknown> = {
-			name: data.name,
-			message: data.message,
-			stack: data.stack,
-		};
-		if (data.cause !== undefined) {
-			out.cause =
-				data.cause instanceof Error ? normalizeLogData(data.cause) : data.cause;
-		}
-		return out;
-	}
-	return data;
-}
-
-// String(e) can itself throw (e.g. an object with a throwing
-// Symbol.toPrimitive, or Object.create(null)), which would defeat the
-// purpose of the catch block calling this. Never let this throw.
-function safeErrorReason(e: unknown): string {
-	if (e instanceof Error) return e.message;
-	try {
-		return String(e);
-	} catch {
-		return "unknown error";
-	}
-}
-
-let consoleLoggingOverride: boolean | null = null;
-
-/**
- * Force console output on (or off) for every logger, regardless of debug
- * mode. The interactive TUI silences console logging so log lines do not
- * corrupt the screen, but headless serve mode has no TUI: journald or the
- * operator's terminal is exactly where WARN/ERROR lines belong. Without
- * this, production warnings (runaway fan-out, session budgets) are
- * invisible outside the dashboard log bus.
- */
-export function setConsoleLogging(enabled: boolean | null): void {
-	consoleLoggingOverride = enabled;
-}
 
 export class Logger {
 	private level: LogLevel;
@@ -67,45 +23,26 @@ export class Logger {
 	private format: LogFormat;
 	private silentConsole: boolean;
 
-	constructor(prefix: string = "", level: LogLevel = LogLevel.INFO) {
+	constructor(
+		prefix: string = "",
+		level: LogLevel = LogLevel.INFO,
+		options: LoggerOptions = {},
+	) {
 		this.prefix = prefix;
-		this.level = this.getLogLevelFromEnv() ?? level;
-		this.format = this.getFormatFromEnv();
-		// Only show console output in debug mode or if BETTER_CCFLARE_DEBUG or legacy ccflare_DEBUG is set
-		this.silentConsole = !(
-			this.isDebugEnabled() || this.level === LogLevel.DEBUG
-		);
+		this.level = this.getLogLevelFromEnv() || level;
+		this.format = (process.env.LOG_FORMAT as LogFormat) || "pretty";
+		// Only show console output in debug mode or if ccflare_DEBUG is set
+		this.silentConsole =
+			options.silentConsole ??
+			!(process.env.ccflare_DEBUG === "1" || this.level === LogLevel.DEBUG);
 	}
 
 	private getLogLevelFromEnv(): LogLevel | null {
-		// Check if we're in a Node.js environment
-		if (typeof process === "undefined" || !process.env) {
-			return null;
-		}
 		const envLevel = process.env.LOG_LEVEL?.toUpperCase();
 		if (envLevel && envLevel in LogLevel) {
 			return LogLevel[envLevel as keyof typeof LogLevel];
 		}
 		return null;
-	}
-
-	private getFormatFromEnv(): LogFormat {
-		// Check if we're in a Node.js environment
-		if (typeof process === "undefined" || !process.env) {
-			return "pretty";
-		}
-		return (process.env.LOG_FORMAT as LogFormat) || "pretty";
-	}
-
-	private isDebugEnabled(): boolean {
-		// Check if we're in a Node.js environment
-		if (typeof process === "undefined" || !process.env) {
-			return false;
-		}
-		return (
-			process.env.BETTER_CCFLARE_DEBUG === "1" ||
-			process.env.ccflare_DEBUG === "1"
-		);
 	}
 
 	// biome-ignore lint/suspicious/noExplicitAny: Logger needs to accept any data type
@@ -120,32 +57,10 @@ export class Logger {
 				msg: message,
 				...(data && { data }),
 			};
-			try {
-				return JSON.stringify(logEntry);
-			} catch (e: unknown) {
-				// data is caller-supplied and may be circular or contain a
-				// BigInt, both of which make JSON.stringify throw. A logging
-				// call must never crash its caller, so fall back to a
-				// sanitized entry that preserves ts/level/msg.
-				const reason = safeErrorReason(e);
-				return JSON.stringify({
-					ts: timestamp,
-					level,
-					prefix: this.prefix || undefined,
-					msg: message,
-					data: `[unserializable: ${reason}]`,
-				});
-			}
+			return JSON.stringify(logEntry);
 		} else {
 			const prefix = this.prefix ? `[${this.prefix}] ` : "";
-			let dataStr = "";
-			if (data) {
-				try {
-					dataStr = ` ${JSON.stringify(data)}`;
-				} catch (e: unknown) {
-					dataStr = ` [unserializable: ${safeErrorReason(e)}]`;
-				}
-			}
+			const dataStr = data ? ` ${JSON.stringify(data)}` : "";
 			return `[${timestamp}] ${level}: ${prefix}${message}${dataStr}`;
 		}
 	}
@@ -153,68 +68,60 @@ export class Logger {
 	// biome-ignore lint/suspicious/noExplicitAny: Logger needs to accept any data type
 	debug(message: string, data?: any): void {
 		if (this.level <= LogLevel.DEBUG) {
-			const normalized = normalizeLogData(data);
-			const msg = this.formatMessage("DEBUG", message, normalized);
+			const msg = this.formatMessage("DEBUG", message, data);
 			const event: LogEvent = {
 				ts: Date.now(),
 				level: "DEBUG",
 				msg: message,
-				...(normalized !== undefined && { data: normalized }),
 			};
 			logBus.emit("log", event);
-			logFileWriter?.write(event);
-			if (consoleLoggingOverride ?? !this.silentConsole) console.log(msg);
+			logFileWriter.write(event);
+			this.writeToStream(LogLevel.DEBUG, msg);
 		}
 	}
 
 	// biome-ignore lint/suspicious/noExplicitAny: Logger needs to accept any data type
 	info(message: string, data?: any): void {
 		if (this.level <= LogLevel.INFO) {
-			const normalized = normalizeLogData(data);
-			const msg = this.formatMessage("INFO", message, normalized);
+			const msg = this.formatMessage("INFO", message, data);
 			const event: LogEvent = {
 				ts: Date.now(),
 				level: "INFO",
 				msg: message,
-				...(normalized !== undefined && { data: normalized }),
 			};
 			logBus.emit("log", event);
-			logFileWriter?.write(event);
-			if (consoleLoggingOverride ?? !this.silentConsole) console.log(msg);
+			logFileWriter.write(event);
+			this.writeToStream(LogLevel.INFO, msg);
 		}
 	}
 
 	// biome-ignore lint/suspicious/noExplicitAny: Logger needs to accept any data type
 	warn(message: string, data?: any): void {
 		if (this.level <= LogLevel.WARN) {
-			const normalized = normalizeLogData(data);
-			const msg = this.formatMessage("WARN", message, normalized);
+			const msg = this.formatMessage("WARN", message, data);
 			const event: LogEvent = {
 				ts: Date.now(),
 				level: "WARN",
 				msg: message,
-				...(normalized !== undefined && { data: normalized }),
 			};
 			logBus.emit("log", event);
-			logFileWriter?.write(event);
-			if (consoleLoggingOverride ?? !this.silentConsole) console.warn(msg);
+			logFileWriter.write(event);
+			this.writeToStream(LogLevel.WARN, msg);
 		}
 	}
 
 	// biome-ignore lint/suspicious/noExplicitAny: Logger needs to accept any error type
 	error(message: string, error?: any): void {
 		if (this.level <= LogLevel.ERROR) {
-			const normalized = normalizeLogData(error);
-			const msg = this.formatMessage("ERROR", message, normalized);
+			const msg = this.formatMessage("ERROR", message, error);
 			const event: LogEvent = {
 				ts: Date.now(),
 				level: "ERROR",
 				msg: message,
-				...(normalized !== undefined && { data: normalized }),
 			};
 			logBus.emit("log", event);
-			logFileWriter?.write(event);
-			if (consoleLoggingOverride ?? !this.silentConsole) console.error(msg);
+			logFileWriter.write(event);
+			this.writeToStream(LogLevel.ERROR, msg);
 		}
 	}
 
@@ -222,12 +129,21 @@ export class Logger {
 		this.level = level;
 		// Update silentConsole when level changes
 		this.silentConsole = !(
-			this.isDebugEnabled() || this.level === LogLevel.DEBUG
+			process.env.ccflare_DEBUG === "1" || this.level === LogLevel.DEBUG
 		);
 	}
 
 	getLevel(): LogLevel {
 		return this.level;
+	}
+
+	private writeToStream(level: LogLevel, message: string): void {
+		if (this.silentConsole || typeof process === "undefined") {
+			return;
+		}
+
+		const stream = level >= LogLevel.WARN ? process.stderr : process.stdout;
+		stream?.write?.(`${message}\n`);
 	}
 }
 

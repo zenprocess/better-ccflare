@@ -1,1 +1,0 @@
-export { MinimaxProvider } from "./provider";
