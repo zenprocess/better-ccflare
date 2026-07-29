@@ -8,6 +8,7 @@ import { Logger } from "@better-ccflare/logger";
 import { usageCache } from "@better-ccflare/providers";
 import type { Account } from "@better-ccflare/types";
 import { cacheBodyStore } from "./cache-body-store";
+import { circuitKeyFor, getDefaultCircuitBreaker } from "./circuit-breaker";
 import {
 	createModelFamilyExhaustedResponse,
 	createPoolExhaustedResponse,
@@ -524,6 +525,7 @@ export async function handleProxy(
 		: null;
 	let response: Response | null = null;
 	let anyAccountAttempted = false;
+	let anyCircuitOpen = false;
 
 	for (let i = 0; i < accounts.length; i++) {
 		// For combo routing: enrich metadata with slot index and look up model override
@@ -548,6 +550,17 @@ export async function handleProxy(
 			// A mature cooldown just expired for this account and another
 			// concurrent request is already probing it. Skip straight to the
 			// next account instead of stampeding the recovering account.
+			continue;
+		}
+
+		// PR #349 fix B — consult the circuit breaker. An open circuit means
+		// the breaker has declared this account unhealthy; fail fast to the
+		// next candidate instead of dialing a known-bad upstream. This is a
+		// request-gate, not an availability filter: the account stays in the
+		// strategy's candidate list (isAccountAvailable is intentionally
+		// untouched) so the breaker's own probe path can still observe it.
+		if (!getDefaultCircuitBreaker().shouldAllow(circuitKeyFor(accounts[i]))) {
+			anyCircuitOpen = true;
 			continue;
 		}
 
@@ -592,6 +605,90 @@ export async function handleProxy(
 				`Combo slot ${i} failed on account ${accounts[i].name}${i < accounts.length - 1 ? ", trying next slot" : ", all combo slots exhausted"}`,
 			);
 		}
+	}
+
+	// Every candidate was skipped without an actual attempt. Three outcomes
+	// are possible:
+	//
+	//  1. `anyAccountAttempted` — at least one real attempt happened and the
+	//     upstream returned nothing (e.g. failover). Fall through to the
+	//     combo / reauth / hard-failure handling below. (Existing behavior.)
+	//
+	//  2. `anyCircuitOpen` — every skip was a circuit-open (or a mix that
+	//     includes at least one circuit-open). The breaker has declared
+	//     these accounts unhealthy. Returning a `circuit_open` 503 here is
+	//     the WHOLE POINT of the gate: retrying them ungated would amplify
+	//     exactly the failures the breaker exists to suppress. Match the
+	//     post-processing of the `accounts.length === 0` branch above
+	//     (re-fetch from DB, skip request-log staging for auto-refresh
+	//     probes, mirror the existing pool-exhausted 503 wiring).
+	//
+	//  3. All skips were probe-suppressed, none circuit-open. The probe gate
+	//     exists to PREFER another account over stampeding one that just
+	//     recovered, not to drop the request when there is no other account
+	//     to prefer: retry the highest-priority candidate once, bypassing
+	//     the gate. (Existing behavior.)
+	if (!anyAccountAttempted && accounts.length > 0 && anyCircuitOpen) {
+		log.warn(
+			`All ${accounts.length} candidate account(s) were circuit-open; returning circuit_open 503`,
+		);
+		const allAccounts = (await ctx.dbOps.getAllAccounts()).filter(
+			(a) => a.provider === ctx.provider.name,
+		);
+		const circuitOpenResponse = createPoolExhaustedResponse(
+			allAccounts,
+			"circuit_open",
+		);
+		const isAutoRefreshProbe = isInternalProbe(
+			req.headers,
+			ctx,
+			"auto-refresh",
+		);
+		if (!isAutoRefreshProbe) {
+			getUsageCollector().handleStart({
+				type: "start",
+				messageId: crypto.randomUUID(),
+				requestId: requestMeta.id,
+				accountId: null,
+				method: req.method,
+				path: url.pathname,
+				timestamp: requestMeta.timestamp,
+				requestHeaders: Object.fromEntries(req.headers.entries()),
+				requestBody: null,
+				project: project ?? null,
+				projectAttributionSource: projectAttributionSource ?? "none",
+				agentAttributionSource: agentAttributionSource ?? "none",
+				responseStatus: 503,
+				responseHeaders: Object.fromEntries(circuitOpenResponse.headers.entries()),
+				isStream: false,
+				providerName: ctx.provider.name,
+				accountBillingType: null,
+				accountAutoPauseOnOverageEnabled: 0,
+				accountName: null,
+				agentUsed: agentUsed || null,
+				originalModel: originalModel || null,
+				appliedModel: appliedModel || null,
+				comboName: null,
+				apiKeyId: apiKeyId || null,
+				apiKeyName: apiKeyName || null,
+				retryAttempt: 0,
+				failoverAttempts: 0,
+			});
+			getUsageCollector()
+				.handleEnd({
+					type: "end",
+					requestId: requestMeta.id,
+					success: false,
+					error: "circuit_open",
+				})
+				.catch((err: unknown) => {
+					log.error(
+						`handleEnd failed for circuit_open request ${requestMeta.id}`,
+						err,
+					);
+				});
+		}
+		return circuitOpenResponse;
 	}
 
 	// Every candidate was single-flight probe-gate suppressed — no account was
