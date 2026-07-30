@@ -621,26 +621,13 @@ export class RequestRepository extends BaseRepository<RequestData> {
 		}));
 	}
 
-	deleteOlderThan(cutoffTs: number): number {
-		return this.runWithChanges(`DELETE FROM requests WHERE timestamp < ?`, [
-			cutoffTs,
-		]);
-	}
+	// NOTE: the blind age-based deletion methods (deleteOlderThan,
+	// deleteOrphanedPayloads, deletePayloadsOlderThan) were removed on
+	// purpose. All retention deletion now goes through the distilled-first,
+	// fail-closed prune gate (see ../prune-gate.ts) so that no payload can be
+	// deleted before the distiller has extracted it. Do not re-add them.
 
 	clear(): number {
 		return this.runWithChanges(`DELETE FROM requests`);
-	}
-
-	deleteOrphanedPayloads(): number {
-		return this.runWithChanges(
-			`DELETE FROM request_payloads WHERE id NOT IN (SELECT id FROM requests)`,
-		);
-	}
-
-	deletePayloadsOlderThan(cutoffTs: number): number {
-		return this.runWithChanges(
-			`DELETE FROM request_payloads WHERE id IN (SELECT id FROM requests WHERE timestamp < ?)`,
-			[cutoffTs],
-		);
 	}
 }

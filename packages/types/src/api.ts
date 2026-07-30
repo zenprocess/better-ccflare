@@ -34,6 +34,14 @@ export interface CleanupResponse {
 	removedRequests: number;
 	removedPayloads: number;
 	cutoffIso: string;
+	/** Old-but-undistilled payloads retained by the fail-closed prune gate. */
+	keptUndistilledPayloads?: number;
+	/** True when the prune gate deleted nothing (marker table missing / error). */
+	failClosed?: boolean;
+	reason?: string | null;
+	batches?: number;
+	/** False when the run stopped on its time budget with work remaining. */
+	exhausted?: boolean;
 }
 
 // Auth/OAuth API shapes
