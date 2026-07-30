@@ -35,6 +35,7 @@ describe("toRequest", () => {
 			previous_response_id: null,
 			response_chain_id: "resp-1",
 			client_session_id: "session-1",
+			stream_terminal_state: "complete",
 		};
 
 		expect(toRequest(row)).toEqual({
@@ -69,6 +70,7 @@ describe("toRequest", () => {
 			previousResponseId: null,
 			responseChainId: "resp-1",
 			clientSessionId: "session-1",
+			streamTerminalState: "complete",
 		});
 	});
 
@@ -105,6 +107,7 @@ describe("toRequest", () => {
 			previous_response_id: null,
 			response_chain_id: null,
 			client_session_id: null,
+			stream_terminal_state: null,
 		};
 
 		expect(toRequest(row)).toEqual({
@@ -139,6 +142,7 @@ describe("toRequest", () => {
 			previousResponseId: null,
 			responseChainId: null,
 			clientSessionId: null,
+			streamTerminalState: null,
 		});
 	});
 });

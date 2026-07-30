@@ -10,6 +10,14 @@ export function teeStream(
 		onChunk?: (chunk: Uint8Array) => void;
 		onClose?: (buffered: Uint8Array[]) => void;
 		onError?: (error: Error) => void;
+		/**
+		 * Called when the consumer of the returned stream cancels (e.g. the
+		 * HTTP client closes the connection mid-stream). The previous
+		 * implementation silently propagated cancel() to the upstream reader
+		 * without notifying analytics, which made client-abandoned streams
+		 * invisible: no onClose / onError fired, no DB row written.
+		 */
+		onCancel?: (reason: unknown) => void;
 		maxBytes?: number; // Max bytes to buffer (default: 1MB)
 	} = {},
 ): ReadableStream<Uint8Array> {
@@ -17,12 +25,14 @@ export function teeStream(
 		onChunk,
 		onClose,
 		onError,
+		onCancel,
 		maxBytes = BUFFER_SIZES.STREAM_TEE_MAX_BYTES,
 	} = options;
 	const reader = upstream.getReader();
 	const buffered: Uint8Array[] = [];
 	let totalBytes = 0;
 	let truncated = false;
+	let cancelled = false;
 
 	return new ReadableStream({
 		async pull(controller) {
@@ -61,6 +71,17 @@ export function teeStream(
 		},
 
 		cancel(reason) {
+			if (!cancelled) {
+				cancelled = true;
+				// Notify analytics that the consumer aborted so the request
+				// can be recorded as abandoned rather than silently dropped.
+				try {
+					onCancel?.(reason);
+				} catch (err) {
+					// Swallow callback errors — cancel() must still propagate
+					// to the upstream reader so the upstream connection closes.
+				}
+			}
 			return reader.cancel(reason);
 		},
 	});

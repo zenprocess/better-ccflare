@@ -36,6 +36,13 @@ export interface RequestRow {
 	previous_response_id: string | null;
 	response_chain_id: string | null;
 	client_session_id: string | null;
+	stream_terminal_state:
+		| "complete"
+		| "truncated"
+		| "client_cancelled"
+		| "abandoned"
+		| "error"
+		| null;
 }
 
 export function toRequest(row: RequestRow): Request {
@@ -71,6 +78,7 @@ export function toRequest(row: RequestRow): Request {
 		previousResponseId: row.previous_response_id ?? null,
 		responseChainId: row.response_chain_id ?? null,
 		clientSessionId: row.client_session_id ?? null,
+		streamTerminalState: row.stream_terminal_state ?? null,
 	};
 }
 

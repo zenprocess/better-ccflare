@@ -77,6 +77,13 @@ function shouldMigrateRequestsTable(columns: TableInfoRow[]): boolean {
 	const upstreamTtfbMs = getColumn(columns, "upstream_ttfb_ms");
 	const streamingDurationMs = getColumn(columns, "streaming_duration_ms");
 
+	// stream_terminal_state is intentionally NOT a trigger for full table
+	// migration — it is added lightweight-style in ensureRequestLinkageColumns
+	// alongside the other v2 columns. Triggering a full requests_v2 rebuild
+	// here would break existing databases (some are mounted readonly /
+	// have WAL state that rejects CREATE TABLE requests even though ALTER
+	// TABLE is fine) for what should be a one-line column add.
+
 	return (
 		!provider ||
 		provider.notnull !== 1 ||
@@ -105,6 +112,14 @@ function ensureRequestLinkageColumns(db: Database): void {
 		["proxy_overhead_ms", "INTEGER"],
 		["upstream_ttfb_ms", "INTEGER"],
 		["streaming_duration_ms", "INTEGER"],
+		// Real terminal state for streaming responses. Distinct from
+		// `success` (which only reflects upstream HTTP status) so that
+		// client-cancelled / abandoned / truncated streams are recorded
+		// with the actual outcome instead of being silently dropped or
+		// recorded as success. See packages/proxy/src/response-handler.ts
+		// for the producer and packages/proxy/src/stream-tee.ts for the
+		// on-cancel hook that feeds the client_cancelled case.
+		["stream_terminal_state", "TEXT"],
 	] as const;
 
 	for (const [columnName, columnType] of requestColumns) {
@@ -336,7 +351,8 @@ function migrateRequestsTable(db: Database, columns: TableInfoRow[]): void {
 			ttft_ms INTEGER,
 			proxy_overhead_ms INTEGER,
 			upstream_ttfb_ms INTEGER,
-			streaming_duration_ms INTEGER
+			streaming_duration_ms INTEGER,
+			stream_terminal_state TEXT
 		)
 	`);
 
@@ -350,7 +366,7 @@ function migrateRequestsTable(db: Database, columns: TableInfoRow[]): void {
 			cache_read_input_tokens, cache_creation_input_tokens, output_tokens,
 			reasoning_tokens, response_id, previous_response_id, response_chain_id,
 			client_session_id, ttft_ms, proxy_overhead_ms, upstream_ttfb_ms,
-			streaming_duration_ms
+			streaming_duration_ms, stream_terminal_state
 		)
 		SELECT
 			id,
@@ -383,7 +399,8 @@ function migrateRequestsTable(db: Database, columns: TableInfoRow[]): void {
 			${columnOr(columns, "ttft_ms", "NULL")},
 			${columnOr(columns, "proxy_overhead_ms", "NULL")},
 			${columnOr(columns, "upstream_ttfb_ms", "NULL")},
-			${columnOr(columns, "streaming_duration_ms", "NULL")}
+			${columnOr(columns, "streaming_duration_ms", "NULL")},
+			${columnOr(columns, "stream_terminal_state", "NULL")}
 		FROM requests
 	`,
 	);
@@ -540,7 +557,8 @@ export function ensureSchema(db: Database): void {
 			ttft_ms INTEGER,
 			proxy_overhead_ms INTEGER,
 			upstream_ttfb_ms INTEGER,
-			streaming_duration_ms INTEGER
+			streaming_duration_ms INTEGER,
+			stream_terminal_state TEXT
 		)
 	`);
 

@@ -256,6 +256,7 @@ export class DatabaseOperations implements StrategyStore, Disposable {
 			timestamp?: number;
 			payload?: unknown;
 			timings?: RequestData["timings"];
+			streamTerminalState?: RequestData["streamTerminalState"];
 		},
 	): void {
 		this.requests.save({
@@ -274,6 +275,7 @@ export class DatabaseOperations implements StrategyStore, Disposable {
 			timestamp: options?.timestamp,
 			payload: options?.payload,
 			timings: options?.timings,
+			streamTerminalState: options?.streamTerminalState,
 		});
 	}
 

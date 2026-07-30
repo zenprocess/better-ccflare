@@ -65,6 +65,25 @@ export interface EndMessage {
 	preExtractedModel?: string;
 	success: boolean;
 	error?: string;
+	/**
+	 * Real terminal state for streaming responses. Distinct from `success`,
+	 * which only reflects the upstream HTTP status. Possible values:
+	 *  - "complete": upstream stream ended normally (matched the SSE message_stop
+	 *    event for Anthropic-shaped streams)
+	 *  - "truncated": upstream closed mid-content (TCP reset, etc.)
+	 *  - "client_cancelled": the consumer cancelled (client disconnect, Esc,
+	 *    tool interrupt) before the upstream completed
+	 *  - "abandoned": orphaned by the inactivity cleanup / shutdown sweeper
+	 *  - "error": in-band error frame observed on the upstream
+	 * Null for non-streaming responses or streams without an observer.
+	 */
+	streamTerminalState?:
+		| "complete"
+		| "truncated"
+		| "client_cancelled"
+		| "abandoned"
+		| "error"
+		| null;
 }
 
 export interface ControlMessage {

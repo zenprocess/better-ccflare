@@ -49,6 +49,24 @@ export interface RequestData {
 		upstreamTtfbMs?: number | null;
 		streamingDurationMs?: number | null;
 	};
+	/**
+	 * Real terminal state for streaming responses. Distinct from `success`,
+	 * which only reflects upstream HTTP status. Possible values:
+	 *  - "complete": upstream stream ended normally
+	 *  - "truncated": upstream closed mid-content
+	 *  - "client_cancelled": consumer cancelled (client disconnect, Esc,
+	 *    tool interrupt) before the upstream completed
+	 *  - "abandoned": orphaned by the inactivity cleanup / shutdown sweeper
+	 *  - "error": in-band error frame observed on the upstream
+	 * Null for non-streaming responses or streams without an observer.
+	 */
+	streamTerminalState?:
+		| "complete"
+		| "truncated"
+		| "client_cancelled"
+		| "abandoned"
+		| "error"
+		| null;
 }
 
 interface PersistRequestData extends RequestData {
@@ -154,7 +172,16 @@ export class RequestRepository extends BaseRepository<RequestData> {
 					response_id = ?,
 					previous_response_id = ?,
 					response_chain_id = ?,
-					client_session_id = ?
+					client_session_id = ?,
+					-- stream_terminal_state uses COALESCE so the FIRST
+					-- non-null value sticks. The cancel handler's end
+					-- message (with streamTerminalState="client_cancelled")
+					-- arrives before the analytics reader's end message
+					-- (which has no terminal state), so the cancel wins;
+					-- without COALESCE the analytics end would blank the
+					-- column back to NULL and the abandoned row would look
+					-- like a non-streaming success.
+					stream_terminal_state = COALESCE(?, stream_terminal_state)
 				WHERE id = ?
 			`,
 				[
@@ -187,6 +214,7 @@ export class RequestRepository extends BaseRepository<RequestData> {
 					linkage.previousResponseId,
 					responseChainId,
 					linkage.clientSessionId,
+					data.streamTerminalState ?? null,
 					data.id,
 				],
 			);

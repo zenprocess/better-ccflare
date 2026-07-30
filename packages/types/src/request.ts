@@ -116,6 +116,19 @@ export interface Request {
 	previousResponseId: string | null;
 	responseChainId: string | null;
 	clientSessionId: string | null;
+	/**
+	 * Real terminal state for streaming responses. Distinct from `success`,
+	 * which only reflects upstream HTTP status. Possible values: "complete" |
+	 * "truncated" | "client_cancelled" | "abandoned" | "error" | null.
+	 * Null for non-streaming responses or streams without an observer.
+	 */
+	streamTerminalState?:
+		| "complete"
+		| "truncated"
+		| "client_cancelled"
+		| "abandoned"
+		| "error"
+		| null;
 }
 
 // Shared request summary transport
@@ -152,6 +165,19 @@ export interface RequestSummary {
 	previousResponseId: string | null;
 	responseChainId: string | null;
 	clientSessionId: string | null;
+	/**
+	 * Real terminal state for streaming responses. Distinct from `success`,
+	 * which only reflects upstream HTTP status. Possible values: "complete" |
+	 * "truncated" | "client_cancelled" | "abandoned" | "error" | null.
+	 * Null for non-streaming responses or streams without an observer.
+	 */
+	streamTerminalState?:
+		| "complete"
+		| "truncated"
+		| "client_cancelled"
+		| "abandoned"
+		| "error"
+		| null;
 }
 
 export interface RequestTraceMeta {
@@ -239,6 +265,7 @@ export function toRequestSummary(request: Request): RequestSummary {
 		previousResponseId: request.previousResponseId ?? null,
 		responseChainId: request.responseChainId ?? null,
 		clientSessionId: request.clientSessionId ?? null,
+		streamTerminalState: request.streamTerminalState ?? null,
 	};
 }
 

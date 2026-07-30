@@ -112,8 +112,78 @@ export async function forwardToClient(
 	 *  STREAMING RESPONSES — tee with Response.clone() and send chunks
 	 *********************************************************************/
 	if (isStream && response.body) {
-		// Clone response once for background consumption.
+		// Two independent clones: one for the analytics worker (chunks →
+		// usage extraction + payload retention), one as the source for the
+		// client-facing wrapped body that observes cancel. We do NOT read
+		// from `response.body` directly because Bun marks the original
+		// ReadableStream as locked the moment response.clone() runs, which
+		// silently breaks any subsequent reader attached to it.
 		const analyticsClone = response.clone();
+		const clientSource = response.clone();
+		// Flag set when the consumer cancels the wrapped body. The
+		// analytics reader is on a SEPARATE clone, so it cannot see the
+		// client cancel — without this flag it would race the cancel
+		// handler and overwrite the abandoned row with success=true (derived
+		// from upstream HTTP status). The cancel handler wins; the analytics
+		// reader short-circuits as soon as it observes the flag.
+		let clientCancelled = false;
+
+		// Wrap the body forwarded to the client so a client-side cancel
+		// (Esc, tool interrupt, abrupt TCP close) is observable. Chunks are
+		// forwarded 1:1 from `clientSource` — the live SSE forward path is
+		// untouched. The only added behavior is firing an end message when
+		// the consumer cancels.
+		let upstreamCancel: (() => void) | null = null;
+		const wrappedBody = new ReadableStream<Uint8Array>({
+			start(controller) {
+				const reader = clientSource.body!.getReader();
+				const pump = async () => {
+					try {
+						while (true) {
+							const { value, done } = await reader.read();
+							if (done) {
+								controller.close();
+								return;
+							}
+							controller.enqueue(value);
+						}
+					} catch (err) {
+						controller.error(err);
+					}
+				};
+				pump();
+				// Hold a cancel hook so the wrap's cancel() can propagate to
+				// the underlying source. Without this the upstream source
+				// keeps pumping chunks into a controller the consumer has
+				// already abandoned.
+				upstreamCancel = () => {
+					clientSource.body!.cancel().catch(() => {
+						// Underlying cancel may reject if the source is
+						// already locked by an in-flight read; that read
+						// will surface the error to the pump above.
+					});
+				};
+			},
+			cancel(_reason) {
+				if (!clientCancelled) {
+					clientCancelled = true;
+					// Fire end message synchronously so the worker sees it
+					// before the analytics reader's eventual end. The
+					// worker's first end message wins (handleEnd deletes
+					// state after writing), so the abandoned row is preserved
+					// even if the analytics reader completes shortly after.
+					ctx.usageWorker.postMessage({
+						type: "end",
+						requestId,
+						preExtractedModel,
+						success: false,
+						error: "Client cancelled mid-stream",
+						streamTerminalState: "client_cancelled",
+					} satisfies EndMessage);
+				}
+				upstreamCancel?.();
+			},
+		});
 
 		const backgroundTask = (async () => {
 			try {
@@ -121,6 +191,15 @@ export async function forwardToClient(
 				if (!reader) return; // Safety check
 				// eslint-disable-next-line no-constant-condition
 				while (true) {
+					if (clientCancelled) {
+						// Stop consuming upstream — the client is gone, so
+						// there is no value in reading more. Cancel the
+						// analytics reader so the upstream connection also
+						// closes promptly instead of staying open for the
+						// rest of the stream.
+						await reader.cancel();
+						return;
+					}
 					const { value, done } = await reader.read();
 					if (done) break;
 					if (value) {
@@ -132,6 +211,10 @@ export async function forwardToClient(
 						ctx.usageWorker.postMessage(chunkMsg);
 					}
 				}
+				// If the client cancelled earlier, the cancel handler has
+				// already written the row. Skip the upstream-status-derived
+				// end message to avoid racing the worker's first end.
+				if (clientCancelled) return;
 				// Finished without errors
 				const endMsg: EndMessage = {
 					type: "end",
@@ -141,6 +224,7 @@ export async function forwardToClient(
 				};
 				ctx.usageWorker.postMessage(endMsg);
 			} catch (err) {
+				if (clientCancelled) return;
 				const endMsg: EndMessage = {
 					type: "end",
 					requestId,
@@ -153,8 +237,14 @@ export async function forwardToClient(
 		})();
 		trackProxyBackgroundTask(backgroundTask);
 
-		// Return the sanitized response
-		return response;
+		// Return a fresh Response whose body is the wrapped (cancel-aware)
+		// stream. The chunks are forwarded 1:1 to the client — only the
+		// cancel hook is new.
+		return new Response(wrappedBody, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: response.headers,
+		});
 	}
 
 	/*********************************************************************
