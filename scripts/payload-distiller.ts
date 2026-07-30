@@ -51,6 +51,7 @@ interface Args {
 	godkb: boolean;
 	verbose: boolean;
 	onlyFailed: boolean;
+	rollupOnly: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -65,6 +66,7 @@ function parseArgs(argv: string[]): Args {
 		godkb: true,
 		verbose: false,
 		onlyFailed: false,
+		rollupOnly: false,
 	};
 	for (let i = 0; i < argv.length; i++) {
 		const a = argv[i];
@@ -102,12 +104,19 @@ function parseArgs(argv: string[]): Args {
 			case "--only-failed":
 				args.onlyFailed = true;
 				break;
+			case "--rollup-only":
+				// emit ONLY per-day/model cost rollups; skip the per-row fact/lesson
+				// observations. Rows are still marked distilled (after their rollup
+				// POSTs OK), so they become prune-eligible without flooding engram
+				// with individual facts. Use for bulk success-row backfill.
+				args.rollupOnly = true;
+				break;
 			case "--verbose":
 				args.verbose = true;
 				break;
 			case "--help":
 				console.log(
-					"payload-distiller [--dry-run] [--limit N] [--scope engram-project] [--source ccflare|ccmax] [--db-url URL] [--engram-url URL] [--godkb-url URL] [--no-godkb] [--verbose]",
+					"payload-distiller [--dry-run] [--limit N] [--scope engram-project] [--source ccflare|ccmax] [--only-failed] [--rollup-only] [--db-url URL] [--engram-url URL] [--godkb-url URL] [--no-godkb] [--verbose]",
 				);
 				process.exit(0);
 				break;
@@ -502,8 +511,13 @@ async function main(): Promise<number> {
 		? sql`AND NOT EXISTS (SELECT 1 FROM payload_distilled d WHERE d.payload_id = rp.id)`
 		: sql``;
 	const failedClause = args.onlyFailed ? sql`AND r.success = false` : sql``;
+	// --rollup-only needs only the metadata (from the requests join + timestamp);
+	// substitute an empty-object literal for the potentially-large json body so a
+	// big backfill can't OOM the box. '{}' (not NULL) keeps extractRow's payload
+	// parsing null-safe; rollups read the join columns + timestamp, never json.
+	const jsonCol = args.rollupOnly ? sql`'{}'::text AS json` : sql`rp.json`;
 	const rows: DbRow[] = await sql`
-		SELECT rp.id, rp.timestamp, rp.json,
+		SELECT rp.id, rp.timestamp, ${jsonCol},
 		       r.model, r.cost_usd, r.success, r.status_code, r.error_message,
 		       r.account_used, r.input_tokens, r.output_tokens, r.total_tokens,
 		       r.response_time_ms, r.path
@@ -523,17 +537,47 @@ async function main(): Promise<number> {
 	let factCount = 0;
 	let lessonCount = 0;
 	const rollups = new Map<string, Rollup>();
+	const rollupIds = new Map<string, string[]>();
 	const failureSignatures = new Map<string, number>();
 	const marked: Extracted[] = [];
 
 	for (const row of rows) {
 		const e = extractRow(row);
-		const obs: Observation[] = [factOf(e, args)];
+
+		// rollups aggregate ONLY rows processed in this run (idempotent across runs).
+		// Done first so it runs for every row in both normal and rollup-only modes.
+		const key = `${e.model}|${e.account}|${dayOf(e.tsMs)}`;
+		const r = rollups.get(key) ?? {
+			model: e.model,
+			account: e.account,
+			day: dayOf(e.tsMs),
+			requests: 0,
+			failures: 0,
+			costUsd: 0,
+			totalTokens: 0,
+		};
+		r.requests++;
 		if (e.success === false) {
-			obs.push(lessonOf(e, args));
+			r.failures++;
 			const sig = `${e.statusCode ?? "?"}:${(e.errorMessage ?? "").slice(0, 80)}`;
 			failureSignatures.set(sig, (failureSignatures.get(sig) ?? 0) + 1);
 		}
+		r.costUsd += e.costUsd;
+		r.totalTokens += e.totalTokens ?? 0;
+		rollups.set(key, r);
+
+		// --rollup-only: emit no per-row fact/lesson; record the id under its rollup
+		// key and defer marking until that rollup POSTs OK (rollup loop below),
+		// preserving the emit-then-mark fail-closed guarantee.
+		if (args.rollupOnly) {
+			const ids = rollupIds.get(key) ?? [];
+			ids.push(e.id);
+			rollupIds.set(key, ids);
+			continue;
+		}
+
+		const obs: Observation[] = [factOf(e, args)];
+		if (e.success === false) obs.push(lessonOf(e, args));
 
 		if (args.dryRun) {
 			for (const o of obs) {
@@ -580,34 +624,46 @@ async function main(): Promise<number> {
 			marked.push(e);
 			distilled++;
 		}
-
-		// rollups aggregate ONLY rows distilled in this run (idempotent across runs)
-		const key = `${e.model}|${e.account}|${dayOf(e.tsMs)}`;
-		const r = rollups.get(key) ?? {
-			model: e.model,
-			account: e.account,
-			day: dayOf(e.tsMs),
-			requests: 0,
-			failures: 0,
-			costUsd: 0,
-			totalTokens: 0,
-		};
-		r.requests++;
-		if (e.success === false) r.failures++;
-		r.costUsd += e.costUsd;
-		r.totalTokens += e.totalTokens ?? 0;
-		rollups.set(key, r);
 	}
 
 	// (c) cost rollups
-	for (const r of rollups.values()) {
+	for (const [key, r] of rollups.entries()) {
 		const o = rollupObservation(r, runId, args);
 		if (args.dryRun) {
 			console.log(`\n--- DRY RUN would POST ${observationsUrl} (rollup)`);
 			console.log(`kind=${o.kind} subject: ${o.subject}`);
 			console.log(o.body);
+			if (args.rollupOnly) distilled += rollupIds.get(key)?.length ?? 0;
 		} else {
-			await postWithRetry(observationsUrl, o, engramHeaders, `engram rollup ${r.day}/${r.model}`);
+			const ok = await postWithRetry(
+				observationsUrl,
+				o,
+				engramHeaders,
+				`engram rollup ${r.day}/${r.model}`,
+			);
+			// --rollup-only: mark this rollup's rows ONLY after the rollup POST
+			// succeeded. A failed rollup leaves its rows undistilled -> retried,
+			// never deleted by the prune gate. Fail-closed.
+			if (args.rollupOnly) {
+				if (!ok) {
+					skipped += rollupIds.get(key)?.length ?? 0;
+					continue;
+				}
+				for (const id of rollupIds.get(key) ?? []) {
+					try {
+						await sql`INSERT INTO payload_distilled (payload_id, distilled_at)
+							VALUES (${id}, ${Date.now()})
+							ON CONFLICT (payload_id) DO NOTHING`;
+					} catch (err) {
+						console.error(
+							`[distill] ABORT: failed to mark ${id} distilled (${err instanceof Error ? err.message : err}); stopping to bound double-writes`,
+						);
+						await sql.end();
+						return 3;
+					}
+					distilled++;
+				}
+			}
 		}
 	}
 
