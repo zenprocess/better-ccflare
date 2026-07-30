@@ -16,6 +16,11 @@ import { ensureSchema, runMigrations } from "./migrations";
 import type { RequestWithAccountName } from "./models/request-row";
 import { resolveDbPath } from "./paths";
 import {
+	type PruneCutoffs,
+	type PruneGateOptions,
+	runPruneGate,
+} from "./prune-gate";
+import {
 	AccountRepository,
 	type CreateAccountData,
 	type UpdateAccountData,
@@ -34,6 +39,19 @@ import { StrategyRepository } from "./repositories/strategy.repository";
 
 export interface RuntimeConfig {
 	sessionDurationMs?: number;
+}
+
+/** Result of the gated retention cleanup (see prune-gate.ts). */
+export interface CleanupResult {
+	removedRequests: number;
+	removedPayloads: number;
+	/** Old-but-undistilled payloads RETAINED (fail-closed); >0 should alert. */
+	keptUndistilledPayloads: number;
+	/** True when the gate deleted nothing (marker table missing / error). */
+	failClosed: boolean;
+	reason: string | null;
+	batches: number;
+	exhausted: boolean;
 }
 
 /**
@@ -390,29 +408,36 @@ export class DatabaseOperations implements StrategyStore, Disposable {
 		return this.analytics.getAnalytics(options);
 	}
 
-	// Cleanup operations (payload by age; request metadata by age; plus orphan sweep)
+	// Cleanup operations — distilled-first, fail-closed prune gate.
+	// A payload is only deleted when it is BOTH past retention AND marked
+	// distilled in payload_distilled; everything else is kept and counted.
+	// All deletes are batched (no single giant statement). See prune-gate.ts.
 	cleanupOldRequests(
 		payloadRetentionMs: number,
 		requestRetentionMs?: number,
-	): {
-		removedRequests: number;
-		removedPayloads: number;
-	} {
+		opts: PruneGateOptions = {},
+	): CleanupResult {
 		const now = Date.now();
-		const payloadCutoff = now - payloadRetentionMs;
-		let removedRequests = 0;
+		const cutoffs: PruneCutoffs = {
+			payloadCutoffTs: now - payloadRetentionMs,
+		};
 		if (
 			typeof requestRetentionMs === "number" &&
 			Number.isFinite(requestRetentionMs)
 		) {
-			const requestCutoff = now - requestRetentionMs;
-			removedRequests = this.requests.deleteOlderThan(requestCutoff);
+			cutoffs.requestCutoffTs = now - requestRetentionMs;
 		}
-		const removedPayloadsByAge =
-			this.requests.deletePayloadsOlderThan(payloadCutoff);
-		const removedOrphans = this.requests.deleteOrphanedPayloads();
-		const removedPayloads = removedPayloadsByAge + removedOrphans;
-		return { removedRequests, removedPayloads };
+		const gate = runPruneGate(this.db, cutoffs, opts);
+		return {
+			removedRequests: gate.deletedRequests,
+			removedPayloads: gate.deletedPayloads + gate.deletedOrphanPayloads,
+			keptUndistilledPayloads:
+				gate.keptUndistilledPayloads + gate.keptUndistilledOrphans,
+			failClosed: gate.failClosed,
+			reason: gate.reason,
+			batches: gate.batches,
+			exhausted: gate.exhausted,
+		};
 	}
 
 	close(): void {

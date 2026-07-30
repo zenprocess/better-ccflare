@@ -16,21 +16,28 @@ export function createCleanupHandler(
 			const requestDays = config.getRequestRetentionDays();
 			const payloadMs = payloadDays * 24 * 60 * 60 * 1000;
 			const requestMs = requestDays * 24 * 60 * 60 * 1000;
-			const { removedRequests, removedPayloads } = dbOps.cleanupOldRequests(
-				payloadMs,
-				requestMs,
-			);
+			const cleanup = dbOps.cleanupOldRequests(payloadMs, requestMs);
 			const cutoffIso = new Date(
 				Date.now() - Math.min(payloadMs, requestMs),
 			).toISOString();
 			const cleanupData: CleanupResponse = {
-				removedRequests,
-				removedPayloads,
+				removedRequests: cleanup.removedRequests,
+				removedPayloads: cleanup.removedPayloads,
 				cutoffIso,
+				keptUndistilledPayloads: cleanup.keptUndistilledPayloads,
+				failClosed: cleanup.failClosed,
+				reason: cleanup.reason,
+				batches: cleanup.batches,
+				exhausted: cleanup.exhausted,
 			};
+			const gateNote = cleanup.failClosed
+				? ` — PRUNE GATE FAIL-CLOSED: ${cleanup.reason ?? "unknown"}`
+				: cleanup.keptUndistilledPayloads > 0
+					? ` — kept ${cleanup.keptUndistilledPayloads} undistilled payload(s)`
+					: "";
 			const result: MutationResult<CleanupResponse> = {
 				success: true,
-				message: `Cleaned up ${removedRequests} requests and ${removedPayloads} payloads`,
+				message: `Cleaned up ${cleanup.removedRequests} requests and ${cleanup.removedPayloads} payloads${gateNote}`,
 				data: cleanupData,
 			};
 			return jsonResponse(result);
