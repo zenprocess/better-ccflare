@@ -107,24 +107,35 @@ describe("createPoolExhaustedResponse — circuit_open", () => {
 		expect(response.headers.get("Content-Type")).toContain("application/json");
 	});
 
-	// Spec test (2 cont.): Retry-After does NOT depend on rate_limited_until
-	// when the cause is circuit_open. The breaker's open-cooldown is the
-	// authoritative duration, not the account's rate-limit window.
-	it("uses breaker-cooldown-based Retry-After for circuit_open even when an unrelated rate_limited_until exists", () => {
+	// Spec test (2 cont., zp4): When the cause is circuit_open AND the account
+	// also has a real recovery window (cooldown or usage reset), the LONGER
+	// honest wait wins. The pre-merge #349 contract returned the breaker's
+	// 30s hint regardless of any underlying cooldown — for a circuit-open
+	// account that is ALSO rate-limited for 5 minutes, the breaker will
+	// re-admit at 30s but the upstream will 429 immediately, putting the
+	// client in a 30s-loop. zp4 #365 fixes this by surfacing the real wait.
+	it("surfaces the longer real-wait over the 30s breaker hint when both apply for circuit_open", () => {
 		const accounts = [
 			makeAccount({
 				name: "account-A",
-				// 5 minutes in the future — would push pool_exhausted Retry-After
-				// to ~300s. The circuit_open path must NOT inherit this.
-				rate_limited_until: Date.now() + 5 * 60_000,
+				rate_limited_until: Date.now() + 5 * 60_000, // 5 minutes
 			}),
 		];
 		const response = createPoolExhaustedResponse(accounts, "circuit_open");
 		const retryAfterSeconds = Number(response.headers.get("Retry-After"));
 
-		// Independent of the account's rate-limit window.
-		expect(retryAfterSeconds).toBeGreaterThanOrEqual(30);
-		expect(retryAfterSeconds).toBeLessThanOrEqual(60);
+		// ~300s (5 min cooldown), NOT 30s — the real wait wins.
+		expect(retryAfterSeconds).toBeGreaterThanOrEqual(295);
+		expect(retryAfterSeconds).toBeLessThanOrEqual(300);
+	});
+
+	// Counterpart: with NO cooldown and NO usage snapshots, the breaker
+	// hint (30s) is still the right answer because there is no other signal.
+	it("falls back to the 30s breaker hint for circuit_open with no cooldown or usage info", () => {
+		const accounts = [makeAccount({ name: "account-A" })];
+		const response = createPoolExhaustedResponse(accounts, "circuit_open");
+		const retryAfterSeconds = Number(response.headers.get("Retry-After"));
+		expect(retryAfterSeconds).toBe(30);
 	});
 
 	// Spec test (3): "A genuine pool-exhaustion still reports pool_exhausted,
@@ -189,21 +200,29 @@ describe("createPoolExhaustedResponse — circuit_open", () => {
 		}
 	});
 
-	// circuit_open clears next_available_at — the breaker decides when to
-	// re-admit, not the account's rate-limit window. Available-at is null
-	// for circuit_open accounts even if they happen to also have a
-	// rate_limited_until timestamp.
-	it("sets next_available_at to null for circuit_open responses", async () => {
+	// zp4 (#365 merge): when a circuit_open account ALSO has a real
+	// recovery window, surface it in next_available_at — the breaker will
+	// re-admit at ~30s but the underlying cooldown still applies, so the
+	// pool's earliest routable time is the cooldown (not the breaker hint).
+	// For a circuit_open response with NO recovery info, next_available_at
+	// stays null as before.
+	it("surfaces next_available_at from real recovery time when both apply for circuit_open", async () => {
+		const cooldownMs = 60_000;
 		const accounts = [
 			makeAccount({
 				name: "account-A",
-				rate_limited_until: Date.now() + 60_000,
+				rate_limited_until: Date.now() + cooldownMs,
 			}),
 		];
 		const response = createPoolExhaustedResponse(accounts, "circuit_open");
 		const body = (await response.json()) as Record<string, unknown>;
 		const error = body.error as Record<string, unknown>;
-		expect(error.next_available_at).toBeNull();
+		const nextAvailableAt = error.next_available_at as string;
+		expect(nextAvailableAt).not.toBeNull();
+		const ts = new Date(nextAvailableAt).getTime();
+		// Within the test's wall-clock jitter of the original +60_000ms cooldown.
+		expect(ts).toBeGreaterThan(Date.now() + cooldownMs - 5_000);
+		expect(ts).toBeLessThan(Date.now() + cooldownMs + 5_000);
 	});
 
 	// circuit_open and pool_exhausted responses share the same wire status

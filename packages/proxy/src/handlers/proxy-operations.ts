@@ -1,7 +1,9 @@
 import {
+	type AccountUsageSnapshot,
 	getModelFamily,
 	getModelList,
 	getOverloadRetryConfig,
+	isUsageExhausted,
 	logError,
 	ProviderError,
 	TIME_CONSTANTS,
@@ -1362,6 +1364,7 @@ export async function proxyWithAccount(
 }
 
 /**
+/**
  * Top-level error.type values produced by createPoolExhaustedResponse.
  *
  * `pool_exhausted` means "every account is genuinely exhausted (rate-limited,
@@ -1380,10 +1383,17 @@ export type PoolExhaustionKind = "pool_exhausted" | "circuit_open";
  * refused this account, NOT that the account's cooldown is expired. Reporting
  * a circuit-open account as `rate_limited` would mislead the reaper into
  * pausing session spawns for the wrong reason.
+ *
+ * `usage_exhausted` means the account's usage window is at 100% utilization
+ * with a future reset — distinct from `rate_limited`, which is a per-account
+ * cooldown. Adding `usage_exhausted` to the ladder surfaces the longer reset
+ * horizon (weekly windows vs minutes-long cooldowns) so the client doesn't
+ * retry an account upstream will reject immediately.
  */
 export type PoolExhaustionAccountReason =
 	| "requires_reauth"
 	| "paused"
+	| "usage_exhausted"
 	| "rate_limited"
 	| "circuit_open"
 	| "unavailable";
@@ -1392,9 +1402,26 @@ export type PoolExhaustionAccountReason =
  * Default Retry-After (seconds) for the `circuit_open` response. Matches the
  * breaker's `OPEN_COOLDOWN_MS` so a polite client that respects Retry-After
  * will retry exactly when the breaker is most likely to admit a half-open
- * probe.
+ * probe. Used as a last-resort hint when no real recovery time is known
+ * (see Retry-After precedence in createPoolExhaustedResponse) — when an
+ * account is BOTH circuit-open and rate-limited / usage-capped, the longer,
+ * more honest wait wins and this 30s hint is overridden.
  */
 const CIRCUIT_OPEN_RETRY_AFTER_SECONDS = 30;
+
+/**
+ * Floor for `Retry-After` when no recovery time is known (cooldown cleared and
+ * usage reset unknown). Tuned to the UsageCache TTL (10 minutes — see
+ * packages/providers/src/usage-fetcher.ts UsageCache) so a client that
+ * respects this header is guaranteed to see fresh usage telemetry on retry.
+ * Pre-fix this was the optimistic 60s that triggered CLAUDE_CODE_MAX_RETRIES=5
+ * clients to die in 300s during a 116-minute ccproxy2 outage (production trace
+ * 2026-07-30T20:24-22:20Z).
+ */
+export const POOL_EXHAUSTED_UNKNOWN_RESET_RETRY_AFTER_SECONDS = 600;
+
+/** Upper bound on Retry-After so clients don't sleep through a recovery. */
+export const POOL_EXHAUSTED_MAX_RETRY_AFTER_SECONDS = 3600;
 
 /**
  * Create a 503 Service Unavailable response when the account pool is exhausted
@@ -1410,8 +1437,32 @@ const CIRCUIT_OPEN_RETRY_AFTER_SECONDS = 30;
  * later", the dashboard, the AO fleet reaper) working without a new branch.
  * The fleet reaper differentiates by reading `error.type` in the body.
  *
+ * Usage-aware: `usageSnapshots` (keyed by account.id) lets the function surface
+ * a `usage_exhausted` reason for accounts with no `rate_limited_until` cooldown
+ * — otherwise those would fall through to the `unavailable` bucket and the
+ * client would receive an optimistic `Retry-After: 60`, never reaching the
+ * upstream reset. The caller is responsible for sourcing snapshots from
+ * `usageCache` (or its own snapshot provider); the function itself stays pure
+ * and testable without touching I/O.
+ *
+ * Precedence (zp4 — merge of #349 circuit-open and #365 usage-aware):
+ *   * When kind === "circuit_open", every per-account reason is "circuit_open"
+ *     (uniform — the breaker is the gate, per-account state is irrelevant for
+ *     dashboard/reaper classification).
+ *   * When kind === "pool_exhausted", per-account reason follows the ladder
+ *     requires_reauth > paused > usage_exhausted > rate_limited > unavailable.
+ *     `usage_exhausted` outranks `rate_limited` because the longer reset
+ *     horizon is the honest signal.
+ *   * `next_available_at` and `Retry-After` consider both cooldowns and usage
+ *     resets — a circuit-open account that ALSO has a real recovery window
+ *     surfaces that longer wait rather than a misleading 30s breaker hint
+ *     (the lie #365 exists to remove).
+ *
  * @param accounts - All accounts that were considered but are unavailable
  * @param kind - Which top-level cause to report. Defaults to `"pool_exhausted"`.
+ * @param usageSnapshots - Per-account usage telemetry (id → snapshot), used
+ *   to identify usage_exhausted accounts and to derive `next_available_at` /
+ *   `Retry-After` when an upstream reset time is known.
  * @returns 503 response with the pool-exhausted JSON shape and Retry-After
  *          header. The `x-better-ccflare-pool-status` header value stays
  *          `"exhausted"` regardless of `kind` — wire shape unchanged, the
@@ -1420,32 +1471,51 @@ const CIRCUIT_OPEN_RETRY_AFTER_SECONDS = 30;
 export function createPoolExhaustedResponse(
 	accounts: Account[],
 	kind: PoolExhaustionKind = "pool_exhausted",
+	usageSnapshots?: ReadonlyMap<string, AccountUsageSnapshot>,
 ): Response {
 	const now = Date.now();
 
-	// Build account info list. `circuit_open` overrides every per-account reason
-	// because the breaker was the gate — the account's own state (paused,
-	// rate-limited, etc.) is irrelevant when the breaker is refusing it.
+	// Build account info list. `circuit_open` (top-level kind) overrides every
+	// per-account reason because the breaker was the gate — the account's own
+	// state (paused, rate-limited, etc.) is irrelevant when the breaker is
+	// refusing it. Under kind="pool_exhausted", `usage_exhausted` outranks
+	// cooldown because its reset horizon is the binding one.
 	const accountInfos = accounts.map((account) => {
-		const reason: PoolExhaustionAccountReason =
-			kind === "circuit_open"
-				? "circuit_open"
-				: account.requires_reauth
-					? "requires_reauth"
-					: account.paused
-						? "paused"
-						: account.rate_limited_until && account.rate_limited_until > now
-							? "rate_limited"
-							: "unavailable";
+		if (kind === "circuit_open") {
+			// For circuit_open, available_at is null: the breaker decides when
+			// to re-admit, not the account's rate-limit window. The TOP-LEVEL
+			// next_available_at / Retry-After still consider the underlying
+			// recovery times below — only the per-account available_at is null.
+			return {
+				name: account.name,
+				reason: "circuit_open" as const,
+				available_at: null,
+			};
+		}
 
-		// For circuit_open, available_at is null: the breaker decides when to
-		// re-admit, not the account's rate-limit window.
-		const availableAt =
-			kind === "circuit_open"
-				? null
-				: account.rate_limited_until && account.rate_limited_until > now
-					? new Date(account.rate_limited_until).toISOString()
-					: null;
+		const usage = usageSnapshots?.get(account.id);
+		const usageExhausted =
+			usage !== undefined &&
+			isUsageExhausted(usage.utilization, usage.resetMs, now);
+
+		const reason: PoolExhaustionAccountReason = account.requires_reauth
+			? "requires_reauth"
+			: account.paused
+				? "paused"
+				: usageExhausted
+					? "usage_exhausted"
+					: account.rate_limited_until && account.rate_limited_until > now
+						? "rate_limited"
+						: "unavailable";
+
+		// available_at: usage_exhausted.resetMs takes precedence — its reset
+		// window is the binding one. rate_limited_until is the fallback.
+		let availableAt: string | null = null;
+		if (usageExhausted && usage?.resetMs && usage.resetMs > now) {
+			availableAt = new Date(usage.resetMs).toISOString();
+		} else if (account.rate_limited_until && account.rate_limited_until > now) {
+			availableAt = new Date(account.rate_limited_until).toISOString();
+		}
 
 		return {
 			name: account.name,
@@ -1454,38 +1524,62 @@ export function createPoolExhaustedResponse(
 		};
 	});
 
-	// Calculate next_available_at from earliest rate_limited_until.
-	// For circuit_open there are no rate-limited windows, so this is null.
-	const rateLimitedAccounts =
-		kind === "circuit_open"
-			? []
-			: accounts.filter(
-					(account): account is Account & { rate_limited_until: number } =>
-						!!account.rate_limited_until && account.rate_limited_until > now,
-				);
-	const earliestRateLimitedUntil =
-		rateLimitedAccounts.length > 0
-			? Math.min(
-					...rateLimitedAccounts.map((account) => account.rate_limited_until),
-				)
-			: null;
+// next_available_at = earliest of (active cooldown) and (future usage
+	// reset), across all accounts. Both signals can coexist — usage-exhausted
+	// accounts with rate_limited_until=null are surfaced here even though
+	// they would have been ignored by the pre-#365 logic. This applies
+	// regardless of `kind`: when an account is BOTH circuit-open and
+	// rate-limited / usage-capped, the underlying recovery window is the
+	// binding constraint (the breaker will re-admit, but the account will
+	// still 429 immediately) and surfacing the longer wait prevents the
+	// 30s-loop the user warned about.
+	const recoveryCandidates: number[] = [];
+	for (const account of accounts) {
+		if (account.rate_limited_until && account.rate_limited_until > now) {
+			recoveryCandidates.push(account.rate_limited_until);
+		}
+		const usage = usageSnapshots?.get(account.id);
+		if (
+			usage &&
+			isUsageExhausted(usage.utilization, usage.resetMs, now) &&
+			usage.resetMs &&
+			usage.resetMs > now
+		) {
+			recoveryCandidates.push(usage.resetMs);
+		}
+	}
+	const earliestRecoveryMs =
+		recoveryCandidates.length > 0 ? Math.min(...recoveryCandidates) : null;
 	const nextAvailableAt =
-		earliestRateLimitedUntil !== null
-			? new Date(earliestRateLimitedUntil).toISOString()
+		earliestRecoveryMs !== null
+			? new Date(earliestRecoveryMs).toISOString()
 			: null;
 
-	// Retry-After (seconds):
-	//   - pool_exhausted: derived from the earliest rate_limited_until so the
-	//     client retries when the cooldown actually ends; fall back to 60s.
-	//   - circuit_open: 30s — matches the breaker's OPEN_COOLDOWN_MS so a
-	//     polite client retries exactly when a half-open probe is most likely
-	//     to be admitted.
+// Retry-After precedence (zp4 — merge of #349 circuit-open and #365
+	// usage-aware; per the user's "longer, more honest wait wins" rule):
+	//   1. If a real recovery time is known (cooldown or usage reset, via
+	//      earliestRecoveryMs above) → that wait, clamped to [1, MAX=3600].
+	//      This is the honest signal. A 30s breaker hint on an account that
+	//      is quota-blocked for hours reintroduces the lie #365 exists to
+	//      remove — so the real wait wins.
+	//   2. Else if kind === "circuit_open" → CIRCUIT_OPEN_RETRY_AFTER_SECONDS
+	//      (30s, matches the breaker's OPEN_COOLDOWN_MS) so a polite client
+	//      that respects Retry-After enters at half-open probe time.
+	//   3. Else (pool_exhausted, no recovery signal) → the UsageCache-TTL
+	//      floor (600s, see #365) so a polite retry can observe fresh
+	//      telemetry rather than blind-retrying against a stale snapshot.
 	const retryAfterSeconds =
-		kind === "circuit_open"
-			? CIRCUIT_OPEN_RETRY_AFTER_SECONDS
-			: earliestRateLimitedUntil !== null
-				? Math.max(1, Math.round((earliestRateLimitedUntil - now) / 1000))
-				: 60;
+		earliestRecoveryMs !== null
+			? Math.max(
+					1,
+					Math.min(
+						POOL_EXHAUSTED_MAX_RETRY_AFTER_SECONDS,
+						Math.ceil((earliestRecoveryMs - now) / 1000),
+					),
+				)
+			: kind === "circuit_open"
+				? CIRCUIT_OPEN_RETRY_AFTER_SECONDS
+				: POOL_EXHAUSTED_UNKNOWN_RESET_RETRY_AFTER_SECONDS;
 
 	return new Response(
 		JSON.stringify({
