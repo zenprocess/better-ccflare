@@ -4,7 +4,11 @@ export type ProjectAttributionSource =
 	| "heading_project"
 	| "none";
 
-export type AgentAttributionSource = "header_agent" | "prompt_agent" | "none";
+export type AgentAttributionSource =
+	| "header_agent"
+	| "session_header"
+	| "prompt_agent"
+	| "none";
 
 // Database row type
 export interface RequestRow {
