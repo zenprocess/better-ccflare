@@ -234,6 +234,31 @@ export function RateLimitProgress({
 	const isAlibabaData =
 		usageData && "five_hour" in usageData && "weekly" in usageData;
 
+	// Check if this is MiniMax Token Plan usage data. The fetcher normalizes
+	// MiniMax's native `weekly_*` fields into a canonical `seven_day` window
+	// (see minimax-usage-fetcher.ts) with camelCase `resetAt` (epoch ms) on the
+	// inner object — distinct from Anthropic-style snake_case `resets_at`
+	// (ISO string). We disambiguate by inspecting the inner shape, not the
+	// provider name, so this also tolerates any future fetcher that adopts the
+	// same canonical convention. Without this guard a MiniMax payload falls
+	// into the Anthropic render branch below, `isUsageWindow` rejects both
+	// inner windows (no `resets_at`), and the 7d row collapses to "N/A".
+	const isMinimaxData = (() => {
+		if (!usageData || typeof usageData !== "object") return false;
+		if (!("five_hour" in usageData) && !("seven_day" in usageData)) {
+			return false;
+		}
+		const probe =
+			(usageData as Record<string, unknown>).five_hour ??
+			(usageData as Record<string, unknown>).seven_day;
+		if (!probe || typeof probe !== "object") return false;
+		const obj = probe as Record<string, unknown>;
+		// Anthropic-style: snake_case `resets_at` (string). MiniMax: camelCase
+		// `resetAt` (number, epoch ms). The presence of `resetAt` AND absence
+		// of `resets_at` is what isolates MiniMax's normalized shape.
+		return "resetAt" in obj && !("resets_at" in obj);
+	})();
+
 	// Anthropic-style quota data is shared by Anthropic and Codex; detect by shape, not provider name.
 	const hasAnthropicStyleData =
 		usageData != null &&
@@ -242,6 +267,7 @@ export function RateLimitProgress({
 		(("five_hour" in usageData && "seven_day" in usageData) ||
 			Array.isArray((usageData as { limits?: unknown }).limits)) &&
 		!isAlibabaData &&
+		!isMinimaxData &&
 		!isZaiData &&
 		!isNanoGPTData;
 
@@ -272,6 +298,40 @@ export function RateLimitProgress({
 				? new Date(alibabaData.monthly.resetAt).toISOString()
 				: null,
 		});
+	} else if (isMinimaxData && showWeekly) {
+		// MiniMax Token Plan usage data — show 5-hour and 7-day windows from
+		// each window's own `utilization` and `resetAt` (camelCase, epoch ms).
+		// Do NOT collapse to a single `usageUtilization` row: that fallback
+		// takes the most-restrictive window across all accounts and hides
+		// the second window entirely.
+		const minimaxData = usageData as {
+			five_hour?: {
+				utilization: number;
+				resetAt: number | null;
+			} | null;
+			seven_day?: {
+				utilization: number;
+				resetAt: number | null;
+			} | null;
+		};
+		if (minimaxData.five_hour) {
+			usages.push({
+				utilization: minimaxData.five_hour.utilization,
+				window: "five_hour",
+				resetTime: minimaxData.five_hour.resetAt
+					? new Date(minimaxData.five_hour.resetAt).toISOString()
+					: null,
+			});
+		}
+		if (minimaxData.seven_day) {
+			usages.push({
+				utilization: minimaxData.seven_day.utilization,
+				window: "seven_day",
+				resetTime: minimaxData.seven_day.resetAt
+					? new Date(minimaxData.seven_day.resetAt).toISOString()
+					: null,
+			});
+		}
 	} else if (isXaiData && showWeekly) {
 		// xAI/Grok usage data - show Grok Build credits utilization.
 		const xaiData = usageData as {
