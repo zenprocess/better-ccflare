@@ -82,7 +82,11 @@ describe("createPoolExhaustedResponse — usage-aware", () => {
 			[usageCapped.id, snapshot],
 		]);
 
-		const response = createPoolExhaustedResponse([usageCapped], snapshots);
+		const response = createPoolExhaustedResponse(
+			[usageCapped],
+			undefined,
+			snapshots,
+		);
 		expect(response.status).toBe(503);
 
 		const body = (await response.json()) as {
@@ -119,7 +123,11 @@ describe("createPoolExhaustedResponse — usage-aware", () => {
 			[usageCapped.id, { utilization: 100, resetMs: null }],
 		]);
 
-		const response = createPoolExhaustedResponse([usageCapped], snapshots);
+		const response = createPoolExhaustedResponse(
+			[usageCapped],
+			undefined,
+			snapshots,
+		);
 		expect(response.headers.get("Retry-After")).toBe(
 			String(POOL_EXHAUSTED_UNKNOWN_RESET_RETRY_AFTER_SECONDS),
 		);
@@ -152,6 +160,7 @@ describe("createPoolExhaustedResponse — usage-aware", () => {
 
 		const response = createPoolExhaustedResponse(
 			[usageCapped, cooldownOnly],
+			undefined,
 			snapshots,
 		);
 		// tolerance: a few hundred ms of slack for Date.now() advancing
@@ -177,7 +186,11 @@ describe("createPoolExhaustedResponse — usage-aware", () => {
 			snapshots.set(acc.id, { utilization: 100, resetMs });
 		}
 
-		const response = createPoolExhaustedResponse(allCapped, snapshots);
+		const response = createPoolExhaustedResponse(
+			allCapped,
+			undefined,
+			snapshots,
+		);
 		const retryAfter = Number(response.headers.get("Retry-After"));
 		// Clamped to MAX (3600s) — i.e. NOT 6960s, NOT 60s.
 		expect(retryAfter).toBe(POOL_EXHAUSTED_MAX_RETRY_AFTER_SECONDS);
@@ -202,7 +215,11 @@ describe("createPoolExhaustedResponse — usage-aware", () => {
 			[usageCapped.id, { utilization: 100, resetMs: Date.now() - 1_000 }],
 		]);
 
-		const response = createPoolExhaustedResponse([usageCapped], snapshots);
+		const response = createPoolExhaustedResponse(
+			[usageCapped],
+			undefined,
+			snapshots,
+		);
 		const body = (await response.json()) as {
 			error: { accounts: Array<{ reason: string }> };
 		};
@@ -223,7 +240,11 @@ describe("createPoolExhaustedResponse — usage-aware", () => {
 			[stuck.id, { utilization: 100, resetMs: Date.now() + FUTURE_OFFSET_MS }],
 		]);
 
-		const response = createPoolExhaustedResponse([stuck], snapshots);
+		const response = createPoolExhaustedResponse(
+			[stuck],
+			undefined,
+			snapshots,
+		);
 		const body = (await response.json()) as {
 			error: { accounts: Array<{ reason: string }> };
 		};
@@ -258,6 +279,7 @@ describe("Zai pool-exhausted snapshot pairing", () => {
 
 		const response = createPoolExhaustedResponse(
 			[account],
+			undefined,
 			new Map([[account.id, snapshot]]),
 		);
 		const body = (await response.json()) as {
