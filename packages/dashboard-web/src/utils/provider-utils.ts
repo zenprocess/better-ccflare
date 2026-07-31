@@ -50,7 +50,12 @@ export function providerShowsWeeklyUsage(provider: string): boolean {
 		provider === PROVIDER_NAMES.CODEX ||
 		provider === PROVIDER_NAMES.NANOGPT ||
 		provider === PROVIDER_NAMES.ZAI ||
-		provider === PROVIDER_NAMES.XAI
+		provider === PROVIDER_NAMES.XAI ||
+		// Alibaba Coding Plan emits its own five_hour/weekly/monthly shape
+		// (see AlibabaCodingPlanUsageData + alibaba-coding-plan-usage-fetcher).
+		// Without this entry the isAlibabaData branch in RateLimitProgress and
+		// the pool-usage eligibility set both silently never render.
+		provider === PROVIDER_NAMES.ALIBABA_CODING_PLAN
 	);
 }
 

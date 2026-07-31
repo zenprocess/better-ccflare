@@ -253,4 +253,98 @@ describe("RateLimitProgress", () => {
 		// row labels which are <span>s — pins the header markup, not just the text.
 		expect(html).toContain(">Session</div>");
 	});
+
+	it("renders Alibaba Coding Plan's 5-hour, weekly, and monthly rows when showWeekly is true (d1)", () => {
+		// Regression guard: providerShowsWeeklyUsage used to exclude
+		// alibaba-coding-plan, so showWeekly was always false and the
+		// isAlibabaData branch never ran. Fix added ALIBABA_CODING_PLAN to the
+		// allow-list; this test pins the row labels that prove the branch fires.
+		const fiveHourReset = Date.now() + 5 * 60 * 60 * 1000;
+		const weeklyReset = Date.now() + 5 * 24 * 60 * 60 * 1000;
+		const monthlyReset = Date.now() + 20 * 24 * 60 * 60 * 1000;
+		const html = renderToStaticMarkup(
+			<RateLimitProgress
+				resetIso={new Date(fiveHourReset).toISOString()}
+				usageUtilization={55}
+				usageWindow="five_hour"
+				usageData={{
+					five_hour: {
+						used: 55,
+						total: 100,
+						percentUsed: 55,
+						resetAt: fiveHourReset,
+					},
+					weekly: {
+						used: 30,
+						total: 100,
+						percentUsed: 30,
+						resetAt: weeklyReset,
+					},
+					monthly: {
+						used: 12,
+						total: 100,
+						percentUsed: 12,
+						resetAt: monthlyReset,
+					},
+					planName: "Coding Plan Lite",
+					status: "VALID",
+					remainingDays: 14,
+				}}
+				provider="alibaba-coding-plan"
+				showWeekly
+			/>,
+		);
+		// All three rows render — proves isAlibabaData && showWeekly is reachable.
+		expect(html).toContain("Usage (5-hour)");
+		expect(html).toContain("Usage (Weekly)");
+		expect(html).toContain("Usage (Monthly)");
+		// Utilization values from each window round to a no-decimal percent string.
+		expect(html).toContain("55%");
+		expect(html).toContain("30%");
+		expect(html).toContain("12%");
+	});
+
+	it("falls back to the time-based bar (no Alibaba rows) when an alibaba account passes showWeekly=false (d1 negative)", () => {
+		// Negative control: with showWeekly=false the isAlibabaData branch must
+		// NOT fire — the dashboard should not show "Weekly" / "Monthly" rows for
+		// the alibaba shape, even though the data is present.
+		const reset = Date.now() + 5 * 60 * 60 * 1000;
+		const html = renderToStaticMarkup(
+			<RateLimitProgress
+				resetIso={new Date(reset).toISOString()}
+				usageUtilization={null}
+				usageWindow={null}
+				usageData={{
+					five_hour: {
+						used: 55,
+						total: 100,
+						percentUsed: 55,
+						resetAt: reset,
+					},
+					weekly: {
+						used: 30,
+						total: 100,
+						percentUsed: 30,
+						resetAt: reset,
+					},
+					monthly: {
+						used: 12,
+						total: 100,
+						percentUsed: 12,
+						resetAt: reset,
+					},
+					planName: null,
+					status: null,
+					remainingDays: null,
+				}}
+				provider="alibaba-coding-plan"
+				showWeekly={false}
+			/>,
+		);
+		expect(html).not.toContain("Usage (Weekly)");
+		expect(html).not.toContain("Usage (Monthly)");
+		// The time-based fallback still emits "Rate limit window" text — pins the
+		// alternative branch, not a regression to no-render-at-all.
+		expect(html).toContain("Rate limit window");
+	});
 });
