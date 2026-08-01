@@ -7,6 +7,26 @@
 
 ---
 
+# >! SUPPLY-CHAIN FRAGILITY — READ FIRST
+
+**The production build depends on a MUTABLE canary tag.** As of
+2026-08-01, no stable Bun release carries the bun#35093 fetch-abort
+fix committed on 2026-07-28. The latest stable release
+(`oven/bun:1.3.14-alpine`, shipped 2026-05-13) is 76 days before the
+fix. This Dockerfile therefore pins `oven/bun:canary-alpine` by digest.
+
+The canary tag is mutable. Its content can change when the upstream
+default branch moves. Re-resolve the digest and re-run the containment
+test (see header of `Dockerfile`) before every build. The
+deduplication of risk is operator discipline; the technical
+mitigation is to move to a stable tag once `oven-sh/bun` ships
+`1.3.15+` carrying the fix.
+
+This is stated plainly and not buried. Every ccproxy2 / ccmax deploy
+that uses this Dockerfile is, by construction, a canary-tagged deploy.
+
+---
+
 # Is the live ccproxy2 build provable, yes or no, and on what evidence?
 
 **NO.** The live ccproxy2 build (reported as `v3.5.44-zp6`, digest
@@ -48,9 +68,10 @@ is now the primary deliverable per zeninfra).
 
 Four committed artifacts on branch `ao/ccflare-113/provenance`:
 
-1. **`Dockerfile`** — real, buildable, pins the Bun base by digest,
-   records git ref / SHA / build date as both OCI image labels and
-   runtime env vars, and stamps the matching `/health` provenance fields.
+1. **`Dockerfile`** — real, buildable, pins the **canary** Bun base by
+   digest with a containment test that proves the bun#35093 fix is in
+   the embedded binary. Records git ref / SHA / build date as both OCI
+   image labels and runtime env vars. MUTABLE BASE — see header.
 2. **`/health` provenance fields** (`#109`) — `version`, `git_sha`,
    `git_ref`, `build_date`. Clean change suitable for upstream; reads
    `CCFLARE_GIT_SHA`, `CCFLARE_GIT_REF`, `CCFLARE_BUILD_DATE`,
@@ -84,57 +105,78 @@ the repository. The configurations below are examples/templates*). The
 old `Dockerfile.deploy` only existed on `deploy/2026-07-30` and is
 treated as lost.
 
-### Bun base — verified
+### Bun base — canary, verified by containment
 
-Pinned **by digest, per architecture**:
+The brief's first-pass direction was to pin a stable Bun. Per
+zeninfra's 2026-08-01 reassignment, that path is closed: no stable Bun
+release carries the bun#35093 fix. The Dockerfile therefore pins the
+canary tag, by digest, with the containment test that proves the
+fix is in the embedded binary.
 
-- amd64: `oven/bun@sha256:efc5e42c7bedc1661ab0b7272c74c3ebf794f054297f530a62055f2d1a0eb662`
-  (tag `1.3.14-alpine`)
-- arm64: `oven/bun@sha256:3c9ab1a521c82144dff537125695017a0480d3a13088fba7e012cfae0f63146f`
-  (tag `1.3.14-alpine`)
+**Pinned by digest, per architecture:**
 
-Verification (2026-08-01, from the AO sandbox via the Docker Hub
-registry HTTP API):
+- amd64: `oven/bun@sha256:aead81873566d42926d8cbb8dc915bdd5547d2f59a8f7e46220ba83dd167b210`
+- arm64: `oven/bun@sha256:91bbe5b25a29561ae6fad60587fef03350acb6c74bebaef87b6031738e96bf94`
+- Image created: 2026-07-31T14:52:35.280Z
+- Embedded Bun revision: `f68e504ae48a5a54eb3017f29baa99dd31660a5e`
+- Embedded version: `1.4.0-canary.1+f68e504ae`
 
-1. Pulled the manifest list for `oven/bun:1.3.14-alpine` and recorded
-   the linux/amd64 platform manifest digest.
-2. Pulled the OCI image config for the amd64 manifest; the config
-   advertised `org.opencontainers.image.revision =
-   0d9b296af33f2b851fcbf4df3e9ec89751734ba4` and
-   `org.opencontainers.image.created = 2026-05-13T03:50:34.645Z`.
-3. Downloaded the largest layer (35 MB; the bun binary) and extracted
-   `usr/local/bin/bun`. The binary is a musl-linked ELF — it cannot be
-   executed on macOS, so I could not literally run `bun --revision`,
-   but `strings` on the extracted binary revealed:
-   - build path: `/tmp/bun-node-0d9b296af/bun`
-   - version string: `v1.3.14 (0d9b296a)`
-4. The build path's commit prefix (`0d9b296af…`) matches the OCI
-   label's full SHA (`0d9b296af33f2b851fcbf4df3e9ec89751734ba4`).
-5. The same SHA independently matches the SHA reported by the local
-   `bun --revision` (`1.3.2+b131639cc…` is the host's binary; the
-   verification path is to `strings` the layer's binary, not the host's).
+**Three-source verification of the embedded commit (2026-08-01):**
 
-The three independent sources (binary build path, binary version
-string, OCI label) agree on `0d9b296af…`. The digest pinned in the
-Dockerfile is therefore the digest of the binary these three sources
-describe.
+1. OCI image config label
+   `org.opencontainers.image.revision = f68e504ae48a5a54eb3017f29baa99dd31660a5e`
+2. Binary build path (via `strings` on the extracted bun binary)
+   `/tmp/bun-node-f68e504ae/bun`
+3. Binary version string (via `strings` on the extracted bun binary)
+   `1.4.0-canary.1+f68e504ae`
 
-### Caveat I am NOT papering over
+All three sources agree on `f68e504ae`.
 
-The bun#35093 fetch-abort fix was merged at `789be97db9b746533cf692e8367146e2d3c0d7cb`
-on 2026-07-28 (per the upstream issue / commit page). The binary embedded
-in `oven/bun:1.3.14-alpine` is `0d9b296af33f2b851fcbf4df3e9ec89751734ba4`,
-**2026-05-12** — two months BEFORE the fix. **This image does NOT
-contain bun#35093.** The Dockerfile says so explicitly in its header
-comment. If the bun#35093 fix is required for the next deploy, the
-operator must either:
-- pull `oven/bun:canary-alpine` and pin its **current** digest
-  (re-record before every build — the canary tag is mutable), or
-- wait for `1.3.15+`, then rebuild from this Dockerfile (the digest
-  and the version are the only things that need updating).
+**Containment test — the step that matters.** Having the same commit
+prefix does NOT prove the fix is included. The embedded commit must be
+a strict descendant of `789be97db9b746533cf692e8367146e2d3c0d7cb`
+(the bun#35093 fix):
 
-I deliberately did NOT substitute a different base on my own judgement.
-The brief is explicit: don't do that.
+```
+$ gh api repos/oven-sh/bun/compare/789be97db9b746533cf692e8367146e2d3c0d7cb...f68e504ae48a5a54eb3017f29baa99dd31660a5e
+```
+
+**Result (verbatim, 2026-08-01):**
+
+```
+status:                ahead
+ahead_by:              103
+behind_by:             0
+total_commits:         103
+merge_base_commit.sha: 789be97db9b746533cf692e8367146e2d3c0d7cb
+merge_base_commit.title:
+    fetch: error the response body stream when a fully-buffered
+    response is aborted (#35093)
+```
+
+The merge base IS the bun#35093 fix commit. The canary is 103 commits
+ahead of the fix, 0 behind. Containment is proven.
+
+**Mutable-tag warning.** The canary tag is mutable. The pinned digest
+is the canary's content *as of 2026-08-01*. Before every build, the
+operator must re-resolve the digest at the registry and re-run the
+containment test:
+
+1. `docker registry pull` the manifest for `oven/bun:canary-alpine` (or
+   equivalent HTTP API call).
+2. Record the amd64 manifest digest — that digest is the new pin.
+3. Extract `usr/local/bin/bun` from the layer; grep for `bun-node-<sha>`
+   with `strings` to recover the embedded commit.
+4. Run the `gh api compare` endpoint against the fix commit.
+5. Require `status=ahead`, `behind_by=0`,
+   `merge_base_commit.sha=789be97db9b746533cf692e8367146e2d3c0d7cb`.
+6. If any check fails, **abort the build**. The canary no longer
+   contains the fix; pinning it would be a ship of an unprovable build.
+
+If the operator ever decides "wait for 1.3.15+" is viable after all,
+this is the way out: when `oven-sh/bun` releases a stable with the fix,
+pin the stable digest, re-run the same test, and the mutable-tag
+risk dissolves.
 
 ### Build contract
 
@@ -149,15 +191,17 @@ docker build \
 ```
 
 Missing `GIT_REF` or `GIT_SHA` results in empty image labels. The
-Dockerfile does notively fail; the operator will see empty
-`org.opencontainers.image.revision` and know the build is wrong.
+Dockerfile does not fail loudly on its own; the operator will see empty
+`org.opencontainers.image.revision` and know the build is wrong. The
+canary cross-checks `git_sha` against the deploy branch HEAD and
+exits non-zero on drift.
 
 The stage sequence:
-- Stage 1 (builder): `oven/bun` (digest pinned) → `bun install
+- Stage 1 (builder): `oven/bun` (canary digest pinned) → `bun install
   --frozen-lockfile` → `bun run build:dashboard` → `bun build
   src/server.ts --compile` to a single binary.
-- Stage 2 (final): same `oven/bun` digest → DEB-style runtime deps
-  → labels emit provenance → entrypoint runs the compiled binary.
+- Stage 2 (final): same `oven/bun` canary digest → DEB-style runtime
+  deps → labels emit provenance → entrypoint runs the compiled binary.
 
 ### OCI labels
 
@@ -173,15 +217,16 @@ org.opencontainers.image.revision    = ${GIT_SHA}
 org.opencontainers.image.version     = ${GIT_REF}
 org.opencontainers.image.created     = ${BUILD_DATE}
 org.opencontainers.image.base.name      = oven/bun
-org.opencontainers.image.base.digest    = sha256:efc5e42c...
-org.opencontainers.image.base.version   = 1.3.14-alpine
-org.opencontainers.image.base.revision  = 0d9b296af33f2b851fcbf4df3e9ec89751734ba4
+org.opencontainers.image.base.digest    = sha256:aead81873566...
+org.opencontainers.image.base.version   = canary-alpine
+org.opencontainers.image.base.revision  = f68e504ae48a5a54eb3017f29baa99dd31660a5e
+org.opencontainers.image.base.containment = behind_789be97d_by_0_commits
 ```
 
-The `base.*` triplet is the *container* to claim provenance for the
-embedded runtime. The label is corroborated by the canary, which
-compares the running `/health` (which the Dockerfile fills from the
-same `GIT_SHA` / `GIT_REF`) against the deploy branch HEAD.
+The `base.containment` label is a machine-readable signal that the
+human-readable header comment in the Dockerfile is true: the canary
+SHA is a strict descendant of the bun#35093 fix commit. Operators and
+scanners can read it without re-running the gh API call.
 
 ## A.2 — `/health` provenance fields (`#109`)
 
@@ -389,13 +434,16 @@ literal was probed.
 
 # Honesty footer
 
-- **bun#35093 was NOT verified.** The canary/will verify it at deploy
-  time. The Dockerfile explicitly states that the binary it embeds is
-  from 2026-05-12 — pre-fix. I did not paper over this.
+- **bun#35093 verification is via containment at build time, not by
+  re-running the running container.** The Dockerfile header and the
+  OCI `base.containment` label record the gh API compare result
+  (`status=ahead, behind_by=0, merge_base_commit.sha=789be97d…`).
+  Every build must re-run this compare; if the canary ever diverges
+  from the fix commit, the pin must change.
 - **The Dockerfile is not yet built.** It was not locally built because
   no Docker daemon is available in this sandbox (operator's explicit
   rule: no OrbStack). The structure is verified by hand and the pin
-  is verified by extracting the layer.
+  is verified by extracting the layer from the Docker Hub registry.
 - **The cannot-determine case is the most common case for the next
   deploy.** Until the canary is wired into the deploy host's scheduler
   AND the qa-pipeline gate, every ccproxy2 build is structurally
@@ -415,6 +463,11 @@ literal was probed.
   the sandbox does not have.
 - **The brief's two files were lost.** Not re-derived; documented and
   moved past.
+- **The canary tag is mutable.** I am not pretending otherwise. The
+  supply-chain fragility is stated plainly at the top of this report
+  and at the top of the Dockerfile. The only de-risking actions are
+  operator discipline (re-resolve + re-test before every build) and
+  the upstream release of a stable Bun with the fix.
 
 # Deliverable
 
