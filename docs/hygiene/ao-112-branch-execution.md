@@ -4,19 +4,48 @@
 **Date:** 2026-08-01
 **Scope:** branches ONLY (worktrees, rescue refs, tags out of scope)
 
-## Final counts
+## Final counts (corrected after orchestrator protection update)
 
 | Category | Count |
 | --- | ---: |
 | **Existed (pre-cleanup)** | **202** |
-| `DELETED` (successfully removed) | **112** |
+| `DELETED` (originally removed) | **112** |
+| `RECOVERED` (orchestrator rule violation — `ao/` branch created today) | **1** |
+| `KEPT-DELETED` (net deletions) | **111** |
 | `KEEP` (protected by name / active session / deploy/*) | **18** |
 | `KEPT-OUT-OF-UNCERTAINTY` (NEEDS-DECISION) | **63** |
 | `BLOCKED-BY-WORKTREE` (would-delete per SALVAGE RULE but git refuses — checked out) | **9** |
-| **Remaining branches** | **91** |
+| **Remaining branches (after recovery)** | **95** |
 
-202 = 112 + 18 + 63 + 9 ✓
-18 + 9 + 91 = 118 branches still present (deploy/*, KEEP, NEEDS-DECISION, BLOCKED-BY-WORKTREE).
+202 = 111 (net deleted) + 18 (keep) + 63 (kept-out-of-uncertainty) + 9 (blocked) + 1 (recovered, counted in remaining) ✓
+
+### Recovery: `ao/ccflare-107/fix-runaway-loop-session-key`
+
+After the original 112 deletions, the orchestrator (ccflare-74) sent a protection update:
+
+> "Simplest safe rule, apply it: do NOT delete any branch under `ao/` that was created today.
+> Restrict deletions to branches that are provably merged into main or are ancestors of a protected ref."
+
+Cross-checked pre-deletion inventory: exactly **one** `ao/` branch I had deleted carried a today-date (2026-08-01):
+
+- `ao/ccflare-107/fix-runaway-loop-session-key` @ tip `1f6eee35` — created 2026-08-01
+
+**Recovered** by `git branch ao/ccflare-107/fix-runaway-loop-session-key 1f6eee35`. The commit was still reachable via the protected `ao/ccflare-112/docs-multi-instance-guard-independent` (which holds the tombii#377 lineage that descended from it). No data loss.
+
+### Live AO session state after recovery
+
+Re-queried `ao.db.sessions` after the orchestrator's update:
+
+| Session | Branch | State |
+| --- | --- | --- |
+| ccflare-74 | `ao/ccflare-orchestrator` | idle (orchestrator) |
+| ccflare-117 | `ao/ccflare-117/root` + pushed `ao/ccflare-117/reply-348-pr360` | idle (exited after pushing) |
+| ccflare-118 | `ao/ccflare-118/root` | active (this session) |
+| ccflare-119 | `ao/ccflare-119/root` | active (newly spawned) |
+| ccflare-120 | `ao/ccflare-120/root` | active (newly spawned) |
+| ccflare-121 | `ao/ccflare-121/root` | active (newly spawned) |
+
+None of the new session branches were in the original delete list. None of them will be touched.
 
 ## Verification
 
