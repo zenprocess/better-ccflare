@@ -273,6 +273,90 @@ describe("APIRouter", () => {
 		expect(body.runtime.usageWorker.state).toBe("ready");
 	});
 
+	it("reports build-time provenance when env vars are set", async () => {
+		// Save and restore to keep the test isolated from the host's env.
+		const saved: Record<string, string | undefined> = {
+			CCFLARE_GIT_SHA: process.env.CCFLARE_GIT_SHA,
+			CCFLARE_GIT_REF: process.env.CCFLARE_GIT_REF,
+			CCFLARE_BUILD_DATE: process.env.CCFLARE_BUILD_DATE,
+			CCFLARE_VERSION: process.env.CCFLARE_VERSION,
+			npm_package_version: process.env.npm_package_version,
+		};
+		process.env.CCFLARE_GIT_SHA = "abcdef1234567890abcdef1234567890abcdef12";
+		process.env.CCFLARE_GIT_REF = "deploy/test";
+		process.env.CCFLARE_BUILD_DATE = "2026-08-01T00:00:00Z";
+		process.env.CCFLARE_VERSION = "9.9.9-test";
+		delete process.env.npm_package_version;
+		try {
+			const { config, dbOps } = createRouterContext();
+			const router = new APIRouter({
+				config,
+				dbOps,
+				getProviders: () => ["anthropic"],
+			});
+			const response = await router.handleRequest(
+				new URL("http://localhost:8080/health"),
+				new Request("http://localhost:8080/health"),
+			);
+			expect(response?.status).toBe(200);
+			const body = (await response?.json()) as {
+				version?: string;
+				git_sha?: string;
+				git_ref?: string;
+				build_date?: string;
+			};
+			expect(body.version).toBe("9.9.9-test");
+			expect(body.git_sha).toBe("abcdef1234567890abcdef1234567890abcdef12");
+			expect(body.git_ref).toBe("deploy/test");
+			expect(body.build_date).toBe("2026-08-01T00:00:00Z");
+		} finally {
+			for (const [k, v] of Object.entries(saved)) {
+				if (v === undefined) delete process.env[k];
+				else process.env[k] = v;
+			}
+		}
+	});
+
+	it("reports 'unknown' for provenance fields when env vars are unset", async () => {
+		const saved: Record<string, string | undefined> = {
+			CCFLARE_GIT_SHA: process.env.CCFLARE_GIT_SHA,
+			CCFLARE_GIT_REF: process.env.CCFLARE_GIT_REF,
+			CCFLARE_BUILD_DATE: process.env.CCFLARE_BUILD_DATE,
+			CCFLARE_VERSION: process.env.CCFLARE_VERSION,
+			BETTER_CCFLARE_VERSION: process.env.BETTER_CCFLARE_VERSION,
+			npm_package_version: process.env.npm_package_version,
+		};
+		for (const k of Object.keys(saved)) delete process.env[k];
+		try {
+			const { config, dbOps } = createRouterContext();
+			const router = new APIRouter({
+				config,
+				dbOps,
+				getProviders: () => ["anthropic"],
+			});
+			const response = await router.handleRequest(
+				new URL("http://localhost:8080/health"),
+				new Request("http://localhost:8080/health"),
+			);
+			expect(response?.status).toBe(200);
+			const body = (await response?.json()) as {
+				version?: string;
+				git_sha?: string;
+				git_ref?: string;
+				build_date?: string;
+			};
+			expect(body.git_sha).toBe("unknown");
+			expect(body.git_ref).toBe("unknown");
+			expect(body.build_date).toBe("unknown");
+			expect(body.version).toBe("unknown");
+		} finally {
+			for (const [k, v] of Object.entries(saved)) {
+				if (v === undefined) delete process.env[k];
+				else process.env[k] = v;
+			}
+		}
+	});
+
 	it("validates account creation payloads", async () => {
 		const router = createRouter();
 
