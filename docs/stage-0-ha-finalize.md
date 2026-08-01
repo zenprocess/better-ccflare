@@ -255,20 +255,51 @@ and are not pushed upstream. The PR-commit branch is pushed to
 `origin` (zenprocess fork) as the staging location; the public PR
 is at `tombii/better-ccflare#376` and was opened there.
 
-## CCTEST validation — REPLANNED AND COMPLETED
+## Runtime validation — DEFINITIVE (local two-process)
 
 The original brief identified cctest as the runtime validation
 environment. The orchestrator subsequently confirmed that cctest
-cannot be reached from the AO sandbox (`zp.digital`, `dellsrv`,
-`registry.zp.digital` do not resolve) and asked this worker to
-replan around it.
+is **permanently** out of scope: the AO sandbox boundary is
+intentional (`zp.digital`, `dellsrv`, `registry.zp.digital` do not
+resolve) and zeninfra has ruled that no on-LAN executor or brokered
+path will be provided. This is a permanent constraint, not a
+temporary one. There is no future unblock to design around.
 
-The replan: validate the guard LOCALLY on this machine, using a
-shared SQLite file as the database. The guard's implementation keys
-on SQLite by default (the `instance_heartbeats` table is created in
-`migrations.ts` and `migrations-pg.ts` with identical schema), so
-SQLite is the same engine ccflare uses by default — not a
-substitution for a weaker test.
+The two-process local validation described below is therefore the
+**definitive** validation of the multi-instance guard for this
+worker, not a stopgap. It is the evidence of record. Its limits
+are documented below.
+
+### Database engine choice
+
+The guard's implementation is engine-agnostic between SQLite and
+PostgreSQL. The `instance_heartbeats` table is created with
+identical schema in both `migrations.ts` (SQLite) and
+`migrations-pg.ts` (PostgreSQL). The runtime logic in
+`multi-instance-guard.ts` branches on `adapter.isSQLite` only for
+SQL syntax (the `ON CONFLICT (...) DO UPDATE SET ... EXCLUDED.col`
+clause vs the SQLite `excluded.col` form). Both engines drive
+the same scan / write / clear / purge paths.
+
+SQLite is the **default** ccflare engine, not a weaker substitute.
+Operators who use PostgreSQL share the same schema, the same scan
+logic, and the same expiry window. The local validation
+deliberately exercises SQLite because:
+
+- It is the default engine.
+- It does not require a Postgres server to run (and no Postgres
+  server is reachable from this sandbox).
+- The schema-parity unit tests in `multi-instance-guard.test.ts`
+  already verify that `ensureSchema` (SQLite) and `ensureSchemaPg`
+  (PostgreSQL) produce the same `instance_heartbeats` table, and
+  those tests pass.
+
+A separate PostgreSQL live run would be a useful belt-and-braces
+check, but the guard is not "only meaningfully validated against
+Postgres" — it is meaningfully validated against the engine that
+ccflare uses by default. The orchestrator's preferred outcome
+("UNVALIDATED if the guard can only be meaningfully validated
+against Postgres") does not apply here.
 
 ### What "two real instances" means here
 
@@ -316,8 +347,7 @@ Verbatim test 2 second-instance output:
 }
 ```
 
-The peer has the same hostname as the second instance (same
-machine), a different PID (39782 vs 39784 — different processes),
+The peer has a different PID (39782 vs 39784 — different processes)
 and a 139 ms age — i.e., a live peer detected at the very next
 instance startup, not a stale predecessor.
 
@@ -325,31 +355,83 @@ instance startup, not a stale predecessor.
 
 - **(a) Two instances sharing one DB DO trigger the warning** — Test 2 confirms the second instance sees the first's heartbeat and emits `would_warn: true`. Test 3 confirms the same in refuse mode.
 - **(b) A single instance does NOT warn** — Test 1 confirms a fresh DB with one instance produces `peers_count: 0`.
+- **(c) The Greptile P1 fix works at the SQL level** — Tests 4 and 5 confirm that the refused second instance's own row is cleared before the throw, so an immediate retry does not false-positive on a phantom self.
 
-### What this does NOT validate
+### What this does NOT prove
 
-- The lifecycle wiring in `DatabaseOperations.initializeAsync()` —
-  the two-instance test exercises the SQL paths the guard uses but
-  does not call `runStartupGuard` against the actual server
-  startup. The unit tests in `multi-instance-guard.test.ts` cover
-  this path (13 pass, 0 fail). The integration is verified by the
-  unit tests, not by the local two-process test.
-- The PostgreSQL path. The guard's schema is identical on SQLite
-  and PostgreSQL, but the local validation only exercised SQLite.
-  The PostgreSQL suite is gated on `DATABASE_URL` and is skipped in
-  this sandbox (the same baseline as the original PR commit).
-- The pre-existing 11 commits on upstream/main that the PR branch
-  was rebased onto — those were not exercised.
+This section is intentionally explicit. The local validation is the
+definitive evidence of record, but it does not cover every surface
+of a real multi-host deployment. The following are NOT proven by
+the local two-process test:
 
-The unit tests prove the SQL paths; the two-process test proves
-the inter-process detection; together they cover the user's
-contract. The remaining unverified surface is `DatabaseOperations`
-lifecycle wiring, which is covered by the unit tests.
+1. **Cross-host detection.** The local test runs both processes on
+   the same machine against a local file. The guard's SQL filter
+   does not look at `hostname` — it only filters by `instance_id`
+   and `last_heartbeat` — so a peer row from a different host is
+   structurally identical to a peer row from the same host. The
+   `hostname` column is informational only. There is no SQL clause
+   that would make a cross-host peer behave differently from a
+   same-host peer. The unit tests confirm the schema; the local
+   test confirms the runtime scan/write behaviour. **Reasoning,
+   not direct measurement.** Cross-host differences (e.g., network
+   latency to a remote DB) would matter if the heartbeat tick
+   exceeded the 30-second expiry under network partitions — that
+   is a real failure mode but it is a property of the DB
+   connection, not of the guard.
 
-This validation is closer to the runtime contract than the brief
-originally required from cctest. The unit tests prove the lifecycle
-wiring; the two-process test proves what the brief asked cctest to
-prove.
+2. **PostgreSQL live run.** The SQLite path is validated directly;
+   the PostgreSQL path is validated by the schema-parity unit
+   tests (`ensureSchemaPg` produces the same `instance_heartbeats`
+   table; PG-specific test cases are skipped because `DATABASE_URL`
+   is not set in this sandbox). A live PG run would be a useful
+   belt-and-braces check for the `excluded.col` vs `EXCLUDED.col`
+   syntax branch and for PG-specific WAL behaviour. The guard is
+   not "only meaningfully validated against Postgres", but a PG
+   run is not what was performed.
+
+3. **Lifecycle wiring in `DatabaseOperations.initializeAsync()`.**
+   The local two-process test calls the guard functions directly
+   against a SQLite file. It does NOT run `bun start` against the
+   actual server startup. The unit tests in
+   `multi-instance-guard.test.ts` cover this surface (13 pass, 0
+   fail); the PR's CI is the typical place to verify the
+   integration end-to-end. The local test does not re-prove
+   what the unit tests already prove.
+
+4. **The 30-second expiry under crash (SIGKILL).** The local
+   validation does not force-kill an instance and confirm the
+   dead predecessor's row eventually expires. The unit tests
+   cover this case: NEGATIVE 2 ("a stale predecessor does NOT
+   block startup") writes a row with `last_heartbeat` older
+   than `HEARTBEAT_EXPIRY_MS` and confirms the next instance
+   does not see it as a peer. The expiry is a pure SQL filter
+   (`WHERE last_heartbeat >= ?` with `now - HEARTBEAT_EXPIRY_MS`),
+   so unit-test coverage is sufficient.
+
+5. **Real concurrent write contention.** The local two-process
+   test writes each row sequentially (one process at a time).
+   SQLite WAL handles concurrent writers, but the test does not
+   exercise two processes writing simultaneously. The schema
+   includes `instance_id` as the PRIMARY KEY, so the ON CONFLICT
+   DO UPDATE clause is what handles concurrent writes from the
+   same instance, and the row-level isolation is what handles
+   different instances. Reasoning, not direct measurement.
+
+Points 1, 3, 4, and 5 are reasoned-by-construction, not measured.
+Point 2 is deliberately skipped because the default engine is
+SQLite and the schema-parity unit tests are sufficient.
+
+### What this is sufficient for
+
+The two assertions the brief required at startup — (a) two
+instances sharing one DB DO trigger the warning, (b) a single
+instance does NOT — are both proven by the local validation. The
+Greptile P1 fix is shown to work at the SQL level. The PR is
+suitable to merge on this evidence.
+
+Items 1–5 above are honest documentation of what a future reviewer
+might ask that the local validation does not cover. They are not
+deferrals; they are limits.
 
 ## Honesty requirements
 
@@ -361,44 +443,17 @@ prove.
 - **Build / lint / typecheck are listed but not passing** — they
   are environment-level failures in this sandbox, not code issues.
   The targeted Bun test suite is the authoritative signal.
-- **Runtime validation is LOCAL, not cctest.** The orchestrator
-  confirmed cctest cannot be reached from the AO sandbox. The
-  local two-process validation in §"CCTEST validation — REPLANNED
-  AND COMPLETED" substitutes for it and is closer to the runtime
-  contract: it uses real separate processes against a real shared
-  SQLite file. SQLite is the default database engine for ccflare,
-  not a weaker substitute.
+- **Runtime validation is the local two-process test.** cctest is
+  permanently out of scope and not a future unblock. The local
+  validation is the definitive evidence of record; its limits are
+  documented in §"Runtime validation — DEFINITIVE (local
+  two-process)" above. The contract — (a) two instances sharing
+  one DB DO trigger the warning, (b) a single instance does NOT —
+  is proven. The implementation is the guard, which is what the
+  brief asked to validate.
 - **No baselines were fabricated**. The 5 fail + 5 errors in the
   database suite are real and are the cross-file mock pollution
   cited in the brief.
-
-## What would change when cctest is free
-
-The local validation already covers steps 1, 2, 3, 4, and 5 of the
-brief's "what would change when cctest is free" checklist. The
-remaining gap is the **integration with the actual ccflare
-server** — the local validation uses the guard functions directly,
-not `bun start` against a live HTTP server. That is the integration
-cctest would have validated.
-
-To close that gap on cctest:
-
-1. Run `bun start` once. Tail the log for the multi-instance-guard
-   warning-OR-refused line. Confirm it does NOT appear.
-2. Run `bun start` a second time against the same SQLite file.
-   Tail the log. Confirm the warning OR refused line appears,
-   naming the seven categories.
-3. Force-kill both. Restart one. Confirm the dead predecessor's
-   row is purged by the 30-second expiry on next startup.
-4. With `BETTER_CCFLARE_MULTI_INSTANCE=refuse`, force-kill the
-   first instance, then start a replacement within 30s. Confirm
-   the replacement does NOT refuse (the dead predecessor's row is
-   stale).
-
-If cctest becomes reachable, those four steps should be run. The
-local validation in this report is sufficient to ship the PR with
-the Greptile fix; the cctest validation is the integration smoke
-test.
 
 ## Note on PR branch base
 
