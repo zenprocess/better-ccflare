@@ -923,6 +923,61 @@ stringData:
 - [ ] Security audit completed
 - [ ] Documentation up to date
 
+## Multi-Instance Deployment: Single-Instance-per-Process
+
+> **Operator rule (read first):** better-ccflare is **single-instance-per-database**. Run exactly one process per database. Running two or more instances against the same database is unsupported and will silently diverge.
+
+This is the most important sentence in the deployment guide. The rest of this section explains why, what diverges, and what the startup guard does (and does not) do.
+
+### What this rule means
+
+A second instance sharing the same database is not a "high availability" setup — it is a hidden divergent state. The database is shared, but the seven categories of in-process coordination state below are not. They diverge silently: each instance sees consistent durable state and inconsistent transient state, so nothing errors. Routing decisions, rate-limit handling, and OAuth refreshes simply start to disagree across instances.
+
+### What diverges when two instances share a database
+
+The technical list is in `packages/database/src/multi-instance-guard.ts` and is enumerated fully in [docs/351-multi-instance-path.md](./351-multi-instance-path.md). In operator terms, the seven categories are:
+
+- **Sticky client-to-account routing.** A client talking to instance A can be routed to a different account than the same client talking to instance B. The same conversation can hop between accounts mid-flight.
+- **Account recency penalty.** Recently-used accounts are penalised to spread load. Two instances independently keep this recency map, so they can both pick the same "fresh" account, or both penalise the same account.
+- **In-memory usage cache.** Used to make rate-limit decisions. Two instances have two views of the same account's recent usage. Each instance may decide the account has headroom when the other has seen it exhausted.
+- **Keepalive body replay cache.** Cached upstream responses can be replayed by one instance and missed by another, leading to duplicate upstream requests or missed replay-style fast paths.
+- **OAuth refresh scheduler.** A second instance refreshes the same OAuth token concurrently. This is a **race against the upstream provider**, not just a duplicate request — concurrent refreshes can invalidate the token the other instance is about to use.
+- **Rate-limit recovery probe lease map.** A single-flight probe map prevents two probes from running at once on the same account. Two instances each run their own probe map, so the recovery probe can run twice in parallel.
+- **Session-volume circuit breaker.** A circuit breaker that opens on session overage fires per-instance. Sessions can be ended earlier or later than expected depending on which instance handles them.
+
+### Why it is silent
+
+There is no error. Each instance sees the same database and the same set of accounts. There is no coordination layer (no Redis, no leader election, no distributed lock) that would let an instance know the other has fresher in-process state. The divergence is a property of the design, not a bug in the steady-state.
+
+### The startup guard (PR #376)
+
+Since v3.5.46, ccflare ships a **startup-time guard** that detects another live process sharing the database and warns the operator. The guard is a startup check, not a runtime coordination layer.
+
+- **Default behaviour is `warn`.** The instance logs a warning at startup and continues. This is the safe default — it does not break existing deployments.
+- **`BETTER_CCFLARE_MULTI_INSTANCE=refuse`** makes the second instance fail to start.
+- The guard uses a heartbeat table (`instance_heartbeats`) with a 30-second expiry window. Each instance writes a row and refreshes it on a 5-second tick. A crashed predecessor's row is treated as older than 30 seconds and is purged; a crash never blocks a legitimate restart.
+- A new instance scans for other rows whose `last_heartbeat` is within the expiry window. Any such row is a live peer.
+
+### What the guard does NOT do
+
+The guard is a startup check. It does not:
+
+- **Prevent two instances from running simultaneously past startup.** A second instance that starts within the expiry window is warned or refused; one that starts after the first has exited is silent.
+- **Elect a leader.** There is no leader election, no consensus, no single-writer coordination.
+- **Synchronise the seven divergent state categories.** The divergent state is in-process and is not shared by the database. There is no external channel to reconcile it.
+- **Make multi-instance safe.** Even with the guard set to `refuse`, you have at most one instance running. Multi-instance is not "refuse to start the second" — it is "do not run two at once".
+
+### What to do instead
+
+- **Run one instance per database.** This is the standard, supported, and only safe configuration.
+- **For zero-downtime deploys, use a blue/green pattern.** Stop instance A, then start instance B. The startup guard will not warn because the previous instance's heartbeat has already been cleared (graceful shutdown) or aged out (crash).
+- **For horizontal scaling, scale the accounts, not the instances.** Each instance owns a different account set; clients route to the instance that owns the account they need. The seven categories of divergence are bounded by the partitioning of accounts.
+
+### Related
+
+- [docs/351-multi-instance-path.md](./351-multi-instance-path.md) — full prior analysis of the seven categories, ranked by blast radius.
+- [docs/operations/multi-instance-stages.md](./operations/multi-instance-stages.md) — operational guidance for ingress stickiness (Stage 1) and why the broader stages 2–4 were not implemented.
+
 ## Security Considerations
 
 ### Production Security Checklist
