@@ -1,0 +1,12 @@
+=== Classification started 2026-08-01T18:35:04Z ===
+Total protected refs:       18
+
+=== TOTALS ===
+total:                202
+merged into main:     66
+ancestor of protect:  56
+safe to DELETE:       121
+KEEP (named/session): 18
+NEEDS-DECISION:       63
+
+Classification written to /Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-118/.ao-classification.tsv

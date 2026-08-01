@@ -1,0 +1,202 @@
+analysis/agent-attribution	5ea977ae	2026-07-28 15:20:42 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+analysis/bluegreen-design	44f10f98	2026-07-29 10:53:50 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+analysis/bun-upgrade-path	3bc0d3a4	2026-07-29 10:41:02 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+analysis/cache-throttle	43c69952	2026-07-28 15:19:25 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+analysis/ccmax-502	9a7575c3	2026-07-28 15:18:35 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+analysis/issue-273-ops-mitigations	7ebda11d	2026-07-28 15:13:49 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+analysis/issue-273-retention	3a9f4677	2026-07-28 15:14:57 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+analysis/native-fallback	7e892f34	2026-07-28 15:17:48 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-10/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-100/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-100/usage-window-seven-day-rebased	95e827b4	2026-07-31 23:21:24 +0300	DELETE	ancestor of fix/multi-instance-guard
+ao/ccflare-101/fix-runaway-loop-session-key	d75c8f35	2026-08-01 00:04:58 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-101/fix-runaway-loop-session-key-v2	946a2375	2026-07-31 23:05:00 +0200	DELETE	ancestor of fix/multi-instance-guard
+ao/ccflare-101/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-102/rebase-insights-presentation	12ce70a5	2026-07-31 23:44:19 +0300	DELETE	ancestor of fix/multi-instance-guard
+ao/ccflare-102/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-103/build-suffix-version-rebase	1362d2f0	2026-07-31 23:12:28 +0300	DELETE	ancestor of fix/multi-instance-guard
+ao/ccflare-103/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-104/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-105/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-106/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-107/fix-runaway-loop-session-key	1f6eee35	2026-08-01 00:20:47 +0300	DELETE	ancestor of ao/ccflare-112/docs-multi-instance-guard-independent
+ao/ccflare-107/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-108/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-109/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-11/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-110/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-111/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-111/stock-v3.5.46-validation	47d377a3	2026-08-01 11:10:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-112/deployment-multi-instance-doc	e6d70971	2026-08-01 12:52:35 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-112/docs-multi-instance-guard-independent	f090a171	2026-08-01 14:16:30 +0300	KEEP	named protected
+ao/ccflare-112/multi-instance-guard-rebase	b478c0bb	2026-08-01 12:47:37 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-112/pr-376-add-greptile-fix	700155c3	2026-08-01 13:15:18 +0300	KEEP	named protected
+ao/ccflare-112/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-112/stage-0-ha-finalize-report	b25725cd	2026-08-01 12:59:13 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-113/provenance	2ab14f37	2026-08-01 13:23:52 +0300	KEEP	named protected
+ao/ccflare-113/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-114/issue-107-test-stability	f3524cd9	2026-08-01 15:18:19 +0300	KEEP	named protected
+ao/ccflare-114/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-115/disable-inherited-workflows	d2f1d64a	2026-08-01 14:47:30 +0300	KEEP	named protected
+ao/ccflare-115/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-116/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-117/root	053746c1	2026-07-27 23:47:12 +0200	KEEP	named protected
+ao/ccflare-118/root	053746c1	2026-07-27 23:47:12 +0200	KEEP	named protected
+ao/ccflare-12/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-13/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-14/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-15/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-16/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-17/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-18/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-19/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-2/feat/minimax-usage-tracking	bff80105	2026-07-22 23:21:11 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-2/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-21/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-22/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-23/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-24/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-25/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-26/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-27/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-28/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-29/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-3/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-30/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-31/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-32/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-33/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-34/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-35/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-36/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-37/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-38/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-39/root	3803084c	2026-07-28 14:28:35 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-4/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-40/root	6abe41fb	2026-07-28 14:18:02 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-41/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-42/root	c4171115	2026-07-29 14:48:16 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-43/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-44/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-45/root	8e148a7e	2026-07-29 14:48:23 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-46/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-47/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-48/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-49/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-5/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-50/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-51/root	82c16a80	2026-07-29 14:48:25 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-52/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-53/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-54/fix/cb-exhaustiveness-guard	2f969426	2026-07-28 16:11:07 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-54/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-55/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-56/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-57/root	24550bed	2026-07-28 16:36:35 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-58/root	9875114d	2026-07-28 17:27:16 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-59/qa-family-b	4cd4a8af	2026-07-28 17:34:20 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-59/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-6/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-60/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-61/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-62/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-63/root	44f10f98	2026-07-29 10:53:50 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-64/bun-upgrade-analysis	3bc0d3a4	2026-07-29 10:41:02 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-64/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-65/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-66/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-67/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-68/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-69/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-7/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-70/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-75/root	fe5d52c4	2026-07-30 12:07:13 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-76/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	ancestor of main
+ao/ccflare-77/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-78/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-79/root	c94b6110	2026-07-30 21:26:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-79/version-suffix	98d9cc7b	2026-07-30 23:28:42 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-8/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-80/abandoned-streams-attribution	e47c78ed	2026-07-30 23:58:05 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-80/root	c94b6110	2026-07-30 21:26:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-81/harden-agent-autodiscover	9f628cdc	2026-07-30 23:29:02 +0300	DELETE	ancestor of fix/multi-instance-guard
+ao/ccflare-81/root	c94b6110	2026-07-30 21:26:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-82/root	c94b6110	2026-07-30 21:26:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-83/root	c94b6110	2026-07-30 21:26:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-84/root	c94b6110	2026-07-30 21:26:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-85/root	c94b6110	2026-07-30 21:26:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-86/root	c94b6110	2026-07-30 21:26:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-87/root	c94b6110	2026-07-30 21:26:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-88/root	c94b6110	2026-07-30 21:26:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-89/root	c94b6110	2026-07-30 21:26:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-9/root	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+ao/ccflare-90/root	c94b6110	2026-07-30 21:26:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-91/root	c94b6110	2026-07-30 21:26:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-92/root	c94b6110	2026-07-30 21:26:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+ao/ccflare-93/fix-runaway-loop-session-key	b1f98f4f	2026-07-31 14:52:36 +0300	DELETE	ancestor of deploy/zp5
+ao/ccflare-93/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-94/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-95/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-96/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-97/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-98/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-99/root	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+ao/ccflare-orchestrator	9c44de10	2026-06-23 19:43:38 +0000	KEEP	named protected
+archive/fork-main-20260731	c94b6110	2026-07-30 21:26:10 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+bench/bun-1223-void	50eba125	2026-07-29 10:53:15 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+bench/bun-35093-validation	a4328761	2026-07-28 14:50:28 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+cb-merged-test	fc8ccb22	2026-07-28 17:24:12 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+deploy/2026-07-30	053746c1	2026-07-27 23:47:12 +0200	KEEP	deploy/ glob
+deploy/2026-07-30-deploy-dockerfile	b2c8688e	2026-05-06 10:58:31 +0300	KEEP	deploy/ glob
+deploy/2026-07-30-dockerfile	ff48c352	2026-07-30 12:33:39 +0300	KEEP	deploy/ glob
+deploy/2026-07-31	00de328f	2026-07-31 11:21:12 +0300	KEEP	deploy/ glob
+deploy/zp4	27b58105	2026-07-31 13:51:50 +0300	KEEP	deploy/ glob
+deploy/zp5	bf56ff14	2026-07-31 15:25:09 +0300	KEEP	deploy/ glob
+deploy/zp6	11bf4f36	2026-07-31 19:04:57 +0300	KEEP	deploy/ glob
+docs/351-multi-instance-path	3ee1727d	2026-08-01 06:25:09 +0300	KEEP	named protected
+feat/cb-fix-b-shouldallow-gate	c65e2f42	2026-07-29 14:25:00 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+feat/cb-wave2-capacity-endpoint	3803084c	2026-07-28 14:28:35 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+feat/cb-wave2-chokepoint	a3a9bf38	2026-07-28 14:25:20 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+feat/cb-wave2-circuit-open-response	983437cb	2026-07-28 15:00:17 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+feat/cb-wave2-sse-drain	e4ee9131	2026-07-28 15:08:24 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+feat/circuit-breaker	54e9d850	2026-07-29 13:59:19 +0300	DELETE	ancestor of fix/multi-instance-guard
+feat/circuit-breaker-core	916c473b	2026-07-28 13:37:38 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+feat/dreaming-rollup-and-pg-prune	cdb61259	2026-07-30 21:14:49 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+feat/minimax-usage-tracking	4311195e	2026-07-27 20:50:30 +0300	DELETE	ancestor of ao/ccflare-117/root
+feat/payload-distiller	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+feat/prune-gate	f80fdc5d	2026-07-30 12:34:45 +0300	DELETE	merged into main
+feat/sse-admission-control	61825651	2026-07-28 12:57:24 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+fix-runaway-loop-rebased	94b97a3a	2026-08-01 00:10:53 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+fix/build-suffix-version	4cd1296d	2026-07-31 13:42:48 +0300	DELETE	ancestor of deploy/zp5
+fix/bun-leak-273-cancel-discarded-bodies	7feb8977	2026-07-28 14:46:55 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+fix/cb-exhaustiveness-guard	24550bed	2026-07-28 16:36:35 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+fix/dashboard-dead-branches	a7b6b0c0	2026-07-31 18:23:35 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+fix/duplicate-account-guard-340	cb7e9b84	2026-07-27 19:25:57 +0300	DELETE	ancestor of ao/ccflare-117/root
+fix/duplicate-account-guard-340-race	dbb776f4	2026-07-27 18:38:23 +0300	DELETE	ancestor of ao/ccflare-117/root
+fix/insights-presentation	3bb84474	2026-07-31 18:39:26 +0300	DELETE	ancestor of deploy/zp6
+fix/issue-273-drain-discarded-bodies	b1f32d9f	2026-07-29 14:04:48 +0300	DELETE	ancestor of fix/multi-instance-guard
+fix/minimax-f5-greptile-p2	4c831a8e	2026-07-29 13:06:41 +0300	DELETE	ancestor of fix/multi-instance-guard
+fix/minimax-usage-hardening-f5-only	36a35b99	2026-07-28 18:01:08 +0300	DELETE	ancestor of fix/multi-instance-guard
+fix/minimax-usage-polling-bootstrap	42dd946f	2026-07-28 13:53:46 +0300	DELETE	ancestor of fix/multi-instance-guard
+fix/multi-instance-guard	bf4a2f54	2026-08-01 00:32:50 +0300	KEEP	named protected
+fix/no-account-stats-binding	946b23cb	2026-07-31 14:06:08 +0300	DELETE	ancestor of fix/multi-instance-guard
+fix/pool-exhausted-usage-aware	f47702bf	2026-07-31 13:05:13 +0300	DELETE	ancestor of fix/multi-instance-guard
+fix/runaway-loop-session-key	a3f6b99d	2026-07-31 13:27:43 +0300	DELETE	ancestor of deploy/zp5
+fix/silent-stream-truncation	0305fd77	2026-07-27 18:54:59 +0300	DELETE	ancestor of ao/ccflare-117/root
+fix/skip-usage-exhausted-accounts	874a30ea	2026-07-27 18:49:16 +0300	DELETE	ancestor of ao/ccflare-117/root
+fix/usage-window-seven-day	3efb19d2	2026-07-31 18:56:30 +0300	DELETE	ancestor of deploy/zp6
+fix/usage-window-seven-day-old	053746c1	2026-07-27 23:47:12 +0200	DELETE	ancestor of ao/ccflare-117/root
+main	f271e67c	2026-07-30 12:34:45 +0300	KEEP	named protected
+pr-369	87779dbf	2026-07-31 23:07:33 +0300	DELETE	ancestor of fix/multi-instance-guard
+pr343-local	71bd8386	2026-07-27 23:00:56 +0300	DELETE	ancestor of ao/ccflare-117/root
+pr345-local	6abbe3c0	2026-07-27 21:07:14 +0300	DELETE	ancestor of ao/ccflare-117/root
+pr364	7d753e8f	2026-07-31 09:22:10 +0200	DELETE	ancestor of fix/multi-instance-guard
+rescue/codex-usage-uncommitted	95adf47e	2026-07-30 12:36:05 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+review/accumulated-work	6abe41fb	2026-07-28 14:18:02 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+task-c/bun-1223-leak-bench	50eba125	2026-07-29 10:53:15 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+verify/session-affinity-240	f08c2085	2026-07-28 15:12:38 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+worktree-agent-a0a83a46143dd7726	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+worktree-agent-a1e08ca3d3895ff56	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+worktree-agent-a3c98a3a262986699	9c44de10	2026-06-23 19:43:38 +0000	DELETE	merged into main
+worktree-agent-a9103841848b58936	7bcd2f2c	2026-07-31 23:40:55 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
+worktree-agent-a97a1a17d33d29911	9906331b	2026-07-31 23:51:12 +0300	NEEDS-DECISION	not merged to main, not ancestor of any protected ref
