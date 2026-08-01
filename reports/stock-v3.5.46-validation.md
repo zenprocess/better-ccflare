@@ -3,7 +3,13 @@
 **Author:** ccflare-111 (implementation worker)
 **Date:** 2026-08-01
 **Branch:** `ao/ccflare-111/stock-v3.5.46-validation`
-**Verdict:** **NOT SAFE TO PROMOTE — because the validation itself could not be performed.**
+**VERDICT: NOT SAFE TO PROMOTE**
+*(because the validation itself could not be performed — see "Why this is a no" below)*
+
+The verdict is "validation not runnable", not "v3.5.46 is unsafe" in the upstream sense.
+The vendored fix (`v3.5.44-zp6`) and the upstream release (`v3.5.46`) carry the same
+patched code paths per the brief's background. The blocker is environmental, not
+product-level.
 **Confidence in the verdict:** The verdict is "validation not runnable", not "v3.5.46 is unsafe"
 in the upstream sense. The vendored fix (`v3.5.44-zp6`) and the upstream release
 (`v3.5.46`) carry the same patched code paths per the brief's background. The blocker
@@ -35,6 +41,27 @@ not promote. An unclear verdict is a no."
 This report is the STOP. Neither ccproxy2 nor ccmax was touched. No env was changed.
 The currently deployed image on those hosts (`v3.5.44-zp6`, digest `sha256:08c93b57`
 per the brief) remains in place.
+
+## Why this is a no
+
+The verdict is "do not promote" because the conditions the brief set for promotion
+were unmet at the validation gate, not because the promotion itself is unsafe when the
+gate is met. Reformulating the brief's two stop conditions:
+
+1. The brief requires a stock image whose `bun --revision` contains `bun#35093`. From
+   this sandbox, I could not (a) build on dellsrv (DNS-blocked), (b) confirm the
+   pinned Bun base digest exists (the brief's `Dockerfile.zp6` does not exist;
+   `Dockerfile.deploy` has a placeholder digest), or (c) run the binary to verify
+   the revision. The verification is the gate; without it, the gate is failed.
+
+2. The extended mandate says: "If your verdict is NO or you are unsure, STOP and
+   report. Do not promote. An unclear verdict is a no." I am unsure — not because
+   of upstream code risk, but because I cannot produce the evidence the brief
+   requires to call it SAFE.
+
+The correct path forward is operational, not product-level: open LAN access to
+dellsrv / cctest / registry.zp.digital from the executor, resolve the placeholder Bun
+digest, and re-run the validation.
 
 ---
 
