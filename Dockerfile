@@ -21,25 +21,85 @@
 #     and GIT_SHA are recorded by the operator/CI at build time and
 #     stamped into the image labels AND the runtime env.
 #
-# Bun base selection (verified 2026-08-01):
-#   * Tag: oven/bun:1.3.14-alpine
-#   * amd64 manifest digest: sha256:efc5e42c7bedc1661ab0b7272c74c3ebf794f054297f530a62055f2d1a0eb662
-#   * arm64 manifest digest: sha256:3c9ab1a521c82144dff537125695017a0480d3a13088fba7e012cfae0f63146f
-#   * Verification: the bun binary was extracted from the amd64 manifest's
-#     largest layer and inspected with `strings`. The embedded path
-#     `/tmp/bun-node-0d9b296af/bun` and the version string
-#     `v1.3.14 (0d9b296a)` match the OCI label
-#     `org.opencontainers.image.revision = 0d9b296af33f2b851fcbf4df3e9ec89751734ba4`.
-#     Three independent sources agree on the embedded Bun commit.
-#   * Caveat: the embedded Bun commit (0d9b296af, dated 2026-05-12) is
-#     BEFORE the bun#35093 fetch-abort fix (789be97, dated 2026-07-28).
-#     This image does NOT contain bun#35093. If the fix is required, the
-#     operator must (a) pull the current oven/bun:canary-alpine and pin
-#     its CURRENT digest (mutable — re-record before each build), or
-#     (b) wait for 1.3.15+.
+# ---------------------------------------------------------------
+# ⚠ MUTABLE CANARY BASE — REVERIFY BEFORE EVERY BUILD
+# ---------------------------------------------------------------
 #
-# No moving tags in FROM. The build does not know which canary revision
-# the source repo was paired with; use a digest.
+# Per zeninfra 2026-08-01: no stable Bun release carries the bun#35093
+# fetch-abort fix. The latest stable (oven/bun:1.3.14-alpine, shipped
+# 2026-05-13) is 76 days before the fix commit (789be97, 2026-07-28).
+# Therefore this Dockerfile pins the `:canary-alpine` tag, not a
+# stable version. The canary tag is mutable — its content can change
+# without the digest changing unless the operator re-pins.
+#
+# Before EVERY build, re-resolve the canary digest at the registry and
+# re-run the containment test below. If the canary loses the fix (new
+# main-branch corrections, regression, etc.) the digest changes and
+# this Dockerfile will need to be updated. The brief from the operator
+# is explicit: "no stable Bun contains the fix. Your finding stands
+# and 'wait for 1.3.15+' is not a viable path."
+#
+# Supply-chain fragility: the production build depends on a mutable
+# canary tag. This is a real, not-papered-over operational risk. The
+# only mitigations are (a) re-resolve the digest before every build,
+# (b) re-run the containment test, and (c) move to a stable tag once
+# oven-sh/bun ships 1.3.15+ with the fix. Until (c), every deploy is
+# a canary-tagged deploy.
+#
+# ---------------------------------------------------------------
+# CANARY BASE — verified 2026-08-01
+# ---------------------------------------------------------------
+#
+# Resolved from oven/bun:canary-alpine via the Docker Hub registry
+# HTTP API (publicly reachable; not the operator's private registry).
+#
+# Tag:                   oven/bun:canary-alpine
+# amd64 manifest digest: sha256:aead81873566d42926d8cbb8dc915bdd5547d2f59a8f7e46220ba83dd167b210
+# arm64 manifest digest: sha256:91bbe5b25a29561ae6fad60587fef03350acb6c74bebaef87b6031738e96bf94
+# Image created:         2026-07-31T14:52:35.280Z
+# Embedded Bun revision: f68e504ae48a5a54eb3017f29baa99dd31660a5e
+# Embedded version:      1.4.0-canary.1+f68e504ae
+#
+# Three-source verification of the embedded commit:
+#   (1) OCI image config label
+#       org.opencontainers.image.revision = f68e504ae48a5a54eb3017f29baa99dd31660a5e
+#   (2) Binary build path (via `strings` on the extracted bun binary)
+#       /tmp/bun-node-f68e504ae/bun
+#   (3) Binary version string (via `strings` on the extracted bun binary)
+#       1.4.0-canary.1+f68e504ae
+# All three agree on f68e504ae.
+#
+# Containment test — the step that matters and the one we got wrong
+# before. Having the same commit prefix does NOT prove the fix is
+# included. The fix must be a strict ancestor of the embedded commit:
+#
+#   gh api repos/oven-sh/bun/compare/789be97db9b746533cf692e8367146e2d3c0d7cb...f68e504ae48a5a54eb3017f29baa99dd31660a5e
+#
+# Result (verbatim, 2026-08-01):
+#   status:                ahead
+#   ahead_by:              103
+#   behind_by:             0
+#   total_commits:         103
+#   merge_base_commit.sha: 789be97db9b746533cf692e8367146e2d3c0d7cb
+#   merge_base_commit.title:
+#       fetch: error the response body stream when a fully-buffered
+#       response is aborted (#35093)
+#
+# The merge base IS the bun#35093 fix commit. The canary is 103 commits
+# ahead of the fix, 0 behind. Containment is proven.
+#
+# Re-run this exact verify block before every build:
+#   1. docker registry pull the manifest for oven/bun:canary-alpine
+#   2. record the amd64 manifest digest → that digest IS the pin
+#   3. extract usr/local/bin/bun from the layer, grep for bun-node-
+#      <sha> with `strings`, recover the embedded commit
+#   4. run the gh api compare endpoint against 789be97db9b746533cf692e8367146e2d3c0d7cb
+#   5. require status=ahead, behind_by=0, merge_base_commit.sha=789be97db9b746533cf692e8367146e2d3c0d7cb
+#   6. if any check fails, abort the build; the canary no longer
+#      contains the fix and pinning it would be a ship of an unprovable
+#      build.
+#
+# ---------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
 # Build-time provenance args. GIT_REF and GIT_SHA are required; the build
@@ -50,11 +110,10 @@ ARG GIT_SHA
 ARG BUILD_DATE
 
 # ---------------------------------------------------------------------------
-# Bun base. Manifest digest pinned per architecture so the digest is the
-# only thing that mechanically identifies the embedded binary.
+# Bun base. Canary digest pinned per architecture. MUTABLE — see header.
 # ---------------------------------------------------------------------------
-ARG BUN_IMAGE_AMD64=oven/bun@sha256:efc5e42c7bedc1661ab0b7272c74c3ebf794f054297f530a62055f2d1a0eb662
-ARG BUN_IMAGE_ARM64=oven/bun@sha256:3c9ab1a521c82144dff537125695017a0480d3a13088fba7e012cfae0f63146f
+ARG BUN_IMAGE_AMD64=oven/bun@sha256:aead81873566d42926d8cbb8dc915bdd5547d2f59a8f7e46220ba83dd167b210
+ARG BUN_IMAGE_ARM64=oven/bun@sha256:91bbe5b25a29561ae6fad60587fef03350acb6c74bebaef87b6031738e96bf94
 
 # ===========================================================================
 # Stage 1 — builder
@@ -169,7 +228,8 @@ LABEL org.opencontainers.image.title="ccflare" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.base.name="oven/bun" \
       org.opencontainers.image.base.digest="${BUN_IMAGE_AMD64}" \
-      org.opencontainers.image.base.version="1.3.14-alpine" \
-      org.opencontainers.image.base.revision="0d9b296af33f2b851fcbf4df3e9ec89751734ba4"
+      org.opencontainers.image.base.version="canary-alpine" \
+      org.opencontainers.image.base.revision="f68e504ae48a5a54eb3017f29baa99dd31660a5e" \
+      org.opencontainers.image.base.containment="behind_789be97d_by_0_commits"
 
 CMD ["/app/ccflare-server"]
