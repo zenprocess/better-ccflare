@@ -652,8 +652,7 @@ describe("health build-time provenance", () => {
 
 	it("reports build-time provenance when env vars are set", async () => {
 		const saved = snapshotEnv();
-		process.env.CCFLARE_GIT_SHA =
-			"abcdef1234567890abcdef1234567890abcdef12";
+		process.env.CCFLARE_GIT_SHA = "abcdef1234567890abcdef1234567890abcdef12";
 		process.env.CCFLARE_GIT_REF = "deploy/test";
 		process.env.CCFLARE_BUILD_DATE = "2026-08-01T00:00:00Z";
 		process.env.CCFLARE_VERSION = "9.9.9-test";
@@ -670,9 +669,7 @@ describe("health build-time provenance", () => {
 			};
 			expect(response.status).toBe(200);
 			expect(body.version).toBe("9.9.9-test");
-			expect(body.git_sha).toBe(
-				"abcdef1234567890abcdef1234567890abcdef12",
-			);
+			expect(body.git_sha).toBe("abcdef1234567890abcdef1234567890abcdef12");
 			expect(body.git_ref).toBe("deploy/test");
 			expect(body.build_date).toBe("2026-08-01T00:00:00Z");
 		} finally {
