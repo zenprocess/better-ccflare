@@ -14,7 +14,7 @@ import {
 // Since extractAgentDirectories is not exported, we'll test via the public API
 import { interceptAndModifyRequest } from "../agent-interceptor";
 
-const TEST_DB_PATH = "/tmp/test-agent-interceptor-security.db";
+const TEST_DB_PATH = `${process.env.TMPDIR || "/tmp"}/test-agent-interceptor-security.db`;
 
 describe("Agent Interceptor - Directory Traversal Security", () => {
 	let dbOps: DatabaseOperations;

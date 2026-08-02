@@ -10,7 +10,7 @@ import type { Agent } from "@better-ccflare/types";
 import type { ModelCatalog } from "../../model-catalog";
 import { interceptAndModifyRequest } from "../agent-interceptor";
 
-const TEST_DB_PATH = "/tmp/test-agent-interceptor-header.db";
+const TEST_DB_PATH = `${process.env.TMPDIR || "/tmp"}/test-agent-interceptor-header.db`;
 
 /**
  * Tests for the X-Anthropic-Agent-Id explicit-attribution header path:
