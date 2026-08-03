@@ -18,9 +18,13 @@
    Docker (podman works equivalently — the verify script auto-detects). Both are
    reachable from the operator's workstation over SSH.
 2. **Current version**: tag `ccflare:v3.5.44+zp6` (or `:v3.5.44` re-tagged locally).
-   Reported image manifest digest: `sha256:08c93b57…` — **treated as unverified
-   until step 1 captures it on the running container**. Do not roll back to that
-   digest from memory; step 1 records the exact one.
+   The image manifest digest the operator mentioned in the briefing —
+   `sha256:08c93b57…` — is **unverified hearsay carried over from an earlier
+   session, NOT established fact**. It is a shorthand the operator typed; the
+   runbook does not act on it until step 1 captures the real digest on the
+   running container. Step 1.2 generates the rollback script from that
+   captured value; if the captured digest differs from `08c93b57…`, the
+   captured value wins.
 3. **Target version**: upstream tag `v3.5.46` of `zenprocess/better-ccflare`,
    built with **`Dockerfile.provenance`** from `origin/main` of this fork. **Do NOT
    build with `./Dockerfile`** — that one downloads a prebuilt binary and loses
@@ -59,7 +63,23 @@
 
 ---
 
-## Step 0 — Rollback target (record before anything changes)
+## Step 0 — Rollback posture (no scripts yet)
+
+> ⚠️ **The digest `sha256:08c93b57…` carried over from the operator's earlier
+> session is UNVERIFIED HEARSAY, not established fact.** It is a shorthand the
+> operator typed, NOT something verified against a running container. The real
+> digest is unknown until step 1 captures it. The runbook does NOT pre-write
+> a rollback script here for two reasons:
+>
+> 1. Any hardcoded digest in a pre-written script is either hearsay or wrong.
+>    Docker rejects truncated digests (`sha256:08c93b57` is 8 hex chars; a valid
+>    reference is the full 64). A pre-written script with a placeholder
+>    "looks executable" but is not — the operator would discover this at the
+>    worst possible moment.
+> 2. The rollback's correctness depends on the actual captured value. The
+>    script is **generated** from the captured digest, not interpolated into
+>    a template. Generation happens in step 1.2 (ccmax) and step 3.1
+>    (ccproxy2) — i.e., AFTER the live state is recorded.
 
 Open a fresh terminal window. Keep it open for the entire runbook. Paste every
 command exactly. Record outputs in a scratch file:
@@ -69,55 +89,11 @@ mkdir -p ~/ccflare-upgrade-2026-08-03
 cd ~/ccflare-upgrade-2026-08-03
 ```
 
-### 0.1 Rollback target (one-liner per host — recorded NOW)
-
-```bash
-cat > rollback-ccmax.sh <<'EOF'
-#!/usr/bin/env bash
-# Rollback ccmax to v3.5.44+zp6. ONE command. No investigation.
-# Pre-condition: the previously-running image's digest is sha256:08c93b57…
-# (verified by step 1; substitute the captured digest if step 1 differs).
-set -euo pipefail
-docker stop ccflare && docker rm ccflare
-docker pull registry.zp.digital/ccflare@sha256:08c93b57
-docker run -d --name ccflare --restart=unless-stopped \
-    --env-file /etc/ccflare/ccflare.env \
-    -p 8080:8080 \
-    -v /var/lib/ccflare:/data \
-    registry.zp.digital/ccflare@sha256:08c93b57
-EOF
-chmod +x rollback-ccmax.sh
-
-cat > rollback-ccproxy2.sh <<'EOF'
-#!/usr/bin/env bash
-# Rollback ccproxy2 to v3.5.44+zp6. ONE command. No investigation.
-set -euo pipefail
-docker stop ccflare && docker rm ccflare
-docker pull registry.zp.digital/ccflare@sha256:08c93b57
-docker run -d --name ccflare --restart=unless-stopped \
-    --env-file /etc/ccflare/ccflare.env \
-    -p 8080:8080 \
-    -v /var/lib/ccflare:/data \
-    registry.zp.digital/ccflare@sha256:08c93b57
-EOF
-chmod +x rollback-ccproxy2.sh
-```
-
-> **The env-file paths (`/etc/ccflare/ccflare.env`) are the operator's choice.**
-> Substitute the actual paths the operator uses. The crucial property is that
-> the rollback script uses the **same** env file the running container was
-> launched with. Step 4 captures it.
-
-### 0.2 Confirm the digests match the captured ones after step 1
-
-The `sha256:08c93b57…` literal in the rollback scripts is a **placeholder**
-based on the operator's report. Step 1 captures the live digest. After step 1,
-edit the rollback scripts and substitute the verified digest. If the captured
-digest does not start with `08c93b57`, the operator's report was wrong — use
-whatever step 1 captured. The rollback script must point at a digest that
-**actually exists in the registry** at rollback time; verify with
-`docker manifest inspect registry.zp.digital/ccflare@sha256:<digest>`
-before relying on the rollback script.
+**If the operator's hearsay digest turns out to be unverifiable later** (the
+real running image is something different, or the registry has GC'd the old
+image), the runbook states plainly: **this upgrade is one-way, the rollback
+script will refuse to run**. The pre-flight in step 1.2 makes that refusal
+loud rather than silent.
 
 ---
 
@@ -166,38 +142,153 @@ The most common causes: container not found (use `--container <NAME|id>`);
 `/health` not reachable (port mismatch); `jq` missing on the operator's
 workstation (`brew install jq`).
 
-### 1.1 Record the captured digest (write into the rollback scripts)
+### 1.2 Generate `rollback-ccmax.sh` from the captured digest (and verify the rollback image is retrievable)
+
+> The live image's digest is now established fact — captured from the running
+> container in step 1. Generate the rollback script from it, with the
+> **correct** ordering: pull first, destroy only if pull succeeds.
 
 ```bash
-DIGEST=$(jq -r '.image.manifest_digest // .image.config_digest' \
-    ./verify-live-build.summary.json)
-echo "Captured ccmax image digest: $DIGEST"
+cd ~/ccflare-upgrade-2026-08-03
 
-# Substitute into both rollback scripts. The captured digest is what the
-# rollback ACTUALLY rolls back to — the operator's reported sha256:08c93b57
-# is a placeholder until this step confirmed it.
-sed -i '' "s|sha256:08c93b57|${DIGEST#*@}|g" rollback-ccmax.sh rollback-ccproxy2.sh
-grep -H "registry.zp.digital" rollback-*.sh
+# Extract the captured digest. Manifest digest is preferred (it pins the
+# full image identity); fall back to config digest (image id) if the image
+# was pulled by tag and has no RepoDigest.
+DIGEST=$(jq -r '.image.manifest_digest // empty' ./verify-live-build.summary.json)
+if [ -z "$DIGEST" ]; then
+    DIGEST=$(jq -r '.image.config_digest' ./verify-live-build.summary.json)
+fi
+echo "Live ccmax image ref: $DIGEST"
+
+# Pre-flight: the rollback image MUST be retrievable from the registry OR
+# already in the local image cache on ccmax. If neither, the upgrade is
+# one-way and we HALT before any state change. This is the loud refusal
+# the operator must see up front.
+ssh deploy@ccmax bash -s <<SSHCOMMAND
+set -euo pipefail
+IMAGE_REF='$DIGEST'
+BARE="\${IMAGE_REF#*@}"
+if docker image inspect "\$BARE" >/dev/null 2>&1; then
+    echo "rollback image present in local cache: \$BARE"
+    exit 0
+fi
+echo "rollback image NOT in local cache; attempting pull..."
+if docker pull "\$IMAGE_REF" >/dev/null 2>&1; then
+    echo "rollback image pulled successfully: \$BARE"
+    exit 0
+fi
+echo "FATAL: rollback image \$IMAGE_REF is not retrievable." >&2
+echo "  HALT — this upgrade is one-way." >&2
+exit 1
+SSHCOMMAND
 ```
 
 **Expected output**:
 
 ```
-Captured ccmax image digest: registry.zp.digital/ccflare@sha256:08c93b57…
-rollback-ccmax.sh:registry.zp.digital/ccflare@sha256:08c93b57…
-rollback-ccproxy2.sh:registry.zp.digital/ccflare@sha256:08c93b57…
+Live ccmax image ref: registry.zp.digital/ccflare@sha256:<64 hex chars>
+rollback image present in local cache: sha256:<64 hex chars>
 ```
 
-**If the captured digest does not start with `08c93b57`**: the operator's
-report was inaccurate. Use the captured value. The previously-recorded
-"current version v3.5.44+zp6" claim is still trusted only if the git_sha
-from `/health` matches what `git rev-parse v3.5.44` resolves to in the
-clone used to build that image. This runbook does not require git_sha to
-match a specific upstream commit — it requires only that the OCI label
-`org.opencontainers.image.version` says `v3.5.44+zp6` or equivalent. If
-the label says something else, **STOP and ask the operator**.
+or
 
-### 1.2 Stash the Bun revision from the captured container (sanity-check only)
+```
+Live ccmax image ref: registry.zp.digital/ccflare@sha256:<64 hex chars>
+rollback image NOT in local cache; attempting pull...
+rollback image pulled successfully: sha256:<64 hex chars>
+```
+
+**If the pre-flight exits non-zero** (the image is neither cached nor
+pullable): **HALT the entire upgrade**. The operator must decide: stop
+here, or proceed knowing the upgrade is irreversible. Do not "try the
+deploy anyway" — the rollback script will refuse to run later, and the
+operator will discover that during an outage.
+
+Now generate the script. The key property of this script is the **order
+of operations**: pull succeeds → only then stop+rm → only then re-run.
+If pull fails, the script aborts with no state change.
+
+```bash
+cat > rollback-ccmax.sh <<EOF
+#!/usr/bin/env bash
+# rollback-ccmax.sh — generated from step 1.2 capture on $(date -u +%Y-%m-%dT%H:%M:%SZ).
+# Rollback target (live, not hearsay): $DIGEST
+#
+# Order of operations is load-bearing:
+#   1. Pre-flight: image must be retrievable (cache or pull).
+#   2. ONLY if pre-flight passes, destroy the running container.
+#   3. Re-run with the captured image and the captured env.
+# A pull failure aborts the script with no state change.
+
+set -euo pipefail
+
+ROLLBACK_IMAGE="$DIGEST"
+BARE_DIGEST="\${ROLLBACK_IMAGE#*@}"
+
+# 1. Pre-flight.
+if ! docker image inspect "\$BARE_DIGEST" >/dev/null 2>&1; then
+    if ! docker pull "\$ROLLBACK_IMAGE" >/dev/null 2>&1; then
+        echo "FATAL: rollback image \$ROLLBACK_IMAGE is not retrievable." >&2
+        echo "  HALT — this upgrade is one-way." >&2
+        exit 1
+    fi
+fi
+
+# 2. Destroy (only now that we have the replacement in hand).
+docker stop ccflare
+docker rm ccflare
+
+# 3. Re-run with the captured env. Operator MUST substitute the
+#    env-file path; the runbook captured it in step 4.1.
+docker run -d --name ccflare --restart=unless-stopped \\
+    --env-file /etc/ccflare/ccflare.env \\
+    -p 8080:8080 \\
+    -v /var/lib/ccflare:/data \\
+    "\$ROLLBACK_IMAGE"
+EOF
+chmod +x rollback-ccmax.sh
+
+# Verify the generated script: digest is 64 hex chars, ordering is pull-first.
+echo "--- generated rollback-ccmax.sh ---"
+cat rollback-ccmax.sh
+echo "--- end ---"
+```
+
+**Expected** (key lines in the cat output, all present and in this order):
+
+```bash
+ROLLBACK_IMAGE="registry.zp.digital/ccflare@sha256:<exactly 64 hex chars>"
+...
+if ! docker image inspect "$BARE_DIGEST" >/dev/null 2>&1; then
+    if ! docker pull "$ROLLBACK_IMAGE" >/dev/null 2>&1; then
+...
+docker stop ccflare
+docker rm ccflare
+```
+
+**Failure modes**:
+- `ROLLBACK_IMAGE` line has fewer than 64 hex chars after `sha256:`: the
+  digest was truncated. Re-run `jq -r '.image.manifest_digest' ...` and
+  check the source.
+- The `docker pull` line appears AFTER `docker stop` / `docker rm`: the
+  ordering is wrong. Re-generate the script from this step; do not edit
+  it manually.
+
+> The ccproxy2 rollback script is **not** generated here. The operator-
+> mandated order is ccmax first, then ccproxy2. The ccproxy2 capture
+> happens in step 3; the ccproxy2 rollback script is generated in
+> step 3.1, after we know ccproxy2's live image and have verified its
+> retrievability. This avoids carrying a placeholder digest forward.
+
+**If the captured digest does not match the operator's hearsay `08c93b57…`**: the
+operator's report was inaccurate. Use the captured value. The previously-recorded
+"current version v3.5.44+zp6" claim is still trusted only if the
+`org.opencontainers.image.version` OCI label on the captured image says
+`v3.5.44+zp6` (or an equivalent operator-applied suffix). The label is in the
+`*-before.txt` capture; check it before continuing. If the label says something
+else, **STOP and ask the operator** which version was actually running.
+
+### 1.3 Stash the Bun revision from the captured container (sanity-check only)
 
 ```bash
 jq -r '.bun_revision.value' ./verify-live-build.summary.json
@@ -434,6 +525,91 @@ cp verify-live-build.summary.json ccproxy2-before.summary.json
 
 > **DO NOT deploy ccproxy2 yet.** Step 4-6 are about ccmax. The ccproxy2
 > deploy is step 7.
+
+### 3.1 Generate `rollback-ccproxy2.sh` from the captured digest
+
+> Same pattern as step 1.2: pull-first ordering, retrievability pre-flight,
+> generated (not interpolated) from the captured value. Assumes ccproxy2 runs
+> the same image as ccmax — the operator reports they were both on `v3.5.44+zp6`.
+> If the captured digest on ccproxy2 differs from ccmax's, the generated script
+> reflects ccproxy2's own live image, not ccmax's.
+
+```bash
+cd ~/ccflare-upgrade-2026-08-03
+
+DIGEST=$(jq -r '.image.manifest_digest // empty' ccproxy2-before.summary.json)
+if [ -z "$DIGEST" ]; then
+    DIGEST=$(jq -r '.image.config_digest' ccproxy2-before.summary.json)
+fi
+echo "Live ccproxy2 image ref: $DIGEST"
+
+# Pre-flight: image must be retrievable from ccproxy2's local cache or the
+# registry. If neither, the upgrade is one-way; HALT before any mutation.
+ssh deploy@ccproxy2 bash -s <<SSHCOMMAND
+set -euo pipefail
+IMAGE_REF='$DIGEST'
+BARE="\${IMAGE_REF#*@}"
+if docker image inspect "\$BARE" >/dev/null 2>&1; then
+    echo "rollback image present in local cache: \$BARE"
+    exit 0
+fi
+echo "rollback image NOT in local cache; attempting pull..."
+if docker pull "\$IMAGE_REF" >/dev/null 2>&1; then
+    echo "rollback image pulled successfully: \$BARE"
+    exit 0
+fi
+echo "FATAL: rollback image \$IMAGE_REF is not retrievable." >&2
+echo "  HALT — this upgrade is one-way for ccproxy2." >&2
+exit 1
+SSHCOMMAND
+
+cat > rollback-ccproxy2.sh <<EOF
+#!/usr/bin/env bash
+# rollback-ccproxy2.sh — generated from step 3.1 capture on $(date -u +%Y-%m-%dT%H:%M:%SZ).
+# Rollback target (live, not hearsay): $DIGEST
+#
+# Order of operations is load-bearing:
+#   1. Pre-flight: image must be retrievable (cache or pull).
+#   2. ONLY if pre-flight passes, destroy the running container.
+#   3. Re-run with the captured image and the captured env.
+# A pull failure aborts the script with no state change.
+
+set -euo pipefail
+
+ROLLBACK_IMAGE="$DIGEST"
+BARE_DIGEST="\${ROLLBACK_IMAGE#*@}"
+
+if ! docker image inspect "\$BARE_DIGEST" >/dev/null 2>&1; then
+    if ! docker pull "\$ROLLBACK_IMAGE" >/dev/null 2>&1; then
+        echo "FATAL: rollback image \$ROLLBACK_IMAGE is not retrievable." >&2
+        echo "  HALT — this upgrade is one-way." >&2
+        exit 1
+    fi
+fi
+
+docker stop ccflare
+docker rm ccflare
+
+docker run -d --name ccflare --restart=unless-stopped \\
+    --env-file /etc/ccflare/ccflare.env \\
+    -p 8080:8080 \\
+    -v /var/lib/ccflare:/data \\
+    "\$ROLLBACK_IMAGE"
+EOF
+chmod +x rollback-ccproxy2.sh
+
+# Verify both rollback scripts exist and have the correct ordering.
+echo "--- rollback-ccmax.sh ---"; cat rollback-ccmax.sh
+echo "--- rollback-ccproxy2.sh ---"; cat rollback-ccproxy2.sh
+echo "--- end ---"
+```
+
+**Expected**: both scripts present, each with:
+- A `ROLLBACK_IMAGE="registry.zp.digital/ccflare@sha256:<64 hex chars>"` line
+- A pre-flight `docker image inspect` / `docker pull` block BEFORE `docker stop` / `docker rm`
+
+**If either pre-flight fails**: the affected host's upgrade is one-way. Decide
+explicitly whether to proceed; do not proceed by default.
 
 ---
 
@@ -826,22 +1002,36 @@ Archive the directory somewhere safe. If either host later misbehaves, the
 
 ## Appendix A — Rollback (one command per host)
 
+> The rollback scripts are **generated in steps 1.2 (ccmax) and 3.1 (ccproxy2)**
+> from the live captured digests. They do NOT exist at the start of the runbook
+> — by design, because any pre-written digest is hearsay.
+
 If anything goes wrong at any point after step 4, roll back the affected host
-with the captured digest:
+with the generated script:
 
 ```bash
-# On the operator's workstation, after substituting the real env-file path:
+# On the operator's workstation:
 scp rollback-ccmax.sh deploy@ccmax:/tmp/
 ssh deploy@ccmax 'bash /tmp/rollback-ccmax.sh'
 ```
 
-The rollback script:
-- stops and removes the current container (whatever version it is)
-- pulls the captured v3.5.44+zp6 image by digest (no tag re-resolution)
-- launches it with the same env the operator has been using
+The generated script's contract:
+- Pre-flight: confirm the captured image is retrievable (local cache or pull).
+  If the image has been garbage-collected from the registry, the script aborts
+  with `FATAL: rollback image ... is not retrievable. HALT — this upgrade is one-way.`
+  and **no state change occurs**.
+- Only after the pre-flight passes: `docker stop ccflare && docker rm ccflare`.
+- Re-launch with the captured env file and the captured image ref (full 64-char
+  digest, no truncation, no tag re-resolution).
 
 This is **not** a fix — it's a known-good restore. The operator should then
 investigate offline.
+
+**If the rollback script refuses to run** (the pre-flight fails): the captured
+image is gone from the registry. There is no automated path back. The operator
+must either (a) find a preserved copy of the v3.5.44+zp6 image elsewhere
+(backup of the registry, a separate build that hasn't been GC'd), or (b) accept
+that this host is now running v3.5.46 with whatever bugs that introduced.
 
 ---
 
