@@ -389,6 +389,36 @@ severity bar:
   to confirm `=0`. Make this pre-check mandatory (not a parenthetical)
   so an operator running compose cannot skip it.
 
+#### F-17. verify-live-build.sh exit code captured only in step 1 of 4 invocations
+
+- **Where**: Step 1 (line 144, has `echo "exit=$?"` after the script)
+  vs. Step 3 (line 419-425), Step 4.5 (line 547-552), Step 7.3
+  (line 775-781) — none of which capture the exit code.
+- **Concrete scenario in / outcome out**:
+  - **In**: `verify-live-build.sh` exits non-zero (SSH timeout to the
+    deploy host, jq unavailable on the operator's workstation,
+    container not found by name, /health unreachable on the
+    configured port). The output file may be empty or partial —
+    potentially missing the STATUS line.
+  - **Out**: the runbook's prose ("Expected: STATUS: VERIFIED_MATCH
+    on the last line") gives the operator no automated halt. A
+    tired 2am operator reading an empty or partial output file sees
+    no obvious failure marker and proceeds. The downstream check
+    (grep for STATUS) on a missing line silently passes.
+- **Severity**: MEDIUM. The script's own exit codes are informative
+  (per the runbook, exit 1 = VERIFIED_DRIFT, exit 2 =
+  COULD_NOT_DETERMINE) — but only Step 1 actually exposes them to
+  the operator. The other three invocations discard them.
+- **Suggested fix**: match step 1's discipline at every invocation.
+  Example for step 4.5:
+  ```
+  scripts/verify-live-build.sh ... -o ccmax-after.txt
+  echo "verify-live-build exit=$?"
+  grep -q '^STATUS:[[:space:]]\+VERIFIED_MATCH' ccmax-after.txt \
+      || { echo "STATUS line missing or not VERIFIED_MATCH — investigate before proceeding"; exit 1; }
+  ```
+  Or wrap the whole runbook in `set -e` so any non-zero exit halts.
+
 - **Where**: Step 4.2 (line 466-468). The complex `docker inspect`
   template is suggested as one option, with the parenthetical "have
   the operator eyeball the actual `docker run` line".
@@ -424,16 +454,28 @@ severity bar:
     image, or it depends on a file that doesn't exist).
   - **Out**: the operator re-checks "starting" indefinitely. At some
     point they give up and either proceed to step 5 (falsely believing
-    the container is healthy) or abandon the runbook.
-- **Severity**: LOW. The docker daemon will eventually mark the
-  container unhealthy (after the failure threshold, typically 3
-  retries), which the runbook's `unhealthy` branch handles. But the
-  transition from starting → unhealthy can take 5+ minutes depending
-  on healthcheck config.
-- **Suggested fix**: add a max-iteration count or a total-time cap
-  (e.g., "if still starting after 4 minutes, force a healthcheck
-  inspection: `docker inspect --format '{{json .State.Health}}'
-  ccflare`").
+    the container is healthy) or abandon the runbook. "Improvise" is
+    the thing the runbook explicitly forbids in assumption 11.
+- **Severity**: HIGH (upgraded from LOW after lens-1 verification).
+  The docker daemon will eventually mark the container unhealthy
+  (after the failure threshold, typically 3 retries), which the
+  runbook's `unhealthy` branch handles. But the transition from
+  starting → unhealthy can take 5+ minutes depending on healthcheck
+  config, and a 2am operator with no debugging will give up before
+  then.
+- **Suggested fix**: wrap the wait in a bounded loop. Example:
+  ```
+  for i in 1 2 3 4 5 6; do
+      STATUS=$(ssh deploy@ccmax 'docker inspect --format {{.State.Health.Status}} ccflare')
+      case $STATUS in
+          healthy) break ;;
+          starting|unhealthy) sleep 30 ;;
+          *) echo "unexpected status: $STATUS"; break ;;
+      esac
+  done
+  [[ $STATUS == healthy ]] || { echo "health did not converge after ~3 minutes — rolling back"; bash /tmp/rollback-ccmax.sh; exit 1; }
+  ```
+  Cap at ~3 minutes total, then auto-rollback.
 
 #### F-15. Build cache could yield stale labels on re-run
 
@@ -479,7 +521,8 @@ severity bar:
 | F-11  | MEDIUM    | Step 5.1                | Expected git_sha shown but not in failure modes; wrong-SHA passes silently |
 | F-12  | MEDIUM    | Step 1.1                | digest fallback to config_digest breaks manifest inspect verification |
 | F-13  | MEDIUM    | Step 4.2                | docker inspect template misses --network, --cap-add, --add-host, log opts |
-| F-14  | LOW       | Step 4.4                | No max iterations on "starting" health re-check |
+| F-14  | HIGH      | Step 4.4                | No max iterations on "starting" health re-check (operator waits indefinitely) |
+| F-17  | MEDIUM    | Steps 3, 4.5, 7.3       | verify-live-build.sh exit code not captured in 3 of 4 invocations |
 | F-15  | LOW       | Step 2.4                | Build cache stale if re-run with same GIT_SHA within the same minute |
 | F-16  | HIGH      | Step 4.3 (compose note) | Compose fallback flips ALERT_ANOMALY_ENABLED to 1 if compose file lacks the literal =0 |
 
@@ -493,15 +536,21 @@ severity bar:
   probing the hosts.
 - **Verification**: of the 4 adversarial verification agents dispatched
   (one per lens: destructive-before-verify, env preservation,
-  silent-success, canary/build integrity), lens-2 (env preservation)
-  returned a structured finding set. Its findings are folded into F-02
-  (with concrete examples like `TZ`, `LOG_LEVEL`, `HTTP_PROXY`,
-  `OAUTH_CLIENT_ID`/`OAUTH_CLIENT_SECRET`, `ANTHROPIC_BASE_URL`,
-  `SENTRY_DSN`) and surfaced as a separate F-16 (compose fallback).
-  The other 3 were either blocked by the agent-spawning gate or did
-  not produce results in time. Findings above reflect my own careful
+  silent-success, canary/build integrity), lens-1 (destructive-before-verify)
+  and lens-2 (env preservation) returned structured finding sets.
+  Lens-1 surfaced F-17 (verify-live-build.sh exit code captured only
+  in step 1 of 4 invocations) — a new finding not in the initial
+  draft — and argued for upgrading F-14 (indefinite "starting" health
+  wait) from LOW to HIGH, which was accepted. Lens-2's findings are
+  folded into F-02 (with concrete examples like `TZ`, `LOG_LEVEL`,
+  `HTTP_PROXY`, `OAUTH_CLIENT_ID`/`OAUTH_CLIENT_SECRET`,
+  `ANTHROPIC_BASE_URL`, `SENTRY_DSN`) and surfaced as a separate F-16
+  (compose fallback). The other 2 lenses (silent-success, canary/build
+  integrity) were blocked by the agent-spawning gate or did not
+  produce results in time. Findings above reflect my own careful
   re-read of the runbook across all four lenses plus the structured
-  output from lens-2. The findings have been deduplicated and ranked.
+  output from lens-1 and lens-2. The findings have been deduplicated
+  and ranked.
 - **Speculation labels**: F-09, F-10 are marked speculative because
   they depend on the v3.5.44+zp6 / origin/main delta, which the runbook
   does not document. All other findings are concrete scenarios with
