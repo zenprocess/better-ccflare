@@ -116,7 +116,21 @@ scripts/verify-live-build.sh \
     --container ccflare \
     --health-port 8080 \
     -o ccmax-before.txt
-echo "exit=$?"
+VERIFY_EXIT=$?
+echo "verify-live-build exit=$VERIFY_EXIT"
+case $VERIFY_EXIT in
+    0) echo "VERIFIED_MATCH — captured cleanly" ;;
+    1) echo "FATAL: VERIFIED_DRIFT. STOP. The current ccmax image has" >&2
+       echo "  disagreements between /health and its OCI labels. Investigate" >&2
+       echo "  before upgrading." >&2; exit 1 ;;
+    2) echo "FATAL: COULD_NOT_DETERMINE. STOP. Look at MISSING_FIELDS:" >&2
+       echo "  in ccmax-before.txt; re-run with --debug if needed." >&2
+       exit 1 ;;
+    64) echo "FATAL: invalid arguments to verify-live-build.sh" >&2; exit 1 ;;
+    *) echo "FATAL: unexpected exit code $VERIFY_EXIT" >&2; exit 1 ;;
+esac
+grep -q '^STATUS:[[:space:]]\+VERIFIED_MATCH' ccmax-before.txt \
+    || { echo "FATAL: STATUS line missing or not VERIFIED_MATCH" >&2; exit 1; }
 ```
 
 **Expected output** (last lines of `ccmax-before.txt`):
@@ -151,12 +165,21 @@ workstation (`brew install jq`).
 ```bash
 cd ~/ccflare-upgrade-2026-08-03
 
-# Extract the captured digest. Manifest digest is preferred (it pins the
-# full image identity); fall back to config digest (image id) if the image
-# was pulled by tag and has no RepoDigest.
+# Extract the captured digest. Manifest digest is required (it pins the
+# full image identity and works with `docker manifest inspect` / pull by
+# digest). If manifest_digest is empty, the verify-live-build.sh summary
+# is incomplete — DO NOT fall back to config_digest, because a config
+# digest is a different artifact and the rollback script's pull
+# reference may not resolve.
 DIGEST=$(jq -r '.image.manifest_digest // empty' ./verify-live-build.summary.json)
 if [ -z "$DIGEST" ]; then
-    DIGEST=$(jq -r '.image.config_digest' ./verify-live-build.summary.json)
+    echo "FATAL: captured manifest_digest is empty. The verify-live-build.sh" >&2
+    echo "  summary should always populate image.manifest_digest for a" >&2
+    echo "  successful capture. If it is empty, the manifest extraction" >&2
+    echo "  in the script broke, OR the image was pulled by a tag that the" >&2
+    echo "  registry did not promote to a RepoDigest." >&2
+    echo "  Inspect the summary manually: jq '.image' verify-live-build.summary.json" >&2
+    exit 1
 fi
 echo "Live ccmax image ref: $DIGEST"
 
@@ -357,63 +380,140 @@ ls -la Dockerfile.provenance scripts/verify-live-build.sh
 
 ### 2.3 Re-verify the Bun canary pin BEFORE building (mandatory)
 
-> This is the check the runbook explicitly asks for. The canary tag is mutable;
-> its content can change without the digest changing unless the operator re-pins.
+> Three layers of verification, all required. The canary tag is mutable;
+> its content can change without the digest changing unless the operator
+> re-pins. A rebase that reverts and re-applies the fix can pass the
+> merge-base check while the fix is absent from HEAD's source — that's
+> why we verify against HEAD's actual source tree, not just its history.
+>
+> **Three artifacts to verify, all three must pass**:
+>
+> 1. **Canary tag** (`oven/bun:canary-alpine`, mutable) — what's at HEAD
+>    of Bun's canary now.
+> 2. **Pinned digests** (in `Dockerfile.provenance`, `aead8187…` amd64 /
+>    `91bbe5b25a…` arm64) — what the Dockerfile actually builds against.
+>    Older digests can lose the fix in a revert-and-reapply scenario; the
+>    canary tag check alone doesn't cover this.
+> 3. **HEAD's source** at the extracted revision — does the file the fix
+>    modified actually contain the fix's marker. History says yes; source
+>    says yes or no.
 
 ```bash
-# Pull the canary manifest digest from Docker Hub (public).
-AMD64_DIGEST=$(curl -sS \
-    -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
-    -H "Accept: application/vnd.oci.image.manifest.v1+json" \
-    "https://registry-1.docker.io/v2/oven/bun/manifests/canary-alpine" \
-    | jq -r '.config.digest // empty')
-echo "amd64 config digest: $AMD64_DIGEST"
-```
-
-**Expected**: a `sha256:` digest. Note that this is the **config digest** from
-the registry's manifest endpoint; the `Dockerfile.provenance` pins the **manifest
-digest** (one level up). Both should agree when the canary is unchanged.
-
-```bash
-# Read the embedded Bun revision from the canary image (extract via docker).
+# Read the embedded Bun revision from the canary image. Capture stderr;
+# do NOT swallow it. Validate the value is exactly 40 hex chars — empty
+# or partial values mean the docker invocation failed and we must abort.
 docker pull oven/bun:canary-alpine >/dev/null
-EMBEDDED_REV=$(docker run --rm oven/bun:canary-alpine bun --revision 2>/dev/null \
+EMBEDDED_REV=$(docker run --rm oven/bun:canary-alpine bun --revision 2>&1 \
     | tr -d '[:space:]')
-echo "embedded Bun revision: $EMBEDDED_REV"
+if ! [[ "$EMBEDDED_REV" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "FATAL: could not extract Bun revision from canary." >&2
+    echo "  raw output: '$EMBEDDED_REV'" >&2
+    echo "  docker likely failed (daemon down, image pull blocked, or 'docker' missing)." >&2
+    echo "  ABORT — do not proceed without a verified revision." >&2
+    exit 1
+fi
+echo "embedded Bun revision (canary HEAD): $EMBEDDED_REV"
 ```
 
 **Expected**: a 40-char hex SHA like `f68e504ae48a5a54eb3017f29baa99dd31660a5e`.
+If not — abort above.
 
 ```bash
-# Containment test: the canary must be AHEAD or IDENTICAL of the fix commit
-# (789be97db9b746533cf692e8367146e2d3c0d7cb), with 0 commits behind.
-# This is the step that matters. The fix must be in the canary's history.
-gh api repos/oven-sh/bun/compare/789be97db9b746533cf692e8367146e2d3c0d7cb...${EMBEDDED_REV}
-```
-
-**Expected output** (key fields):
-
-```json
-{
-  "status": "ahead",
-  "ahead_by": <positive integer>,
-  "behind_by": 0,
-  "merge_base_commit": { "sha": "789be97db9b746533cf692e8367146e2d3c0d7cb", ... }
+# Containment test on the canary HEAD — must be AHEAD or IDENTICAL of the
+# fix commit (789be97db9b746533cf692e8367146e2d3c0d7cb), with 0 commits behind.
+gh api repos/oven-sh/bun/compare/789be97db9b746533cf692e8367146e2d3c0d7cb...${EMBEDDED_REV} > canary-compare.json
+echo "exit=$?"
+jq -e '
+    .status == "ahead" or .status == "identical"
+        and .behind_by == 0
+        and .merge_base_commit.sha == "789be97db9b746533cf692e8367146e2d3c0d7cb"
+' canary-compare.json >/dev/null || {
+    echo "FATAL: canary HEAD does not contain bun#35093." >&2
+    jq '{status, ahead_by, behind_by, merge_base_commit: .merge_base_commit.sha}' canary-compare.json >&2
+    exit 1
 }
+echo "canary HEAD contains the fix."
 ```
 
-**Required assertions**:
-- `status` ∈ {`ahead`, `identical`}
-- `behind_by` == 0
-- `merge_base_commit.sha` == `789be97db9b746533cf692e8367146e2d3c0d7cb`
+**Expected**: `canary HEAD contains the fix.`
 
-**If any check fails**: the canary no longer contains `bun#35093`. **ABORT
-the build.** Do not pin the new digest into `Dockerfile.provenance` and proceed
-— the supply-chain argument for the canary is that it contains the fix. Without
-the fix, the deploy is unprovable. Report the failed check to the operator;
-the operator decides whether to wait for the canary to recover or to fall
-back to the previous image (which is what the rollback scripts in step 0 are
-for).
+```bash
+# Pull the PINNED digests from Dockerfile.provenance (NOT just the canary
+# tag). The pinned digests may be older than the canary; they may have
+# lost the fix in a revert-and-reapply scenario the canary didn't.
+PINNED_AMD64="sha256:aead81873566d42926d8cbb8dc915bdd5547d2f59a8f7e46220ba83dd167b210"
+PINNED_ARM64="sha256:91bbe5b25a29561ae6fad60587fef03350acb6c74bebaef87b6031738e96bf94"
+docker pull "oven/bun@${PINNED_AMD64}" >/dev/null
+PINNED_REV=$(docker run --rm "oven/bun@${PINNED_AMD64}" bun --revision 2>&1 \
+    | tr -d '[:space:]')
+if ! [[ "$PINNED_REV" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "FATAL: could not extract Bun revision from pinned digest." >&2
+    exit 1
+fi
+echo "embedded Bun revision (pinned amd64 digest): $PINNED_REV"
+
+# Containment test on the pinned digest.
+gh api repos/oven-sh/bun/compare/789be97db9b746533cf692e8367146e2d3c0d7cb...${PINNED_REV} > pinned-compare.json
+jq -e '
+    .status == "ahead" or .status == "identical"
+        and .behind_by == 0
+        and .merge_base_commit.sha == "789be97db9b746533cf692e8367146e2d3c0d7cb"
+' pinned-compare.json >/dev/null || {
+    echo "FATAL: pinned amd64 digest does NOT contain bun#35093." >&2
+    jq '{status, ahead_by, behind_by, merge_base_commit: .merge_base_commit.sha}' pinned-compare.json >&2
+    echo "  The Dockerfile.provenance pin is stale. Either revert to the previous" >&2
+    echo "  image (rollback) or wait for the canary to recover before pinning a" >&2
+    echo "  new digest." >&2
+    exit 1
+}
+echo "pinned amd64 digest contains the fix."
+```
+
+**Expected**: `pinned amd64 digest contains the fix.`
+
+```bash
+# Verify the fix's marker is present in HEAD's actual source tree at the
+# extracted revision. The fix commit (789be97…, title "fetch: error the
+# response body stream when a fully-buffered response is aborted") modified
+# a specific file. Use gh api to fetch the file from that revision and
+# grep for the error-handling pattern the fix added.
+# The exact path and marker are revision-specific; this command surfaces
+# the title so the operator can confirm it's the same fix the canary
+# supposedly contains.
+FIX_TITLE=$(jq -r '.merge_base_commit.title' pinned-compare.json)
+echo "merge-base commit title: $FIX_TITLE"
+# Read the file the fix most likely touched (src/bun.js / src/fetch.ts —
+# both have been home to fetch-abort fixes). We probe src/bun.js first.
+gh api "repos/oven-sh/bun/contents/src/bun.js?ref=${PINNED_REV}" \
+    --jq '.content' | tr -d ' ' | base64 -d 2>/dev/null > bun-head-src.js || true
+if grep -qE 'response body stream.*fully-buffered.*aborted|fetchAbort|response.*aborted' \
+    bun-head-src.js 2>/dev/null; then
+    echo "fix marker present in HEAD source (src/bun.js)."
+else
+    # Try the fetch source as fallback.
+    gh api "repos/oven-sh/bun/contents/src/fetch.ts?ref=${PINNED_REV}" \
+        --jq '.content' | tr -d ' ' | base64 -d 2>/dev/null > bun-head-fetch.ts || true
+    if grep -qE 'response body stream.*fully-buffered.*aborted|fetchAbort|response.*aborted' \
+        bun-head-fetch.ts 2>/dev/null; then
+        echo "fix marker present in HEAD source (src/fetch.ts)."
+    else
+        echo "FATAL: fix marker NOT found in HEAD source." >&2
+        echo "  The merge-base commit has the fix in its history but the fix" >&2
+        echo "  appears to have been reverted. ABORT." >&2
+        exit 1
+    fi
+fi
+```
+
+**Expected**: `fix marker present in HEAD source (src/bun.js).` (or `src/fetch.ts`).
+
+**If any of the three layers fails**: the canary (or the pinned digest, or HEAD)
+does not contain `bun#35093`. **ABORT the build.** Do not pin a new digest
+into `Dockerfile.provenance` and proceed — the supply-chain argument for the
+canary is that it contains the fix, in HEAD's source. Without the fix, the
+deploy is unprovable. Report the failed layer to the operator; the operator
+decides whether to wait for the canary to recover or to fall back to the
+previous image (which is what the rollback scripts in step 0 are for).
 
 ### 2.4 Build the image
 
@@ -429,6 +529,8 @@ docker build \
     --build-arg GIT_REF="$GIT_REF" \
     --build-arg GIT_SHA="$GIT_SHA" \
     --build-arg BUILD_DATE="$BUILD_DATE" \
+    --no-cache \
+    --pull \
     -t ccflare:v3.5.46 \
     -t registry.zp.digital/ccflare:v3.5.46 \
     . 2>&1 | tail -20
@@ -513,6 +615,16 @@ scripts/verify-live-build.sh \
     --container ccflare \
     --health-port 8080 \
     -o ccproxy2-before.txt
+VERIFY_EXIT=$?
+echo "verify-live-build exit=$VERIFY_EXIT"
+case $VERIFY_EXIT in
+    0) echo "VERIFIED_MATCH — captured cleanly" ;;
+    1) echo "FATAL: VERIFIED_DRIFT. STOP." >&2; exit 1 ;;
+    2) echo "FATAL: COULD_NOT_DETERMINE. STOP." >&2; exit 1 ;;
+    *) echo "FATAL: unexpected exit code $VERIFY_EXIT" >&2; exit 1 ;;
+esac
+grep -q '^STATUS:[[:space:]]\+VERIFIED_MATCH' ccproxy2-before.txt \
+    || { echo "FATAL: STATUS line missing or not VERIFIED_MATCH" >&2; exit 1; }
 ```
 
 **Expected**: `STATUS: VERIFIED_MATCH` on the last line of the report. Same
@@ -539,7 +651,11 @@ cd ~/ccflare-upgrade-2026-08-03
 
 DIGEST=$(jq -r '.image.manifest_digest // empty' ccproxy2-before.summary.json)
 if [ -z "$DIGEST" ]; then
-    DIGEST=$(jq -r '.image.config_digest' ccproxy2-before.summary.json)
+    echo "FATAL: captured manifest_digest is empty. See step 1.2 for the" >&2
+    echo "  rationale — a config_digest fallback would generate a" >&2
+    echo "  rollback script whose pull reference may not resolve." >&2
+    echo "  Inspect the summary manually: jq '.image' ccproxy2-before.summary.json" >&2
+    exit 1
 fi
 echo "Live ccproxy2 image ref: $DIGEST"
 
@@ -613,110 +729,282 @@ explicitly whether to proceed; do not proceed by default.
 
 ---
 
-## Step 4 — Deploy ccmax (preserve env)
+## Step 4 — Deploy ccmax (preserve env, pre-pull, bounded wait)
 
-### 4.1 Capture the existing env from the running container
+### 4.1 Capture the FULL env from the running container into a file
+
+> Capture the entire env block — every `KEY=value`, not a hand-picked
+> subset. The runbook previously enumerated six vars and silently dropped
+> `BETTER_CCFLARE_DB_PATH` plus any operator-specific var (TZ, LOG_LEVEL,
+> HTTP_PROXY, OAUTH_CLIENT_ID/SECRET, ANTHROPIC_BASE_URL, SENTRY_DSN,
+> additional `BETTER_CCFLARE_*` knobs). Capture-all avoids the
+> silent-drop class entirely. The captured file becomes the source of
+> truth for both the new container's launch AND the post-deploy diff.
 
 ```bash
+cd ~/ccflare-upgrade-2026-08-03
+
+# Capture the running container's env in docker --env-file format
+# (one KEY=value per line, no quoting, no escaping). This is the exact
+# format the new container will consume via --env-file.
 ssh deploy@ccmax 'docker inspect --format "{{range .Config.Env}}{{println .}}{{end}}" ccflare' \
-    | tee ~/ccflare-upgrade-2026-08-03/ccmax-env-before.txt
+    | sort > ccmax-env-before.txt
+
+# Sanity-check the critical var is captured. The list is informational;
+# the diff in step 4.7 is the actual gate.
+echo "ALERT_ANOMALY_ENABLED line in captured env:"
+grep '^ALERT_ANOMALY_ENABLED' ccmax-env-before.txt || echo "  <absent>"
 ```
 
-**Expected**: a list of `KEY=value` lines, including the critical:
+**Expected**: a non-empty file with one `KEY=value` per line. The file
+**must** contain a line beginning with `ALERT_ANOMALY_ENABLED=` (the
+value may be `0`, `1`, or anything else — that is for the operator to
+verify, not for the script to assume). If the line is absent, the
+current container was not launched with that env var explicitly; the
+runbook still proceeds (the var may have a config-file default), but
+the operator should check whether the deliberate `0` value was lost
+in a prior config write. **If `ALERT_ANOMALY_ENABLED=0` was the
+operator's stated requirement and the line is absent or has a
+non-zero value, STOP and confirm with the operator before continuing.**
 
-```
-ALERT_ANOMALY_ENABLED=0
-PORT=8080
-BETTER_CCFLARE_DB_PATH=/data/ccflare.db
-CCFLARE_DB_PATH=/data/ccflare.db
-XDG_CONFIG_HOME=/data
-NODE_ENV=production
-```
+The file is now the canonical env for the new container. Do not edit it
+by hand. The new container will be launched with `--env-file
+ccmax-env-before.txt` (step 4.4).
 
-**If `ALERT_ANOMALY_ENABLED` is absent or set to anything other than `0`**:
-**STOP.** The task explicitly says this is deliberate. The current ccmax
-container must have `ALERT_ANOMALY_ENABLED=0`. Investigate before upgrading.
+### 4.2 Eyeball the existing container's run flags (no template)
 
-### 4.2 Capture the docker run command from the existing container
+> A template-based `docker inspect` capture was previously suggested but
+> silently dropped flags like `--network host`, `--cap-add NET_ADMIN`,
+> `--add-host=...`, log-driver options, etc. The new container must
+> replicate the old container's full launch shape, not a template-
+> derived subset. The only honest capture is the operator's eyes on the
+> actual `docker run` line. This is a 2am runbook — eyeballing is
+> load-bearing, not optional.
+
+Open a second terminal and run:
 
 ```bash
-ssh deploy@ccmax 'docker inspect --format "{{.Name}} {{.HostConfig.RestartPolicy.Name}} {{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}{{range .HostConfig.PortBindings}}{{(index . 0).HostPort}}->{{end}}{{end}}{{range $k,$v := .NetworkSettings.Ports}}{{$k}}->{{(index $v 0).HostPort}} {{end}}" ccflare' \
-    | tee ~/ccflare-upgrade-2026-08-03/ccmax-run-shape.txt
+ssh deploy@ccmax 'ps -ef | grep "docker run\|ccflare" | grep -v grep'
+ssh deploy@ccmax 'docker inspect ccflare \
+    --format "{{.HostConfig.RestartPolicy.Name}} {{range .Mounts}}[{{.Type}}]{{.Source}}:{{.Destination}}{{end}} {{json .HostConfig.PortBindings}} {{json .HostConfig.NetworkMode}} {{json .HostConfig.CapAdd}} {{json .HostConfig.CapDrop}} {{json .HostConfig.ExtraHosts}} {{.HostConfig.LogConfig.Type}} {{json .HostConfig.LogConfig.Config}}"'
 ```
 
-(Or, simpler: have the operator eyeball the actual `docker run` line they used
-to launch the current container. This is a 2am runbook — eyeballing is fine.)
+**Goal**: produce the list of flags the new container's launch MUST
+match. Write the result into `ccmax-run-shape.txt` (operator-supplied,
+not template-derived). The new container's `docker run` line in step
+4.4 must include every flag the operator eyeballed — missing one
+silently degrades the deploy.
 
-**Goal**: identify the volumes, ports, restart policy, and any `--add-host`,
-`--network`, or `--cap-add` flags. The new container must replicate all of them
-except for the image ref.
+### 4.3 Pre-pull the NEW image on ccmax and verify (acquire before destroy)
 
-### 4.3 Stop, remove, and re-launch ccmax
-
-> If the operator uses docker compose, the equivalent is `docker compose pull &&
-> docker compose up -d`. The env preservation rule still applies — the new
-> compose file or `docker compose` invocation must include `ALERT_ANOMALY_ENABLED=0`
-> in the environment block. **Do not let compose write a default that flips this.**
+> **The same destructive-before-verify pattern the rollback was just
+> fixed for recurs in the upgrade itself** if we pull the new image
+> AFTER `docker rm`. A pull failure would leave ccmax (the operator's
+> own dashboard) down with no path back. The new image is pulled and
+> verified BEFORE any state change.
 
 ```bash
+ssh deploy@ccmax bash -s <<'SSHCOMMAND'
+set -euo pipefail
+
+NEW_IMAGE="registry.zp.digital/ccflare:v3.5.46"
+
+# Acquire the new image first.
+echo "pulling $NEW_IMAGE..."
+if ! docker pull "$NEW_IMAGE" >/dev/null 2>&1; then
+    echo "FATAL: docker pull $NEW_IMAGE failed." >&2
+    echo "  registry.zp.digital is unreachable from ccmax OR the image" >&2
+    echo "  has not been pushed yet. Check /etc/docker/daemon.json for" >&2
+    echo "  registry-mirrors / insecure-registries. Do not proceed — the" >&2
+    echo "  old container must stay running until the new image is in" >&2
+    echo "  hand. The rollback script (step 1.2) is for after a deploy," >&2
+    echo "  not before." >&2
+    exit 1
+fi
+
+# Verify the pulled image is the one we expect. Cross-check the digest
+# against the digest the build host pushed (captured in step 2.6).
+echo "verifying pulled image matches build host's pushed digest..."
+LOCAL_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$NEW_IMAGE")
+echo "  local RepoDigest: $LOCAL_DIGEST"
+# The operator substitutes the pushed digest here from pushed-digest.txt.
+EXPECTED_DIGEST_FROM_BUILD_HOST=$(cat ~/ccflare-upgrade-2026-08-03/pushed-digest.txt)
+echo "  expected from build: $EXPECTED_DIGEST_FROM_BUILD_HOST"
+if [ "$LOCAL_DIGEST" != "$EXPECTED_DIGEST_FROM_BUILD_HOST" ]; then
+    echo "FATAL: pulled image digest does NOT match the build host's" >&2
+    echo "  pushed digest. Possible causes: registry-mirror returned a" >&2
+    echo "  stale or wrong image, OR the operator pushed to a different" >&2
+    echo "  tag than ccmax is pulling. Do not proceed." >&2
+    exit 1
+fi
+echo "pre-pull OK. The new image is in ccmax's local cache."
+SSHCOMMAND
+echo "exit=$?"
+```
+
+**Expected** (last line): `pre-pull OK. The new image is in ccmax's local cache.`
+
+**If the pre-pull fails**:
+- **`docker pull` failed**: registry unreachable, image not yet
+  replicated, or auth expired. **DO NOT** proceed to step 4.4. The
+  old container is still running (we have not touched it). Investigate
+  connectivity first. The fallback is: wait, retry, or stop the entire
+  upgrade.
+- **Digest mismatch**: a registry mirror returned the wrong image. The
+  pulled image is in ccmax's local cache as `registry.zp.digital/ccflare:v3.5.46`
+  but it is NOT the one the build host pushed. **DO NOT** proceed.
+  Either the registry has a stale image OR the operator pushed to a
+  different tag. Investigate. If the only way forward is to use the
+  pulled image anyway, edit step 4.4 to use that image's actual digest
+  and document the deviation — do not silently proceed.
+
+### 4.4 Stop, remove, and re-launch ccmax (with `--env-file` and the eyeballed flags)
+
+> The destructive step. Runs only after step 4.3 confirmed the new image
+> is in ccmax's local cache. Two changes from the previous runbook:
+>
+> 1. `--env-file` is used (not repeated `-e`). The captured env from
+>    step 4.1 is the source of truth; nothing is hand-maintained.
+> 2. The docker run line must include every flag from step 4.2's
+>    eyeball. A template is not provided — the operator's eyeballed
+>    flags go here literally.
+
+If the operator uses **docker compose** instead of `docker run`, the
+env preservation rule still applies — but compose files have a
+default-flip hazard. The mandatory pre-check:
+
+```bash
+# Compose pre-check: ALERT_ANOMALY_ENABLED=0 must be present as a
+# LITERAL in the compose file (no ${VAR:-1} interpolation, no
+# "0" string the YAML parser might coerce to int).
+ssh deploy@ccmax 'grep -nE "^\s*ALERT_ANOMALY_ENABLED" \
+    docker-compose.yml compose.yaml 2>/dev/null' || true
+```
+
+**Expected output** (one of these — if neither file exists, the
+operator is not using compose; skip this pre-check):
+
+```yaml
+  environment:
+    ALERT_ANOMALY_ENABLED: "0"
+```
+
+or:
+
+```yaml
+  environment:
+    - ALERT_ANOMALY_ENABLED=0
+```
+
+**If the literal `=0` is NOT present in the compose file**: **STOP**.
+Add the line to the compose file BEFORE running `docker compose up`.
+If the file uses `${ALERT_ANOMALY_ENABLED:-1}` or similar
+interpolation, replace it with the literal `0` — the interpolation
+default (`1`) is exactly the silent-flip this rule was written to
+prevent. After the compose file change, re-run the grep to confirm.
+
+For `docker run` deploys (no compose), proceed:
+
+```bash
+cd ~/ccflare-upgrade-2026-08-03
+scp ccmax-env-before.txt deploy@ccmax:/etc/ccflare/ccflare.env
+ssh deploy@ccmax 'chmod 600 /etc/ccflare/ccflare.env'
+
 ssh deploy@ccmax <<'SSHCOMMAND'
 set -euo pipefail
 
-# Stop and remove the old container (keep the data volume — `/var/lib/ccflare`
-# is the host bind-mount path; substitute if the operator uses a different one).
+# Destroy the old container. The new image is in local cache (step 4.3).
 docker stop ccflare
 docker rm ccflare
 
-# Pull the new image.
-docker pull registry.zp.digital/ccflare:v3.5.46
-
-# Launch the new container with the same env as before. The critical line:
-#   -e ALERT_ANOMALY_ENABLED=0     # deliberate, do NOT omit
-# Plus the captured env. Operator's choice between --env-file and repeated -e.
+# Launch with the captured env-file. Plus the eyeballed flags from
+# step 4.2. The new image ref comes from the same pulled tag.
+# DO NOT hand-maintain env vars; the file is the source of truth.
 docker run -d \
     --name ccflare \
     --restart=unless-stopped \
     -p 8080:8080 \
     -v /var/lib/ccflare:/data \
-    -e PORT=8080 \
-    -e NODE_ENV=production \
-    -e CCFLARE_DB_PATH=/data/ccflare.db \
-    -e XDG_CONFIG_HOME=/data \
-    -e ALERT_ANOMALY_ENABLED=0 \
+    --env-file /etc/ccflare/ccflare.env \
     registry.zp.digital/ccflare:v3.5.46
 SSHCOMMAND
+echo "exit=$?"
 ```
 
-**Expected** (the first 12 hex chars of the new container id):
+**Expected** (last line of SSH output): the first 12 hex chars of the
+new container id.
 
-```
-<sha>...
-```
+**If the SSH heredoc exits non-zero**: the destructive step completed
+(`docker stop` and `docker rm` ran), but the new `docker run` failed.
+**The old container is GONE.** Recovery branch:
 
-**If `docker pull` fails**: registry unreachable from ccmax. Check
-`/etc/docker/daemon.json` on ccmax for the `registry-mirrors` / `insecure-registries`
-settings. **STOP** if registry.zp.digital is not reachable — do not fall back to
-pulling from Docker Hub, the image was never pushed there.
+1. Check `docker logs` on the failed new container for the error
+   message.
+2. If the error is recoverable (port conflict, volume already in use,
+   name collision), fix and re-run the `docker run` line manually.
+3. If the error is NOT recoverable (image corruption, env-file
+   unreadable, runtime config bug in the new image), execute the
+   generated `rollback-ccmax.sh` to restore the old image and env.
+4. Either way, the runbook HALTs here. Do not proceed to step 4.5.
 
-### 4.4 Wait for the new container to be healthy
+### 4.5 Wait for the new container to be healthy (bounded loop with auto-rollback)
+
+> The previous runbook's `sleep 60; check; if starting, sleep 30 and
+> re-check` had no max iterations. At 2am, a hung healthcheck means
+> the operator waits indefinitely. This version caps the wait at
+> ~3 minutes; if the container is not healthy by then, the runbook
+> auto-rolls back via the generated `rollback-ccmax.sh`.
 
 ```bash
-# /health start_period is 40s. Wait 60s to be safe.
-sleep 60
-ssh deploy@ccmax 'docker inspect --format "{{.State.Health.Status}}" ccflare'
+# Bounded health wait. /health's start_period is 40s; allow up to 6
+# iterations of 30s sleep + check = ~3 minutes total before auto-rollback.
+HEALTHY=""
+for i in 1 2 3 4 5 6; do
+    STATUS=$(ssh deploy@ccmax 'docker inspect --format "{{.State.Health.Status}}" ccflare' 2>/dev/null)
+    case "$STATUS" in
+        healthy)
+            HEALTHY="yes"
+            echo "iteration $i: healthy"
+            break
+            ;;
+        starting)
+            echo "iteration $i: starting (waiting 30s)"
+            sleep 30
+            ;;
+        unhealthy)
+            echo "iteration $i: unhealthy (waiting 30s, will retry up to limit)"
+            sleep 30
+            ;;
+        "")
+            echo "iteration $i: container not inspectable (SSH or docker issue)"
+            sleep 30
+            ;;
+        *)
+            echo "iteration $i: unexpected status '$STATUS' (waiting 30s)"
+            sleep 30
+            ;;
+    esac
+done
+
+if [ "$HEALTHY" != "yes" ]; then
+    echo "FATAL: container did not become healthy within ~3 minutes." >&2
+    echo "  Auto-rolling back via rollback-ccmax.sh." >&2
+    scp ~/ccflare-upgrade-2026-08-03/rollback-ccmax.sh deploy@ccmax:/tmp/
+    ssh deploy@ccmax 'bash /tmp/rollback-ccmax.sh'
+    echo "FATAL: rollback attempted. Investigate offline." >&2
+    exit 1
+fi
 ```
 
-**Expected**: `healthy`.
+**Expected**: `iteration N: healthy` followed by no auto-rollback
+message.
 
-**If `starting`**: the 40s healthcheck start-period has not elapsed. Wait 30s
-more and re-check.
+**If the loop times out**: auto-rollback has executed. **STOP** the
+runbook; do not proceed to step 4.6. The operator's dashboard (ccmax)
+is restored to its v3.5.44+zp6 state; the upgrade has been rolled
+back; investigate offline.
 
-**If `unhealthy`**: the new container's `/health` is returning a non-200. Check
-the logs: `ssh deploy@ccmax 'docker logs --tail 200 ccflare'`. The most likely
-causes are: env var missing (PORT or CCFLARE_DB_PATH), or the new image's
-SQLite migration path differs from the captured env. **STOP and investigate.**
-
-### 4.5 Capture the new image's provenance on ccmax
+### 4.6 Capture the new image's provenance on ccmax (with exit-code discipline)
 
 ```bash
 cd ~/ccflare-upgrade-2026-08-03
@@ -725,9 +1013,13 @@ scripts/verify-live-build.sh \
     --container ccflare \
     --health-port 8080 \
     -o ccmax-after.txt
+VERIFY_EXIT=$?
+echo "verify-live-build exit=$VERIFY_EXIT"
+grep -q '^STATUS:[[:space:]]\+VERIFIED_MATCH' ccmax-after.txt \
+    || { echo "FATAL: STATUS line missing or not VERIFIED_MATCH — investigate before proceeding" >&2; exit 1; }
 ```
 
-**Expected** (last lines):
+**Expected** (last lines of `ccmax-after.txt`):
 
 ```
 STATUS:              VERIFIED_MATCH
@@ -749,9 +1041,62 @@ OCI_CHECK:           org.opencontainers.image.created=2026-08-03T…
 OCI_CHECK:           org.opencontainers.image.base.revision=f68e504ae48a5a54eb3017f29baa99dd31660a5e
 ```
 
-**If `STATUS` is anything other than `VERIFIED_MATCH`**: **STOP**. The new
-container does not agree with its own image labels, OR the script could not
-extract the required signals. Investigate before going further.
+**Failure modes**:
+- `verify-live-build exit=1` (VERIFIED_DRIFT): the new container does
+  not agree with its own image labels. The image is the wrong one OR
+  the labels were overridden at runtime. **STOP**.
+- `verify-live-build exit=2` (COULD_NOT_DETERMINE): a required signal
+  was not extractable. **STOP**. Check `MISSING_FIELDS:` in
+  `ccmax-after.txt` and the method lines; re-run with `--debug` if
+  needed.
+- `verify-live-build exit=0` but `STATUS: VERIFIED_DRIFT` (the script
+  exited 0 by mistake): the grep gate above catches this. **STOP**.
+- `HEALTH_GIT_SHA` does NOT match `c3376345a7c811874dd58346af2c09b55dadf0a3`:
+  same STOP, same reasoning as step 5.1.
+
+### 4.7 Env diff (captured-vs-running)
+
+> The post-deploy env diff is the gate that catches a silent env drop.
+> If the new container is missing any var the old container had, the
+> diff is non-empty. Empty diff is the expected case; a non-empty diff
+> is a STOP.
+
+```bash
+cd ~/ccflare-upgrade-2026-08-03
+
+# Pull the running container's env in the same --env-file format.
+ssh deploy@ccmax 'docker exec ccflare sh -c "tr \"\\0\" \"\\n\" < /proc/1/environ"' \
+    | sort > ccmax-env-after.txt
+
+# Diff. Empty diff is the goal.
+echo "--- env diff (captured before vs running after) ---"
+diff ccmax-env-before.txt ccmax-env-after.txt
+DIFF_RC=$?
+echo "--- end diff (exit=$DIFF_RC, 0=identical) ---"
+
+if [ $DIFF_RC -ne 0 ]; then
+    echo "FATAL: env drifted between pre-upgrade capture and post-upgrade" >&2
+    echo "  running state. A var is missing from the new container. The" >&2
+    echo "  --env-file path may be wrong, or the operator-edited env was" >&2
+    echo "  lost in transit. Roll back per rollback-ccmax.sh and reconcile" >&2
+    echo "  the env before retrying." >&2
+    exit 1
+fi
+
+# Specific re-confirmation of the deliberate flag.
+echo "ALERT_ANOMALY_ENABLED in running container:"
+grep '^ALERT_ANOMALY_ENABLED' ccmax-env-after.txt || echo "  <absent: would default to file/env precedence — verify>"
+```
+
+**Expected**: `--- end diff (exit=0, 0=identical) ---` and
+`ALERT_ANOMALY_ENABLED=0`.
+
+**If diff is non-empty**: the new container is missing at least one
+var from the captured env. The most common causes are: `--env-file`
+path is wrong (file does not exist or has different content), the
+docker run line overrode with a stray `-e`, or the operator-edited
+env file in /etc/ccflare was overwritten. **STOP**; roll back; do
+not proceed to step 5.
 
 ---
 
@@ -763,12 +1108,16 @@ on ccmax before proceeding to ccproxy2.
 ### 5.1 /health (the operator-visible upgrade signal)
 
 ```bash
-curl -fsS http://ccmax:8080/health | jq '{
+EXPECTED_GIT_SHA="c3376345a7c811874dd58346af2c09b55dadf0a3"
+EXPECTED_GIT_REF="v3.5.46"
+
+curl -fsS --max-time 10 --connect-timeout 5 http://ccmax:8080/health | tee /tmp/ccmax-health.json | jq --arg expected "$EXPECTED_GIT_SHA" '{
     status,
     version,
     git_sha,
     git_ref,
     build_date,
+    git_sha_matches_expected: (.git_sha == $expected),
     pool: .pool | {configured, paused, rate_limited, routable}
 }'
 ```
@@ -782,6 +1131,7 @@ curl -fsS http://ccmax:8080/health | jq '{
   "git_sha": "c3376345a7c811874dd58346af2c09b55dadf0a3",
   "git_ref": "v3.5.46",
   "build_date": "2026-08-03T…Z",
+  "git_sha_matches_expected": true,
   "pool": {
     "configured": <same as before>,
     "paused": <same as before>,
@@ -799,8 +1149,20 @@ curl -fsS http://ccmax:8080/health | jq '{
   emit the env vars. The image was likely built from `./Dockerfile`, not
   `./Dockerfile.provenance`. **STOP** — the new image is not the one this
   runbook was designed to deploy.
+- `git_sha_matches_expected: false`: the SHA on the running image does NOT
+  match `c3376345a7c811874dd58346af2c09b55dadf0a3`. **STOP**. The image is
+  not the one this runbook was designed to deploy. This catches the
+  case where the build host was reused across days and `GIT_SHA` resolved
+  to a stale value, OR the operator typo'd, OR the build used a different
+  source tree than step 2.1's `git checkout v3.5.46`.
+- `git_ref` is not `v3.5.46`: same STOP, same reason.
 - `pool.routable` dropped to 0 vs. before: the new build broke account
   selection. **STOP.**
+- `curl` exited with code 28 (operation timeout) or code 7 (connect
+  refused): the container is hung or the port is unmapped. See step 4.5
+  for the bounded health wait — if the container is reported healthy but
+  `/health` itself hangs, the server's request loop is broken. Roll back
+  per `rollback-ccmax.sh` and investigate offline.
 
 ### 5.2 /api/stats (the HTTP 500 SQLSTATE 42803 regression canary)
 
@@ -810,7 +1172,7 @@ curl -fsS http://ccmax:8080/health | jq '{
 
 ```bash
 ADMIN_KEY="<the operator's pre-existing admin API key for ccmax>"
-curl -fsS -w "\nHTTP_STATUS: %{http_code}\n" \
+curl -fsS --max-time 15 --connect-timeout 5 -w "\nHTTP_STATUS: %{http_code}\n" \
     -H "Authorization: Bearer ${ADMIN_KEY}" \
     http://ccmax:8080/api/stats | tail -30
 ```
@@ -822,17 +1184,24 @@ curl -fsS -w "\nHTTP_STATUS: %{http_code}\n" \
 
 **If `HTTP_STATUS: 500`**: the migration parity is broken. The body will
 contain `SQLSTATE 42803` or similar Postgres-shaped errors. **Roll back
-ccmax** using the script in step 0 (it now points at the captured digest).
-**STOP** — do not proceed to ccproxy2.
+ccmax** using `rollback-ccmax.sh` (the script is at the runbook root;
+generated in step 1.2). **STOP** — do not proceed to ccproxy2.
 
 **If `HTTP_STATUS: 401`**: the API key is missing admin scope, or is wrong.
 That is NOT a regression — substitute a valid admin key and retry. If no
 admin key is available, the operator must mint one before continuing.
 
+**If curl exits with code 28 (operation timeout) or 7 (connect refused)**:
+the server is hung or unreachable. The bounded health wait in step 4.5
+passed, so the container is "healthy" — but a healthy container can still
+hang on a request that blocks on a bad migration. Roll back per
+`rollback-ccmax.sh`. The migration parity is broken even if `/health`
+returns 200.
+
 ### 5.3 /api/insights/anomalies (lightweight post-deploy sanity)
 
 ```bash
-curl -fsS -w "\nHTTP_STATUS: %{http_code}\n" \
+curl -fsS --max-time 15 --connect-timeout 5 -w "\nHTTP_STATUS: %{http_code}\n" \
     -H "Authorization: Bearer ${ADMIN_KEY}" \
     "http://ccmax:8080/api/insights/anomalies?range=24h" \
     | jq '{meta: .meta, detector_count: (.anomalies | length)}'
@@ -843,7 +1212,9 @@ that's fine. `meta` should include `range`, `zScoreThreshold`, and the
 configured detectors.
 
 **If `HTTP_STATUS: 5xx`**: the anomalies endpoint is also a Postgres-shaped
-query path. **Roll back ccmax.**
+query path. **Roll back ccmax** per `rollback-ccmax.sh`.
+
+**If curl times out (exit 28)**: same as 5.2 — roll back.
 
 ### 5.4 Accounts view 5h+7d usage (operator-eye check, BLOCKING)
 
@@ -908,61 +1279,182 @@ date -u +%Y-%m-%dT%H:%M:%SZ
 
 The procedure is identical to step 4, with `ccmax` → `ccproxy2` everywhere.
 
-### 7.1 Capture existing env
+### 7.0 Pre-step-7 ccmax re-check (do not skip)
+
+> Between step 6's "ccmax is healthy" and step 7's first mutation, ccmax
+> can independently degrade (new container crashes on second write, host
+> runs out of disk, network blip, etc.). The operator's own dashboard
+> is ccmax; if it silently goes down during the ccproxy2 work, the
+> operator may not notice until step 7.4's failures push them to
+> investigate. Verify ccmax one more time before touching ccproxy2.
 
 ```bash
+curl -fsS --max-time 5 --connect-timeout 3 http://ccmax:8080/health \
+    | jq -e '.status == "ok"' >/dev/null || {
+        echo "FATAL: ccmax is not ok RIGHT NOW. STOP. Investigate before" >&2
+        echo "  touching ccproxy2 — the operator's dashboard visibility is" >&2
+        echo "  gone and you cannot safely reason about the deploy state." >&2
+        exit 1
+    }
+echo "ccmax still healthy."
+```
+
+**Expected**: `ccmax still healthy.`
+
+**If ccmax is degraded or unreachable**: **STOP**. Do not start
+ccproxy2 work. The operator's primary visibility is gone. Roll back
+ccmax per `rollback-ccmax.sh` if needed, then investigate.
+
+### 7.1 Capture existing env into a file
+
+```bash
+cd ~/ccflare-upgrade-2026-08-03
+
 ssh deploy@ccproxy2 'docker inspect --format "{{range .Config.Env}}{{println .}}{{end}}" ccflare' \
-    | tee ~/ccflare-upgrade-2026-08-03/ccproxy2-env-before.txt
+    | sort > ccproxy2-env-before.txt
+
+echo "ALERT_ANOMALY_ENABLED line in captured env:"
+grep '^ALERT_ANOMALY_ENABLED' ccproxy2-env-before.txt || echo "  <absent>"
 ```
 
 **Expected**: same `ALERT_ANOMALY_ENABLED=0` (per the operator's stated
-requirement).
+requirement). If absent or non-zero, STOP and confirm with the
+operator.
 
-### 7.2 Re-launch
+### 7.2 Pre-pull NEW image, then stop+remove+relaunch with `--env-file`
+
+> Mirror of step 4.3 + 4.4. Same acquire-before-destroy pattern; same
+> `--env-file`; same compose pre-check; same recovery branch if the
+> destructive step partially fails.
 
 ```bash
+# Pre-pull the new image.
+ssh deploy@ccproxy2 bash -s <<'SSHCOMMAND'
+set -euo pipefail
+NEW_IMAGE="registry.zp.digital/ccflare:v3.5.46"
+if ! docker pull "$NEW_IMAGE" >/dev/null 2>&1; then
+    echo "FATAL: docker pull $NEW_IMAGE failed on ccproxy2." >&2
+    exit 1
+fi
+LOCAL_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$NEW_IMAGE")
+EXPECTED=$(cat ~/ccflare-upgrade-2026-08-03/pushed-digest.txt)
+if [ "$LOCAL_DIGEST" != "$EXPECTED" ]; then
+    echo "FATAL: ccproxy2 pulled digest does NOT match build host's pushed digest." >&2
+    exit 1
+fi
+echo "ccproxy2 pre-pull OK."
+SSHCOMMAND
+
+# Compose pre-check (mirror of step 4.4).
+ssh deploy@ccproxy2 'grep -nE "^\s*ALERT_ANOMALY_ENABLED" \
+    docker-compose.yml compose.yaml 2>/dev/null' || true
+
+# Stop, remove, re-launch with --env-file.
+cd ~/ccflare-upgrade-2026-08-03
+scp ccproxy2-env-before.txt deploy@ccproxy2:/etc/ccflare/ccflare.env
+ssh deploy@ccproxy2 'chmod 600 /etc/ccflare/ccflare.env'
+
 ssh deploy@ccproxy2 <<'SSHCOMMAND'
 set -euo pipefail
 docker stop ccflare
 docker rm ccflare
-docker pull registry.zp.digital/ccflare:v3.5.46
 docker run -d \
     --name ccflare \
     --restart=unless-stopped \
     -p 8080:8080 \
     -v /var/lib/ccflare:/data \
-    -e PORT=8080 \
-    -e NODE_ENV=production \
-    -e CCFLARE_DB_PATH=/data/ccflare.db \
-    -e XDG_CONFIG_HOME=/data \
-    -e ALERT_ANOMALY_ENABLED=0 \
+    --env-file /etc/ccflare/ccflare.env \
     registry.zp.digital/ccflare:v3.5.46
 SSHCOMMAND
-
-sleep 60
-ssh deploy@ccproxy2 'docker inspect --format "{{.State.Health.Status}}" ccflare'
+echo "exit=$?"
 ```
 
-**Expected**: `healthy`.
+**Expected**: the SSH heredoc returns the new container id; no FATAL
+lines in the pre-pull output.
 
-### 7.3 Capture new provenance on ccproxy2
+**If the heredoc exits non-zero** after the pre-pull passed: the
+destructive step partially failed. **The old container is GONE.**
+Recovery per the same branch as step 4.4: check logs, fix and re-run
+the `docker run` line, or execute `rollback-ccproxy2.sh`.
+
+### 7.3 Wait for healthy (bounded) and capture provenance
+
+> Mirrors step 4.5 + 4.6 with the same bounded-loop auto-rollback and
+> the same exit-code discipline on the verify-live-build invocation.
 
 ```bash
+HEALTHY=""
+for i in 1 2 3 4 5 6; do
+    STATUS=$(ssh deploy@ccproxy2 'docker inspect --format "{{.State.Health.Status}}" ccflare' 2>/dev/null)
+    case "$STATUS" in
+        healthy) HEALTHY="yes"; echo "iteration $i: healthy"; break ;;
+        starting|unhealthy|"") sleep 30; echo "iteration $i: $STATUS" ;;
+        *) sleep 30; echo "iteration $i: unexpected '$STATUS'" ;;
+    esac
+done
+[ "$HEALTHY" = "yes" ] || {
+    echo "FATAL: ccproxy2 not healthy in ~3 min. Auto-rolling back." >&2
+    scp ~/ccflare-upgrade-2026-08-03/rollback-ccproxy2.sh deploy@ccproxy2:/tmp/
+    ssh deploy@ccproxy2 'bash /tmp/rollback-ccproxy2.sh'
+    exit 1
+}
+
 cd ~/ccflare-upgrade-2026-08-03
 scripts/verify-live-build.sh \
     --ssh deploy@ccproxy2 \
     --container ccflare \
     --health-port 8080 \
     -o ccproxy2-after.txt
+VERIFY_EXIT=$?
+echo "verify-live-build exit=$VERIFY_EXIT"
+grep -q '^STATUS:[[:space:]]\+VERIFIED_MATCH' ccproxy2-after.txt \
+    || { echo "FATAL: STATUS line missing or not VERIFIED_MATCH — STOP" >&2; exit 1; }
 ```
 
-**Expected**: `STATUS: VERIFIED_MATCH`.
+**Expected**: `verify-live-build exit=0` and the STATUS line check passes.
 
 ### 7.4 Functional verification (mirror step 5)
 
-Repeat every check from step 5 against `ccproxy2:8080`. Same pass criteria.
-The HTTP 500 SQLSTATE 42803 case on `/api/stats` is the most load-bearing
-gate; if it returns 5xx on ccproxy2, **roll back ccproxy2**.
+Repeat every check from step 5 against `ccproxy2:8080`. Same pass
+criteria. The HTTP 500 SQLSTATE 42803 case on `/api/stats` is the
+most load-bearing gate; if it returns 5xx on ccproxy2, **roll back
+ccproxy2 per `rollback-ccproxy2.sh`**.
+
+### 7.4.5 ccproxy2 dashboard eye-check (operator, BLOCKING)
+
+> The ccmax dashboard eye-check (step 5.4) has no machine-verifiable
+> equivalent on ccproxy2 — a regression that breaks the 5h/7d rendering
+> path on ccproxy2 would not surface on /health, /api/stats, or
+> /api/insights/anomalies. The operator must look at the page.
+
+Open `https://ccproxy2/accounts` in a browser. For at least one
+account on the page, confirm:
+
+- A **"5-hour"** progress bar is visible with a non-zero utilization value.
+- A **"Weekly"** progress bar is visible.
+- Per-model weekly scoped windows (e.g. **"Fable (Weekly)"**) appear
+  if the account has them.
+- A reset time string is visible on each bar.
+
+**If the bars are missing or empty on ccproxy2**: the rate-limit
+rendering regressed. Roll back ccproxy2 per `rollback-ccproxy2.sh`.
+Do not consider step 7 complete until the operator confirms the
+dashboard renders.
+
+### 7.5 Env diff (captured-vs-running) on ccproxy2
+
+> Mirror of step 4.7. The post-deploy env diff catches a silent env drop.
+
+```bash
+cd ~/ccflare-upgrade-2026-08-03
+ssh deploy@ccproxy2 'docker exec ccflare sh -c "tr \"\\0\" \"\\n\" < /proc/1/environ"' \
+    | sort > ccproxy2-env-after.txt
+diff ccproxy2-env-before.txt ccproxy2-env-after.txt
+[ $? -eq 0 ] || { echo "FATAL: ccproxy2 env drifted. Roll back." >&2; exit 1; }
+grep '^ALERT_ANOMALY_ENABLED' ccproxy2-env-after.txt
+```
+
+**Expected**: empty diff output and `ALERT_ANOMALY_ENABLED=0`.
 
 ---
 
@@ -985,12 +1477,17 @@ ccmax-before.summary.json
 ccmax-after.txt
 ccmax-after.summary.json
 ccmax-env-before.txt
+ccmax-env-after.txt
 ccproxy2-before.txt
 ccproxy2-before.summary.json
 ccproxy2-after.txt
 ccproxy2-after.summary.json
 ccproxy2-env-before.txt
+ccproxy2-env-after.txt
+canary-compare.json
+pinned-compare.json
 pushed-digest.txt
+ccmax-run-shape.txt
 rollback-ccmax.sh
 rollback-ccproxy2.sh
 ```
