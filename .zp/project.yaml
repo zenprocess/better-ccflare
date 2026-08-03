@@ -1,0 +1,42 @@
+# ccflare's project descriptor — staged copy of config/descriptors/ccflare.project.yaml
+# from the ao-company repo (E4 step 5: manual copy today, see
+# docs/RECIPE-new-project.md §2 step 5 GAP). Any change MUST land in ao-company
+# first; this file is the apply-target, not the authoring source.
+#
+# Patterned on zenvir (a2c724c, 2026-08-02 — most recent staged descriptor). All
+# rationale + caveats are in the ao-company staged copy; this file keeps the
+# evidence pointers short for the .zp/ consumer.
+#
+# CI runs on Forgejo, not GitHub Actions (ao-company #114 / ccflare #115 — 9
+# inherited upstream workflows disabled on our fork). Do not add a
+# .github/workflows/ file as part of gate wiring.
+#
+# Gate host is dellsrv (Linux amd64) per bin/fabro-github-gate.sh; the
+# darwin-x64-no-AVX2 Bun-baseline issue applies to THIS Mac only and does NOT
+# apply to the gate.
+descriptorVersion: 1
+project: ccflare
+repo: https://github.com/zenprocess/better-ccflare.git
+
+qa:
+  language: typescript
+  # See ao-company staged copy for the find-filter rationale (5-test Bun.listen
+  # exclusion in packages/core/src/outbound-proxy.test.ts — hermetic-LAN-less
+  # forkd microVM cannot bind a stable loopback socket; un-sandboxed the 5 tests
+  # pass cleanly. The whole file is excluded rather than 5 individual --test-name
+  # filters to match argus's "exclude the file, not the test" precedent).
+  testCmd: "bun run build && bun test $(find . -name '*.test.ts' -not -path '*/node_modules/*' -not -path '*/.claude/*' -not -name 'outbound-proxy.test.ts')"
+  needsDocker: false
+  needsTestcontainers: false
+  weight: heavy
+  trustTier: T1
+
+gate:
+  context: fabro/qa-pipeline
+  blocking: true
+
+github:
+  org: zenprocess
+  repo: better-ccflare
+  private: true
+  defaultBranch: main
