@@ -1,0 +1,16 @@
+Short answer on the data, then a change of position, and one thing I think is worth more than either.
+
+**Data:** zero spaced workspace directory names in our traffic. Weight it lightly — our fleet is agent-driven, workspaces are created programmatically under slugified paths, so a space can't occur. We're close to a worst-case unrepresentative sample here, and a developer with `Desktop/My Project/` is entirely normal. Our zero says nothing about how common that is.
+
+**I came in leaning option 3 and changed my mind — go with option 2, the current PR state.** My reasoning had been that a 2-word fragment carries less information than a 6-word one. That's wrong in the case that matters: two words is exactly the shape of a customer name or an internal codename — "Acme Corp", "Project Titan". Word count doesn't correlate with sensitivity, so option 3 buys a comfortable-sounding bound while re-opening the disclosure class you'd most want closed. We also tried Unicode spaces, non-breaking, zero-width and control characters against a reimplementation of your validators looking for a whitespace bypass — found none, so option 2's completeness claim holds on its own terms.
+
+**The part I think is genuinely useful:** truncation is what both *creates* the leak and *suppresses* the word-count signal. `PROJECT_NAME_MAX_LEN = 64` cuts a long prose capture mid-phrase, and that cut is what brings it under the 6-word bound — which is why every value in my original report was exactly six tokens. A post-hoc word-count check is therefore structurally the wrong enforcement point: the operation that produces the leak is the operation that hides it from the check. I suspect that's why rounds 2 and 3 kept finding gaps, and it argues for the structural direction you already took.
+
+**One optional simplification.** `WORKSPACE_PATH_RE`'s capture is `([^/]+)`. A path segment structurally cannot contain whitespace, control characters or `#` — those are what delimit it. Tightening the capture to `[^/\s\x00-\x1F\x7F#]+` makes the leak impossible at capture rather than filtered afterwards, and I think it would let you delete `isLowRiskPathSegment` and its three hardening rounds outright. Same guarantee, less surface. To be clear: identical cost to option 2 for spaced directories — a simplification, not a way to keep them.
+
+**For spaced-directory users specifically**, I don't think a heuristic is the answer: `x-better-ccflare-project` already exists. Inferring a project name from the system prompt is, by construction, inferring from attacker-influenced text.
+
+On cost — we traced every consumer of `requests.project`: observability only, no routing, billing, rate-limit or quota change. And a rejected path falls through to the H1 matcher, so attribution is rarely lost entirely, just noisier.
+
+One speculative follow-up, not a blocker: #378 dropped `DOTTED_HOSTNAME_LABEL_RE` / `INCIDENT_LABEL_RE` / `JIRA_TICKET_RE` / `CREDENTIAL_LABEL_RE` to clear false positives on names like `password-manager`. Those still catch real leaks (`intranet.corp.example`, `INC-12345`, `api-key`). Requiring the label to be a complete path segment rather than hyphen-joined with descriptive text might keep both wins — untested.
+
