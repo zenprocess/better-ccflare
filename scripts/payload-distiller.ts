@@ -456,12 +456,45 @@ async function postWithRetry(
 	return false;
 }
 
-export function getEngramToken(): string {
-	const env = process.env.ENGRAM_API_TOKEN;
-	if (env) return env;
-	const proc = Bun.spawnSync(["cal-infisical", "get", "/engram/ENGRAM_API_TOKEN"]);
-	const out = proc.stdout?.toString().trim();
-	if (proc.exitCode === 0 && out) return out;
+/**
+ * The spawn surface for testing. The default invokes `Bun.spawnSync`; tests
+ * inject a closure so the real `cal-infisical` binary cannot run via any
+ * path-resolution trick (absolute path, fixed-location install, etc.).
+ */
+export interface SpawnResult {
+	exitCode: number;
+	stdout: string | null;
+}
+
+export type Spawner = (cmd: string[]) => SpawnResult;
+
+function defaultSpawnInfisical(cmd: string[]): SpawnResult {
+	const proc = Bun.spawnSync(cmd);
+	return {
+		exitCode: proc.exitCode ?? -1,
+		stdout: proc.stdout?.toString().trim() || null,
+	};
+}
+
+/**
+ * Resolve the engram API token. Order:
+ *   1. `envToken` arg (defaults to `$ENGRAM_API_TOKEN`).
+ *   2. `spawnInfisical` invocation of `cal-infisical get /engram/ENGRAM_API_TOKEN`.
+ *   3. Throw if neither yields a token.
+ *
+ * Both the env value and the spawn function are injectable so tests can
+ * exercise the fallback path hermetically: a fake spawn returns a failure
+ * shape, no process is spawned, and the assertion that the spawn was called
+ * catches any regression to a direct `Bun.spawnSync` call. The env-wins
+ * short-circuit is similarly verified by asserting the spawn was NOT called.
+ */
+export function getEngramToken(
+	envToken: string | undefined = process.env.ENGRAM_API_TOKEN,
+	spawnInfisical: Spawner = defaultSpawnInfisical,
+): string {
+	if (envToken) return envToken;
+	const proc = spawnInfisical(["cal-infisical", "get", "/engram/ENGRAM_API_TOKEN"]);
+	if (proc.exitCode === 0 && proc.stdout) return proc.stdout;
 	throw new Error(
 		"engram token unavailable: set ENGRAM_API_TOKEN or ensure cal-infisical works",
 	);

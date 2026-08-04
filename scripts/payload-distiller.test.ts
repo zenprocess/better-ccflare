@@ -3,16 +3,16 @@
  *   bun test scripts/payload-distiller.test.ts
  * (no package.json test alias for scripts/; a 0-run grep will be rejected).
  *
- * Token hygiene: tests use the literal fake value "test-token-not-real" for
- * the ENGRAM_API_TOKEN env var and a guaranteed-empty PATH for the spawn
- * fallback path. The real `cal-infisical` binary never executes in this
- * suite — the spawn-failing test stubs PATH so `Bun.spawnSync` cannot
- * resolve the binary on a developer's machine either.
+ * Token hygiene: the `getEngramToken` spawn-fallback test is HERMETIC. The
+ * test injects a fake spawn function so the real `cal-infisical` binary
+ * cannot execute via any path-resolution trick (PATH scrubbing is
+ * insufficient — the binary can live at an absolute path on a developer
+ * machine). Assertions verify the injected spawn WAS called (or WAS NOT
+ * called, in the env-wins case) so a regression to a direct `Bun.spawnSync`
+ * call fails loudly. Tests use the literal fake value "test-token-not-real"
+ * for the env-stub path; a real token never reaches the test stdout.
  */
-import { afterAll, afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
 	getEngramToken,
 	jsonColumnExpression,
@@ -21,12 +21,6 @@ import {
 	scrubSecrets,
 	type Args,
 } from "./payload-distiller";
-
-// shared fixtures
-const EMPTY_PATH_DIR = mkdtempSync(join(tmpdir(), "distiller-empty-path-"));
-afterAll(() => {
-	rmSync(EMPTY_PATH_DIR, { force: true, recursive: true });
-});
 
 function makeArgs(overrides: Partial<Args> = {}): Args {
 	return {
@@ -279,38 +273,83 @@ describe("payload-distiller.postRollupAndMark (marking order, fail-closed)", () 
 });
 
 describe("payload-distiller.getEngramToken", () => {
-	const originalEnv = { ...process.env };
-	const originalPath = process.env.PATH;
+	// Hermeticity contract: these tests MUST inject a fake spawn fn so the
+	// real `cal-infisical` binary cannot execute via any path-resolution
+	// trick (PATH scrubbing is insufficient — the binary can live at an
+	// absolute path on a developer machine). The assertions verify that
+	// the injected spawn was called (or NOT called, in the env-wins case)
+	// so a regression to a direct `Bun.spawnSync` call fails loudly.
 
-	afterEach(() => {
-		// Restore env to its pre-test state.
-		for (const k of Object.keys(process.env)) {
-			if (!(k in originalEnv)) delete process.env[k];
-		}
-		for (const [k, v] of Object.entries(originalEnv)) {
-			process.env[k] = v;
-		}
-		if (originalPath === undefined) {
-			delete process.env.PATH;
-		} else {
-			process.env.PATH = originalPath;
-		}
-	});
+	function failingSpawn(_cmd: string[]): { exitCode: number; stdout: string | null } {
+		return { exitCode: 1, stdout: "" };
+	}
 
-	it("env var wins (no spawn invoked, literal fake value)", () => {
-		// The brief binds this literal fake value — never read a real token.
-		process.env.ENGRAM_API_TOKEN = "test-token-not-real";
-		// Even if cal-infisical were on PATH, this would be the answer.
-		process.env.PATH = EMPTY_PATH_DIR;
-		expect(getEngramToken()).toBe("test-token-not-real");
+	function successSpawn(_cmd: string[]): { exitCode: number; stdout: string | null } {
+		// This deliberately contains a recognizable marker so a regression
+		// that returns its value instead of the env token is grep-able.
+		return { exitCode: 0, stdout: "REAL_TOKEN_FROM_SPAWN_SHOULD_NEVER_WIN" };
+	}
+
+	it("env var wins (spawn NOT invoked) — env short-circuit is load-bearing", () => {
+		// If someone inverts the order (spawn first, then env), the spawn
+		// would return "REAL_TOKEN_FROM_SPAWN_..." and the env value would
+		// lose. The assertion below catches that regression.
+		let spawnCalled = false;
+		const fakeSpawn = (cmd: string[]) => {
+			spawnCalled = true;
+			return successSpawn(cmd);
+		};
+
+		const tok = getEngramToken("test-token-not-real", fakeSpawn);
+		expect(tok).toBe("test-token-not-real");
+		expect(spawnCalled).toBe(false);
 	});
 
 	it("throws cleanly when neither env nor spawn is available", () => {
-		delete process.env.ENGRAM_API_TOKEN;
-		// PATH points to a guaranteed-empty dir so the spawn cannot find
-		// cal-infisical — the real binary never executes in this test.
-		process.env.PATH = EMPTY_PATH_DIR;
-		expect(() => getEngramToken()).toThrow(/engram token unavailable/);
+		// Hermetic: the test injects the spawn, so the real binary cannot
+		// run. The assertion below verifies the injected spawn was called —
+		// if someone reintroduces a direct `Bun.spawnSync` call, the
+		// injected closure is bypassed and `spawnCalled` stays false.
+		let spawnCalled = false;
+		let spawnArgs: string[] | null = null;
+		const fakeSpawn = (cmd: string[]) => {
+			spawnCalled = true;
+			spawnArgs = cmd;
+			return failingSpawn(cmd);
+		};
+
+		expect(() => getEngramToken(undefined, fakeSpawn)).toThrow(
+			/engram token unavailable/,
+		);
+		// CRITICAL: the spawned call must have been attempted via the
+		// injected fn. If the production code calls `Bun.spawnSync`
+		// directly, this assertion fails loudly.
+		expect(spawnCalled).toBe(true);
+		expect(spawnArgs).toEqual(["cal-infisical", "get", "/engram/ENGRAM_API_TOKEN"]);
+	});
+
+	it("returns the spawn's stdout when env is unset and the spawn succeeds", () => {
+		// Documents the happy-path fallback: a successful spawn returns the
+		// stdout value. The harness driver is responsible for sanitizing
+		// that output in production; here we just verify the wiring.
+		const fakeSpawn = (cmd: string[]) => successSpawn(cmd);
+		expect(getEngramToken(undefined, fakeSpawn)).toBe(
+			"REAL_TOKEN_FROM_SPAWN_SHOULD_NEVER_WIN",
+		);
+	});
+
+	it("throws when env is empty string AND spawn fails (empty env does not win)", () => {
+		// Edge case: `""` is falsy, so it must NOT short-circuit; the spawn
+		// must be attempted. The default `process.env.ENGRAM_API_TOKEN` may
+		// be undefined on a CI runner; passing `undefined` explicitly mirrors
+		// that. If the env is set to "", the spawn path still runs.
+		let spawnCalled = false;
+		const fakeSpawn = (cmd: string[]) => {
+			spawnCalled = true;
+			return failingSpawn(cmd);
+		};
+		expect(() => getEngramToken("", fakeSpawn)).toThrow(/engram token unavailable/);
+		expect(spawnCalled).toBe(true);
 	});
 });
 
