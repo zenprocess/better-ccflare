@@ -1,1 +1,0 @@
-export { ZaiProvider } from "./provider";

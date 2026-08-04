@@ -1,10 +1,12 @@
-# better-ccflare Deployment Documentation
+# ccflare Deployment Documentation
 
 ## Overview
 
-better-ccflare is a load balancer proxy for Claude API accounts that can be deployed in various configurations, from simple local development to production-grade distributed systems. This document covers all deployment options, from single-instance setups to scalable architectures.
+ccflare is a load balancer proxy for Claude API accounts that can be deployed in various configurations, from simple local development to production-grade distributed systems. This document covers all deployment options, from single-instance setups to scalable architectures.
 
-> **Important**: better-ccflare provides a powerful CLI interface and web dashboard for monitoring and management. The main executable `better-ccflare` provides all functionality through command-line flags.
+> **Recent Updates**: ccflare now includes a Terminal User Interface (TUI) for interactive monitoring and management, alongside the web dashboard. The async database writer improves performance for high-throughput scenarios.
+> 
+> **Important**: ccflare uses an integrated binary that combines the TUI, CLI commands, and server functionality. The main executable `ccflare` provides all functionality through command-line flags.
 
 ## Table of Contents
 
@@ -64,26 +66,30 @@ graph TB
 
 ```bash
 # Clone the repository
-git clone https://github.com/snipeship/better-ccflare.git
-cd better-ccflare
+git clone https://github.com/snipeship/ccflare.git
+cd ccflare
 
 # Install dependencies
 bun install
 
-# Build the project (dashboard and CLI)
+# Build the project (dashboard and TUI)
 bun run build
 
-# Start better-ccflare (Server + Dashboard)
-bun run better-ccflare
+# Start ccflare (TUI + Server combined)
+bun run ccflare
 
-# Or use CLI commands:
-bun run cli --serve
+# Or start components separately:
+# Terminal UI only
+bun run tui
+
+# Server only (without TUI)
+bun run server
 
 # Server with hot-reload (development)
 bun run dev:server
 
 # In another terminal, add Claude accounts
-bun run cli --add-account myaccount --mode max --priority 0
+bun run ccflare --add-account myaccount
 ```
 
 ### Development Configuration
@@ -96,7 +102,7 @@ export LOG_LEVEL=DEBUG
 export LOG_FORMAT=pretty  # Options: pretty, json
 
 # Start with custom config
-bun run better-ccflare
+bun run ccflare
 ```
 
 ## Production Deployment
@@ -117,37 +123,41 @@ bun run better-ccflare
 
 ### Bun Binary Compilation
 
-Compile better-ccflare into a single executable for easy deployment:
+Compile ccflare into a single executable for easy deployment:
 
 ```bash
-# Build all components (dashboard and CLI)
+# Build all components (dashboard and TUI)
 bun run build
 
-# Build the main better-ccflare binary (includes CLI and server)
-cd apps/cli
-bun build src/main.ts --compile --outfile dist/better-ccflare --target=bun
+# Build the main ccflare binary (includes TUI, CLI, and server)
+cd apps/tui
+bun build src/main.ts --compile --outfile dist/ccflare --target=bun
+
+# Build standalone server binary (optional, server-only deployment)
+cd ../server
+bun build src/server.ts --compile --outfile dist/ccflare-server
 
 # Copy binary to deployment location
-cp apps/cli/dist/better-ccflare /opt/better-ccflare/
+cp apps/tui/dist/ccflare /opt/ccflare/
 # Make it executable
-chmod +x /opt/better-ccflare/better-ccflare
+chmod +x /opt/ccflare/ccflare
 ```
 
 #### Binary Deployment Structure
 
 ```
-/opt/better-ccflare/
-├── better-ccflare             # Main binary (CLI + Server)
+/opt/ccflare/
+├── ccflare             # Main binary (TUI + CLI + Server)
 ├── config/
 │   └── config.json     # Configuration (optional)
 └── data/
-    ├── better-ccflare.db      # SQLite database
+    ├── ccflare.db      # SQLite database
     └── logs/           # Log files (if configured)
 ```
 
 **Note**: The configuration and database are automatically created in platform-specific directories:
-- **Linux/macOS**: `~/.config/better-ccflare/`
-- **Windows**: `%LOCALAPPDATA%\better-ccflare\` or `%APPDATA%\better-ccflare\`
+- **Linux/macOS**: `~/.config/ccflare/`
+- **Windows**: `%LOCALAPPDATA%\ccflare\` or `%APPDATA%\ccflare\`
 
 ### Process Management
 
@@ -161,8 +171,8 @@ npm install -g pm2
 cat > ecosystem.config.js << 'EOF'
 module.exports = {
   apps: [{
-    name: 'better-ccflare',
-    script: '/opt/better-ccflare/better-ccflare',
+    name: 'ccflare',
+    script: '/opt/ccflare/ccflare',
     args: '--serve',
     instances: 1,
     exec_mode: 'fork',
@@ -177,9 +187,9 @@ module.exports = {
       RETRY_DELAY_MS: 1000,
       RETRY_BACKOFF: 2
     },
-    error_file: '/opt/better-ccflare/data/logs/error.log',
-    out_file: '/opt/better-ccflare/data/logs/out.log',
-    log_file: '/opt/better-ccflare/data/logs/combined.log',
+    error_file: '/opt/ccflare/data/logs/error.log',
+    out_file: '/opt/ccflare/data/logs/out.log',
+    log_file: '/opt/ccflare/data/logs/combined.log',
     time: true,
     autorestart: true,
     max_restarts: 10,
@@ -201,17 +211,17 @@ Create a systemd service file:
 
 ```bash
 # Create service file
-sudo cat > /etc/systemd/system/better-ccflare.service << 'EOF'
+sudo cat > /etc/systemd/system/ccflare.service << 'EOF'
 [Unit]
-Description=better-ccflare Load Balancer
+Description=ccflare Load Balancer
 After=network.target
 
 [Service]
 Type=simple
-User=better-ccflare
-Group=better-ccflare
-WorkingDirectory=/opt/better-ccflare
-ExecStart=/opt/better-ccflare/better-ccflare --serve
+User=ccflare
+Group=ccflare
+WorkingDirectory=/opt/ccflare
+ExecStart=/opt/ccflare/ccflare --serve
 Restart=always
 RestartSec=5
 
@@ -231,7 +241,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/better-ccflare/data
+ReadWritePaths=/opt/ccflare/data
 
 # Resource limits
 LimitNOFILE=65536
@@ -242,14 +252,14 @@ WantedBy=multi-user.target
 EOF
 
 # Create user and directories
-sudo useradd -r -s /bin/false better-ccflare
-sudo mkdir -p /opt/better-ccflare/{config,data/logs}
-sudo chown -R better-ccflare:better-ccflare /opt/better-ccflare
+sudo useradd -r -s /bin/false ccflare
+sudo mkdir -p /opt/ccflare/{config,data/logs}
+sudo chown -R ccflare:ccflare /opt/ccflare
 
 # Enable and start service
 sudo systemctl daemon-reload
-sudo systemctl enable better-ccflare
-sudo systemctl start better-ccflare
+sudo systemctl enable ccflare
+sudo systemctl start ccflare
 ```
 
 ## Docker Deployment
@@ -273,8 +283,7 @@ COPY tsconfig.json ./
 # Install dependencies and build
 RUN bun install --frozen-lockfile
 RUN bun run build
-RUN cd apps/server && bun build src/server.ts --compile --outfile dist/better-ccflare-server
-RUN cd apps/cli && bun build src/cli.ts --compile --outfile dist/better-ccflare-cli
+RUN cd apps/server && bun build src/server.ts --compile --outfile dist/ccflare-server
 
 # Runtime stage
 FROM debian:bookworm-slim
@@ -285,32 +294,32 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create user
-RUN useradd -r -s /bin/false better-ccflare
+RUN useradd -r -s /bin/false ccflare
 
 # Copy binary and dashboard
-COPY --from=builder /app/apps/cli/dist/better-ccflare /usr/local/bin/better-ccflare
-COPY --from=builder /app/packages/dashboard-web/dist /opt/better-ccflare/dashboard
+COPY --from=builder /app/apps/tui/dist/ccflare /usr/local/bin/ccflare
+COPY --from=builder /app/apps/web/dist /opt/ccflare/dashboard
 
 # Set permissions
-RUN chmod +x /usr/local/bin/better-ccflare
+RUN chmod +x /usr/local/bin/ccflare
 
 # Create data directories
-RUN mkdir -p /data /config && chown -R better-ccflare:better-ccflare /data /config
+RUN mkdir -p /data /config && chown -R ccflare:ccflare /data /config
 
-USER better-ccflare
+USER ccflare
 
 # Environment
 ENV PORT=8080
-ENV better-ccflare_CONFIG_PATH=/config/better-ccflare.json
+ENV ccflare_CONFIG_PATH=/config/ccflare.json
 
 EXPOSE 8080
 
 VOLUME ["/data", "/config"]
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD ["/usr/local/bin/better-ccflare-server", "health"] || exit 1
+  CMD ["/usr/local/bin/ccflare-server", "health"] || exit 1
 
-ENTRYPOINT ["/usr/local/bin/better-ccflare", "--serve"]
+ENTRYPOINT ["/usr/local/bin/ccflare", "--serve"]
 ```
 
 ### Example Docker Compose
@@ -319,9 +328,9 @@ ENTRYPOINT ["/usr/local/bin/better-ccflare", "--serve"]
 version: '3.8'
 
 services:
-  better-ccflare:
+  ccflare:
     build: .
-    container_name: better-ccflare
+    container_name: ccflare
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -345,12 +354,12 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - better-ccflare-net
+      - ccflare-net
 
   # Optional: Reverse proxy
   nginx:
     image: nginx:alpine
-    container_name: better-ccflare-nginx
+    container_name: ccflare-nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -359,12 +368,12 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
-      - better-ccflare
+      - ccflare
     networks:
-      - better-ccflare-net
+      - ccflare-net
 
 networks:
-  better-ccflare-net:
+  ccflare-net:
     driver: bridge
 ```
 
@@ -372,16 +381,16 @@ networks:
 
 ```bash
 # Build the Docker image
-docker build -t better-ccflare:latest .
+docker build -t ccflare:latest .
 
 # Run with Docker
 docker run -d \
-  --name better-ccflare \
+  --name ccflare \
   -p 8080:8080 \
   -v $(pwd)/data:/data \
   -v $(pwd)/config:/config \
   -e LB_STRATEGY=session \
-  better-ccflare:latest
+  ccflare:latest
 
 # Or use Docker Compose
 docker-compose up -d
@@ -395,19 +404,19 @@ Deploy the dashboard as a static site on Cloudflare Pages while running the API 
 
 ```bash
 # Build script for Cloudflare Pages
-cd packages/dashboard-web
+cd apps/web
 bun install
 bun run build
 
-# Output directory: packages/dashboard-web/dist
+# Output directory: apps/web/dist
 ```
 
 ### Cloudflare Pages Configuration
 
 1. Connect your GitHub repository
 2. Set build configuration:
-   - Build command: `cd packages/dashboard-web && bun install && bun run build`
-   - Build output directory: `packages/dashboard-web/dist`
+   - Build command: `cd apps/web && bun install && bun run build`
+   - Build output directory: `apps/web/dist`
    - Root directory: `/`
 
 ### Environment Variables
@@ -422,7 +431,7 @@ VITE_API_URL=https://api.your-domain.com
 Update the dashboard to use external API:
 
 ```typescript
-// packages/dashboard-web/src/lib/api-client.ts
+// apps/web/src/api.ts
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 ```
 
@@ -431,25 +440,25 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 ### Nginx Configuration
 
 ```nginx
-# /etc/nginx/sites-available/better-ccflare
-upstream better-ccflare_backend {
+# /etc/nginx/sites-available/ccflare
+upstream ccflare_backend {
     server 127.0.0.1:8080 max_fails=3 fail_timeout=30s;
     keepalive 32;
 }
 
 server {
     listen 80;
-    server_name better-ccflare.yourdomain.com;
+    server_name ccflare.yourdomain.com;
     return 301 https://$server_name$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name better-ccflare.yourdomain.com;
+    server_name ccflare.yourdomain.com;
 
     # SSL configuration
-    ssl_certificate /etc/letsencrypt/live/better-ccflare.yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/better-ccflare.yourdomain.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/ccflare.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ccflare.yourdomain.com/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
     ssl_prefer_server_ciphers on;
@@ -476,12 +485,12 @@ server {
 
     # Main proxy
     location / {
-        proxy_pass http://better-ccflare_backend;
+        proxy_pass http://ccflare_backend;
     }
 
     # API endpoints
     location /v1/ {
-        proxy_pass http://better-ccflare_backend;
+        proxy_pass http://ccflare_backend;
         
         # Increase limits for AI requests
         client_max_body_size 100M;
@@ -491,7 +500,7 @@ server {
 
     # WebSocket support for real-time updates
     location /ws {
-        proxy_pass http://better-ccflare_backend;
+        proxy_pass http://ccflare_backend;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -500,7 +509,7 @@ server {
 
     # Static assets caching
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        proxy_pass http://better-ccflare_backend;
+        proxy_pass http://ccflare_backend;
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
@@ -510,7 +519,7 @@ server {
 ### Caddy Configuration
 
 ```caddyfile
-better-ccflare.yourdomain.com {
+ccflare.yourdomain.com {
     # Automatic HTTPS
     tls your-email@example.com
 
@@ -568,10 +577,10 @@ better-ccflare.yourdomain.com {
 ```mermaid
 graph TB
     subgraph "Logging Architecture"
-        APP[better-ccflare Server]
+        APP[ccflare Server]
         
         subgraph "Log Outputs"
-            FILE[File Logs<br/>/var/log/better-ccflare/]
+            FILE[File Logs<br/>/var/log/ccflare/]
             STDOUT[Container Stdout]
             SYSLOG[Syslog]
         end
@@ -606,31 +615,31 @@ graph TB
 > **Note**: Prometheus metrics support is planned but not yet implemented. The following is an example of how metrics could be integrated:
 
 ```typescript
-// Example: packages/http-api/src/metrics.ts
+// Example: packages/api/src/metrics.ts
 import { register, Counter, Histogram, Gauge } from 'prom-client';
 
 export const metrics = {
   requestsTotal: new Counter({
-    name: 'better-ccflare_requests_total',
+    name: 'ccflare_requests_total',
     help: 'Total number of requests',
     labelNames: ['method', 'status', 'account']
   }),
   
   requestDuration: new Histogram({
-    name: 'better-ccflare_request_duration_seconds',
+    name: 'ccflare_request_duration_seconds',
     help: 'Request duration in seconds',
     labelNames: ['method', 'status'],
     buckets: [0.1, 0.5, 1, 2, 5, 10]
   }),
   
   activeAccounts: new Gauge({
-    name: 'better-ccflare_active_accounts',
+    name: 'ccflare_active_accounts',
     help: 'Number of active accounts',
-    labelNames: ['priority']
+    labelNames: ['provider']
   }),
   
   rateLimitedAccounts: new Gauge({
-    name: 'better-ccflare_rate_limited_accounts',
+    name: 'ccflare_rate_limited_accounts',
     help: 'Number of rate limited accounts'
   })
 };
@@ -679,7 +688,7 @@ services:
     volumes:
       - ./promtail-config.yaml:/etc/promtail/config.yml
       - /var/log:/var/log:ro
-      - /opt/better-ccflare/data/logs:/app/logs:ro
+      - /opt/ccflare/data/logs:/app/logs:ro
     command: -config.file=/etc/promtail/config.yml
 
 volumes:
@@ -694,8 +703,8 @@ volumes:
 
 ```bash
 # Increase file descriptor limits
-echo "better-ccflare soft nofile 65536" >> /etc/security/limits.conf
-echo "better-ccflare hard nofile 65536" >> /etc/security/limits.conf
+echo "ccflare soft nofile 65536" >> /etc/security/limits.conf
+echo "ccflare hard nofile 65536" >> /etc/security/limits.conf
 
 # TCP tuning for high throughput
 cat >> /etc/sysctl.conf << EOF
@@ -721,7 +730,7 @@ sysctl -p
 ### Application Tuning
 
 ```json
-// ~/.config/better-ccflare/config.json (or platform-specific location)
+// ~/.config/ccflare/config.json (or platform-specific location)
 {
   "lb_strategy": "session",
   "client_id": "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
@@ -763,9 +772,9 @@ graph TB
     end
     
     subgraph "Application Instances"
-        APP1[better-ccflare-1<br/>Port 8081]
-        APP2[better-ccflare-2<br/>Port 8082]
-        APP3[better-ccflare-N<br/>Port 808N]
+        APP1[ccflare-1<br/>Port 8081]
+        APP2[ccflare-2<br/>Port 8082]
+        APP3[ccflare-N<br/>Port 808N]
     end
     
     subgraph "Shared Data Layer"
@@ -800,12 +809,12 @@ graph TB
 
 ### Database Considerations
 
-better-ccflare uses SQLite by default, which is suitable for single-instance deployments. For Kubernetes multi-pod deployments, set `DATABASE_URL` to use PostgreSQL (see [PostgreSQL Support for Multi-Pod Deployments](#postgresql-support-for-multi-pod-deployments) above).
+ccflare uses SQLite by default, which is suitable for most single-instance deployments. The database is automatically created and managed in the platform-specific configuration directory.
 
 #### SQLite Optimization (Default)
 
 ```sql
--- These optimizations are automatically applied by better-ccflare
+-- These optimizations are automatically applied by ccflare
 PRAGMA journal_mode = WAL;
 PRAGMA synchronous = NORMAL;
 PRAGMA cache_size = -20000;  -- 20MB cache
@@ -813,61 +822,108 @@ PRAGMA temp_store = MEMORY;
 PRAGMA mmap_size = 268435456;
 ```
 
-### PostgreSQL Support for Multi-Pod Deployments
+### Database Migration for Scale
 
-SQLite is unsuitable for Kubernetes deployments with multiple replicas because pods cannot safely share a single file. better-ccflare has first-class PostgreSQL support via `Bun.SQL` — set the `DATABASE_URL` environment variable and the schema is created automatically on startup.
+When scaling beyond a single instance, you may need to migrate from SQLite to a shared database like PostgreSQL:
 
-```bash
-# Create a PostgreSQL database
-psql -U postgres -c "CREATE DATABASE ccflare;"
-psql -U postgres -c "CREATE USER ccflare_user WITH PASSWORD 'secret';"
-psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE ccflare TO ccflare_user;"
+```sql
+-- PostgreSQL schema (example for future implementation)
+CREATE TABLE accounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) UNIQUE NOT NULL,
+    provider VARCHAR(50) NOT NULL,
+    api_key TEXT,
+    refresh_token TEXT,
+    access_token TEXT,
+    expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    last_used TIMESTAMPTZ,
+    request_count INTEGER DEFAULT 0,
+    total_requests INTEGER DEFAULT 0,
+    weight INTEGER DEFAULT 1,
+    rate_limited_until TIMESTAMPTZ,
+    session_start TIMESTAMPTZ,
+    session_request_count INTEGER DEFAULT 0,
+    paused BOOLEAN DEFAULT FALSE,
+    rate_limit_status VARCHAR(50),
+    rate_limit_reset TIMESTAMPTZ,
+    rate_limit_remaining INTEGER
+);
 
-# Set DATABASE_URL — that's all that's needed
-export DATABASE_URL=postgresql://ccflare_user:secret@postgres-host:5432/ccflare
+CREATE TABLE requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    timestamp TIMESTAMPTZ DEFAULT NOW(),
+    method VARCHAR(10),
+    path TEXT,
+    provider VARCHAR(32),
+    upstream_path TEXT,
+    account_used UUID REFERENCES accounts(id),
+    status_code INTEGER,
+    success BOOLEAN,
+    error_message TEXT,
+    response_time_ms INTEGER,
+    failover_attempts INTEGER DEFAULT 0,
+    model VARCHAR(100),
+    input_tokens INTEGER,
+    output_tokens INTEGER,
+    cache_read_input_tokens INTEGER,
+    cache_creation_input_tokens INTEGER,
+    reasoning_tokens INTEGER,
+    output_tokens_per_second DECIMAL(10, 6),
+    ttft_ms INTEGER,
+    proxy_overhead_ms INTEGER,
+    upstream_ttfb_ms INTEGER,
+    streaming_duration_ms INTEGER,
+    response_id VARCHAR(100),
+    previous_response_id VARCHAR(100),
+    response_chain_id VARCHAR(100),
+    client_session_id VARCHAR(100),
+    cost_usd DECIMAL(10, 6)
+);
+
+-- Indexes for performance
+CREATE INDEX idx_requests_timestamp ON requests(timestamp DESC);
+CREATE INDEX idx_requests_account ON requests(account_used);
+CREATE INDEX idx_accounts_active ON accounts(paused, expires_at);
+CREATE INDEX idx_accounts_rate_limit ON accounts(rate_limited_until);
 ```
-
-The full schema (`accounts`, `requests`, `request_payloads`, `oauth_sessions`, `agent_preferences`, `api_keys`, `model_translations`, `strategies`) is created with `CREATE TABLE IF NOT EXISTS` on first start. Column migrations use `information_schema` checks and are applied automatically on every startup.
 
 ### Kubernetes Deployment
 
-> **Important**: For multi-pod Kubernetes deployments, you **must** use PostgreSQL. Set `DATABASE_URL` to share a single database across all replicas. SQLite cannot be safely shared across pods.
-
 ```yaml
-# better-ccflare-deployment.yaml
+# ccflare-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: better-ccflare
+  name: ccflare
   labels:
-    app: better-ccflare
+    app: ccflare
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: better-ccflare
+      app: ccflare
   template:
     metadata:
       labels:
-        app: better-ccflare
+        app: ccflare
     spec:
       containers:
-      - name: better-ccflare
-        image: your-registry/better-ccflare:latest
+      - name: ccflare
+        image: your-registry/ccflare:latest
         ports:
         - containerPort: 8080
         env:
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: better-ccflare-secrets
+              name: ccflare-secrets
               key: database-url
-        - name: LB_STRATEGY
-          value: "session"
-        - name: LOG_LEVEL
-          value: "INFO"
-        - name: LOG_FORMAT
-          value: "json"
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: ccflare-secrets
+              key: redis-url
         resources:
           requests:
             memory: "512Mi"
@@ -891,23 +947,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: better-ccflare
+  name: ccflare
 spec:
   selector:
-    app: better-ccflare
+    app: ccflare
   ports:
   - port: 80
     targetPort: 8080
   type: LoadBalancer
----
-# Store the PostgreSQL connection string as a Secret
-apiVersion: v1
-kind: Secret
-metadata:
-  name: better-ccflare-secrets
-type: Opaque
-stringData:
-  database-url: "postgresql://ccflare_user:secret@postgres-svc:5432/ccflare"
 ```
 
 ### High Availability Checklist
@@ -955,7 +1002,7 @@ stringData:
 
 ### Health Check Endpoint
 
-better-ccflare provides a health check endpoint for monitoring:
+ccflare provides a health check endpoint for monitoring:
 
 ```bash
 # Check health status
@@ -968,39 +1015,15 @@ Response format:
   "status": "ok",
   "accounts": 5,
   "timestamp": "2025-01-27T12:00:00.000Z",
-  "strategy": "session",
-  "pool": {
-    "configured": 5,
-    "routable": 3,
-    "paused": 1,
-    "rate_limited": 1,
-    "next_available_at": null
-  }
+  "strategy": "session"
 }
 ```
-
-**HTTP status codes:** `200` for `ok`, `503` for `degraded` or `unhealthy`. Infrastructure health checkers (Kubernetes readiness probes, load balancers) gate on the HTTP status code automatically.
-
-**Status values:**
-- `ok` — runtime healthy and at least one account is routable
-- `degraded` — pool empty but accounts will recover (`next_available_at` set); k8s readiness probe marks pod NotReady until recovery
-- `unhealthy` — runtime broken or no recovery possible
-
-**Per-account detail (opt-in):** Set `HEALTH_DETAIL_ENABLED=true` to enable `GET /health?detail=1`, which returns per-account status and rate-limit timestamps. Disabled by default to prevent unauthenticated account enumeration.
 
 ### Monitoring Integration
 
 Use the health endpoint with monitoring tools:
 
 ```yaml
-# Kubernetes readiness probe — marks pod NotReady when degraded/unhealthy (503)
-readinessProbe:
-  httpGet:
-    path: /health
-    port: 8080
-  initialDelaySeconds: 10
-  periodSeconds: 30
-
 # Kubernetes liveness probe
 livenessProbe:
   httpGet:
@@ -1063,32 +1086,32 @@ healthcheck:
    ```bash
    # Find the actual database location
    # Linux/macOS:
-   sqlite3 ~/.config/better-ccflare/better-ccflare.db "PRAGMA journal_mode=WAL;"
+   sqlite3 ~/.config/ccflare/ccflare.db "PRAGMA journal_mode=WAL;"
    
    # Windows:
-   sqlite3 %LOCALAPPDATA%\better-ccflare\better-ccflare.db "PRAGMA journal_mode=WAL;"
+   sqlite3 %LOCALAPPDATA%\ccflare\ccflare.db "PRAGMA journal_mode=WAL;"
    ```
 
 2. **High Memory Usage**
    ```bash
    # Check for memory leaks
-   node --inspect=0.0.0.0:9229 /opt/better-ccflare/better-ccflare-server
+   node --inspect=0.0.0.0:9229 /opt/ccflare/ccflare-server
    ```
 
 3. **Connection Refused**
    ```bash
    # Check if service is running
-   systemctl status better-ccflare
+   systemctl status ccflare
    # Check logs
-   journalctl -u better-ccflare -f
+   journalctl -u ccflare -f
    ```
 
 4. **Rate Limit Issues**
    ```bash
    # Check account status
-   better-ccflare --list
+   ccflare --list
    # Reset statistics
-   better-ccflare --reset-stats
+   ccflare --reset-stats
    ```
 
 ## Maintenance
@@ -1097,18 +1120,18 @@ healthcheck:
 
 ```bash
 # Daily: Check recent logs
-better-ccflare --logs 100 | grep ERROR
+ccflare --logs 100 | grep ERROR
 
 # Weekly: Database maintenance
 # Linux/macOS:
-sqlite3 ~/.config/better-ccflare/better-ccflare.db "VACUUM;"
-sqlite3 ~/.config/better-ccflare/better-ccflare.db "ANALYZE;"
+sqlite3 ~/.config/ccflare/ccflare.db "VACUUM;"
+sqlite3 ~/.config/ccflare/ccflare.db "ANALYZE;"
 
 # Monthly: Clean old request history
-better-ccflare --clear-history
+ccflare --clear-history
 
 # Quarterly: Update dependencies (if running from source)
-cd /path/to/better-ccflare
+cd /path/to/ccflare
 bun update
 ```
 
@@ -1118,20 +1141,20 @@ bun update
 #!/bin/bash
 # backup.sh - Run daily via cron
 
-BACKUP_DIR="/backup/better-ccflare/$(date +%Y%m%d)"
+BACKUP_DIR="/backup/ccflare/$(date +%Y%m%d)"
 mkdir -p "$BACKUP_DIR"
 
 # Determine config directory based on OS
 if [[ "$OSTYPE" == "darwin"* ]] || [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    CONFIG_DIR="$HOME/.config/better-ccflare"
+    CONFIG_DIR="$HOME/.config/ccflare"
 elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
-    CONFIG_DIR="$LOCALAPPDATA/better-ccflare"
+    CONFIG_DIR="$LOCALAPPDATA/ccflare"
 else
-    CONFIG_DIR="$HOME/.config/better-ccflare"  # Default fallback
+    CONFIG_DIR="$HOME/.config/ccflare"  # Default fallback
 fi
 
 # Backup database and config
-sqlite3 "$CONFIG_DIR/better-ccflare.db" ".backup $BACKUP_DIR/better-ccflare.db"
+sqlite3 "$CONFIG_DIR/ccflare.db" ".backup $BACKUP_DIR/ccflare.db"
 cp "$CONFIG_DIR/config.json" "$BACKUP_DIR/" 2>/dev/null || true
 
 # Compress
@@ -1139,7 +1162,7 @@ tar -czf "$BACKUP_DIR.tar.gz" "$BACKUP_DIR"
 rm -rf "$BACKUP_DIR"
 
 # Keep only last 30 days
-find /backup/better-ccflare -name "*.tar.gz" -mtime +30 -delete
+find /backup/ccflare -name "*.tar.gz" -mtime +30 -delete
 ```
 
 ## Environment Variables Reference
@@ -1152,7 +1175,7 @@ find /backup/better-ccflare -name "*.tar.gz" -mtime +30 -delete
 | `LB_STRATEGY` | session | Load balancing strategy (only 'session' is supported) |
 | `LOG_LEVEL` | INFO | Logging level: `DEBUG`, `INFO`, `WARN`, `ERROR` |
 | `LOG_FORMAT` | pretty | Log format: `pretty` (human-readable) or `json` (structured) |
-| `better-ccflare_DEBUG` | 0 | Enable debug mode (1/0) - enables console output |
+| `ccflare_DEBUG` | 0 | Enable debug mode (1/0) - enables console output |
 
 ### Advanced Configuration
 
@@ -1163,13 +1186,12 @@ find /backup/better-ccflare -name "*.tar.gz" -mtime +30 -delete
 | `RETRY_ATTEMPTS` | 3 | Number of retry attempts for failed requests |
 | `RETRY_DELAY_MS` | 1000 | Initial delay between retries in milliseconds |
 | `RETRY_BACKOFF` | 2 | Backoff multiplier for exponential retry delays |
-| `better-ccflare_CONFIG_PATH` | Platform-specific | Path to configuration file |
-| `better-ccflare_DB_PATH` | Platform-specific | Path to SQLite database file (ignored when `DATABASE_URL` is set) |
-| `DATABASE_URL` | - | PostgreSQL connection string. When set, PostgreSQL is used instead of SQLite. Required for multi-pod Kubernetes deployments. Example: `postgresql://user:pass@host:5432/db` |
+| `ccflare_CONFIG_PATH` | Platform-specific | Path to configuration file |
+| `ccflare_DB_PATH` | Platform-specific | Path to SQLite database file |
 
 ### Configuration File
 
-better-ccflare also supports a JSON configuration file that takes precedence over environment variables:
+ccflare also supports a JSON configuration file that takes precedence over environment variables:
 
 ```json
 {
@@ -1184,17 +1206,18 @@ better-ccflare also supports a JSON configuration file that takes precedence ove
 ```
 
 The configuration file is located at:
-- **Linux/macOS**: `~/.config/better-ccflare/config.json`
-- **Windows**: `%APPDATA%\better-ccflare\config.json`
+- **Linux/macOS**: `~/.config/ccflare/config.json`
+- **Windows**: `%APPDATA%\ccflare\config.json`
 
 ## Conclusion
 
-better-ccflare is designed to be flexible and scalable, supporting everything from simple local deployments to complex distributed architectures. Choose the deployment option that best fits your needs and scale as your requirements grow.
+ccflare is designed to be flexible and scalable, supporting everything from simple local deployments to complex distributed architectures. Choose the deployment option that best fits your needs and scale as your requirements grow.
 
 ### Key Features Summary
 
-- **Integrated Binary**: Single executable combining CLI and server functionality
-- **Web Dashboard**: Access analytics and logs through a modern web interface
+- **Integrated Binary**: Single executable combining TUI, CLI, and server functionality
+- **Interactive TUI**: Monitor and manage your deployment in real-time
+- **Web Dashboard**: Access analytics and logs through a modern web interface  
 - **Async Database Writer**: Improved performance for high-throughput scenarios
 - **Session-based Load Balancing**: Maintains session affinity for optimal performance
 - **Binary Compilation**: Deploy as standalone executable without runtime dependencies
@@ -1205,51 +1228,84 @@ better-ccflare is designed to be flexible and scalable, supporting everything fr
 - [Configuration Guide](./configuration.md)
 - [Load Balancing Strategies](./load-balancing.md)
 - [API Reference](./api-http.md)
-- [GitHub Repository](https://github.com/snipeship/better-ccflare)
+- [GitHub Repository](https://github.com/snipeship/ccflare)
 
-## Web Dashboard
+## Terminal User Interface (TUI)
 
-better-ccflare includes a powerful web-based dashboard for monitoring and management.
+ccflare includes a powerful Terminal User Interface for interactive monitoring and management.
 
-### Accessing the Dashboard
+### Starting the TUI
 
 ```bash
-# Start better-ccflare server with embedded dashboard
-better-ccflare --serve
+# Start ccflare in interactive mode (TUI + Server)
+ccflare
 
 # Or from source:
-bun run better-ccflare
+bun run ccflare
 
-# Dashboard will be available at:
-# http://localhost:8080 (or your configured port)
+# Start server only (no TUI)
+ccflare --serve
+
+# View help for all available commands
+ccflare --help
 ```
 
-### Dashboard Features
+### TUI Features
 
-- **Real-time Metrics**: Live system status and request analytics
+- **Real-time Dashboard**: Live system status and metrics
 - **Account Management**: View and manage Claude accounts
   - Account status and rate limits
   - Pause/unpause accounts
   - View usage statistics
-  - Re-authenticate accounts
-- **Request History**: Track requests with detailed information
+- **Request Monitor**: Track requests as they happen
   - Request details and timing
   - Success/failure status
   - Token usage per request
-- **Analytics**: Comprehensive analytics and visualizations
-  - Usage patterns over time
+- **Log Viewer**: Browse historical logs
+  - Filter by level and time
+  - Search functionality
+  - Export capabilities
+- **Statistics Screen**: Comprehensive analytics
+  - Usage patterns
   - Cost breakdown
   - Performance metrics
-  - Account distribution
+
+### Keyboard Navigation
+
+| Key | Action |
+|-----|--------|
+| `Tab` / `Shift+Tab` | Navigate between screens |
+| `↑` / `↓` | Navigate within lists |
+| `←` / `→` | Switch between tabs |
+| `Enter` | Select/view details |
+| `Space` | Toggle selection |
+| `r` | Refresh current view |
+| `f` | Focus search/filter |
+| `Esc` | Close dialog/cancel |
+| `q` / `Ctrl+C` | Quit TUI |
 
 ### Remote API Connection
 
-The better-ccflare CLI can connect to a remote API server for distributed deployments:
+The ccflare binary can connect to a remote API server for distributed deployments:
 
 ```bash
 # Set API URL for remote connection
-export BETTER_CCFLARE_API_URL=https://better-ccflare.example.com
-better-ccflare --list  # Will query the remote server
+export ccflare_API_URL=https://ccflare.example.com
+ccflare --list  # Will query the remote server
+```
+
+### TUI Configuration
+
+Customize TUI behavior through environment variables:
+
+```bash
+# Refresh intervals (milliseconds)
+export TUI_REFRESH_INTERVAL=1000      # Dashboard refresh
+export TUI_LOG_POLL_INTERVAL=500      # Log updates
+
+# Display options
+export TUI_THEME=dark                 # dark or light
+export TUI_COMPACT_MODE=false         # Compact display
 ```
 
 For support and updates, check the project repository and documentation.

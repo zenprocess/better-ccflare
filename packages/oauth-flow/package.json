@@ -1,15 +1,19 @@
 {
-	"name": "@better-ccflare/oauth-flow",
+	"name": "@ccflare/oauth-flow",
 	"version": "0.1.0",
 	"type": "module",
 	"main": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
 	"scripts": {
-		"typecheck": "bunx tsc --noEmit"
+		"typecheck": "bunx tsc --noEmit",
+		"test": "bun test ./src"
 	},
 	"dependencies": {
-		"@better-ccflare/config": "workspace:*",
-		"@better-ccflare/database": "workspace:*",
-		"@better-ccflare/providers": "workspace:*",
-		"@better-ccflare/types": "workspace:*"
+		"@ccflare/config": "workspace:*",
+		"@ccflare/database": "workspace:*",
+		"@ccflare/providers": "workspace:*",
+		"@ccflare/types": "workspace:*"
 	}
 }

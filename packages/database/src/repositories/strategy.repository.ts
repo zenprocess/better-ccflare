@@ -7,14 +7,11 @@ export interface StrategyData {
 }
 
 export class StrategyRepository extends BaseRepository<StrategyData> {
-	async getStrategy(name: string): Promise<StrategyData | null> {
-		const row = await super.get<{
-			name: string;
-			config: string;
-			updated_at: number;
-		}>(`SELECT name, config, updated_at FROM strategies WHERE name = ?`, [
-			name,
-		]);
+	getStrategy(name: string): StrategyData | null {
+		const row = super.get<{ name: string; config: string; updated_at: number }>(
+			`SELECT name, config, updated_at FROM strategies WHERE name = ?`,
+			[name],
+		);
 
 		if (!row) return null;
 
@@ -25,19 +22,18 @@ export class StrategyRepository extends BaseRepository<StrategyData> {
 		};
 	}
 
-	async set(name: string, config: Record<string, unknown>): Promise<void> {
+	set(name: string, config: Record<string, unknown>): void {
 		const now = Date.now();
 		const configJson = JSON.stringify(config);
 
-		await this.run(
-			`INSERT INTO strategies (name, config, updated_at) VALUES (?, ?, ?)
-			 ON CONFLICT (name) DO UPDATE SET config = EXCLUDED.config, updated_at = EXCLUDED.updated_at`,
+		this.run(
+			`INSERT OR REPLACE INTO strategies (name, config, updated_at) VALUES (?, ?, ?)`,
 			[name, configJson, now],
 		);
 	}
 
-	async list(): Promise<StrategyData[]> {
-		const rows = await this.query<{
+	list(): StrategyData[] {
+		const rows = this.query<{
 			name: string;
 			config: string;
 			updated_at: number;
@@ -50,8 +46,8 @@ export class StrategyRepository extends BaseRepository<StrategyData> {
 		}));
 	}
 
-	async delete(name: string): Promise<boolean> {
-		const changes = await this.runWithChanges(
+	delete(name: string): boolean {
+		const changes = this.runWithChanges(
 			`DELETE FROM strategies WHERE name = ?`,
 			[name],
 		);

@@ -1,4 +1,4 @@
-# better-ccflare HTTP API Documentation
+# ccflare HTTP API Documentation
 
 ## Quick Start
 
@@ -6,26 +6,34 @@
 # Check health status
 curl http://localhost:8080/health
 
-# Proxy a request to Claude
-curl -X POST http://localhost:8080/v1/messages \
+# Proxy a request to Anthropic
+curl -X POST http://localhost:8080/v1/anthropic/v1/messages \
   -H "Content-Type: application/json" \
   -H "anthropic-version: 2023-06-01" \
   -d '{
-    "model": "claude-3-opus-20240229",
+    "model": "claude-sonnet-4-20250514",
     "messages": [{"role": "user", "content": "Hello!"}],
     "max_tokens": 100
+  }'
+
+# Proxy a request to OpenAI
+curl -X POST http://localhost:8080/v1/openai/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Hello!"}]
   }'
 
 # List all accounts
 curl http://localhost:8080/api/accounts
 
 # View dashboard
-open http://localhost:8080/dashboard
+open http://localhost:8080
 ```
 
 ## Overview
 
-better-ccflare provides a RESTful HTTP API for managing accounts, monitoring usage, and proxying requests to Claude. The API runs on port 8080 by default and requires no authentication.
+ccflare provides a RESTful HTTP API for managing accounts, monitoring usage, and proxying requests to Anthropic and OpenAI. The API runs on port 8080 by default and requires no authentication.
 
 ### Base URL
 
@@ -43,11 +51,7 @@ All API responses are in JSON format with `Content-Type: application/json`.
 
 #### GET /health
 
-Check the health status of the better-ccflare service.
-
-**HTTP status codes:**
-- `200` — `status: "ok"` (routable accounts available)
-- `503` — `status: "degraded"` (pool empty, accounts will recover) or `status: "unhealthy"` (runtime broken or no recovery)
+Check the health status of the ccflare service.
 
 **Response:**
 ```json
@@ -56,37 +60,7 @@ Check the health status of the better-ccflare service.
   "accounts": 5,
   "timestamp": "2024-12-17T10:30:45.123Z",
   "strategy": "session",
-  "pool": {
-    "configured": 5,
-    "routable": 3,
-    "paused": 1,
-    "rate_limited": 1,
-    "next_available_at": "2024-12-17T11:00:00.000Z"
-  }
-}
-```
-
-**Status values:**
-- `ok` — runtime healthy and at least one account is routable
-- `degraded` — runtime healthy but pool is empty; `next_available_at` indicates when the first account recovers
-- `unhealthy` — runtime broken, no accounts configured, or pool empty with no recovery time
-
-**Optional: per-account detail**
-
-Set `HEALTH_DETAIL_ENABLED=true` to enable the `?detail=1` parameter. When disabled (default), `?detail=1` is silently ignored — the full health response is still returned, just without `accounts_detail`:
-
-```bash
-curl http://localhost:8080/health?detail=1
-```
-
-```json
-{
-  "status": "ok",
-  "pool": { ... },
-  "accounts_detail": [
-    { "name": "my-account", "status": "available", "rate_limited_until": null },
-    { "name": "other", "status": "rate_limited", "rate_limited_until": 1734429600000 }
-  ]
+  "providers": ["anthropic", "openai"]
 }
 ```
 
@@ -97,54 +71,100 @@ curl http://localhost:8080/health
 
 ---
 
-### Claude Proxy
+### Provider Proxy
 
-#### /v1/* (All Methods)
+#### /v1/{provider}/* (All Methods)
 
-Proxy requests to Claude API. All requests to paths starting with `/v1/` are forwarded to Claude using the configured load balancing strategy. This includes POST, GET, and any other HTTP methods that Claude's API supports.
+Proxy requests to upstream provider APIs. The `/v1/{provider}` prefix is stripped exactly once before forwarding upstream. Requests are routed using the configured load balancing strategy across accounts matching the target provider.
 
-**Supported Endpoints:**
-- `POST /v1/messages` - Native Anthropic messages endpoint
-- `POST /v1/responses` - OpenAI Responses API compatibility endpoint (translated to `/v1/messages`)
-- `POST /v1/responses/compact` - Compact Responses API compatibility endpoint (translated to `/v1/messages`)
-- `POST /v1/complete` - Text completion (legacy)
-- Any other Claude API v1 endpoint
-
-**Codex CLI as a Client:**
-Codex CLI (and other OpenAI Responses API clients) can target better-ccflare directly. Requests to `/v1/responses` and `/v1/responses/compact` are intercepted before the normal proxy and translated to Anthropic `/v1/messages` internally, then routed through the account pool like any other request. See the [README](../README.md#codex-cli-as-a-client) for configuration details.
-
-Note: this is distinct from the `codex` *provider*, which routes requests outbound to OpenAI's Codex endpoint.
-
-**Known Limitations (`/v1/responses`):**
-- `previous_response_id` is accepted but ignored — better-ccflare is stateless and does not store prior responses. Codex uses this field only over WebSocket (which better-ccflare does not implement); for regular HTTP requests Codex always sends the full conversation history in `input`, so this field has no effect.
-- Built-in tool types (`web_search_preview`, `code_interpreter`, `file_search`) are silently skipped; only `type: "function"` tools are forwarded to Anthropic.
-
-**Note:** `GET /v1/models` is proxied through to Claude like any other `/v1/*` request. A successful response (from a console/API-key account) is also passively captured into better-ccflare's own model catalog cache — see [Model Catalog](#model-catalog) below for the read endpoint (`GET /api/models`) and how the catalog is kept up to date.
+**Supported Providers:**
+- `/v1/anthropic/*` → `https://api.anthropic.com/*`
+- `/v1/openai/*` → `https://api.openai.com/v1/*`
 
 **Headers:**
-- All standard Claude API headers are supported
-- `Authorization` header is managed by better-ccflare (no need to provide)
+- All standard provider API headers are supported
+- `Authorization` header is managed by ccflare (no need to provide)
 
 **Request Body:**
-Same as Claude API requirements for the specific endpoint.
+Same as the upstream provider API requirements for the specific endpoint.
 
 **Response:**
-Proxied response from Claude API, including streaming responses.
+Proxied response from the upstream provider API, including streaming responses.
 
 **Automatic Failover:**
-If a request fails or an account is rate limited, better-ccflare automatically retries with the next available account according to the configured load balancing strategy. This ensures high availability and reliability.
+If a request fails or an account is rate limited, ccflare automatically retries with the next available account according to the configured load balancing strategy. This ensures high availability and reliability.
 
-**Example:**
+**Examples:**
 ```bash
-curl -X POST http://localhost:8080/v1/messages \
+# Anthropic
+curl -X POST http://localhost:8080/v1/anthropic/v1/messages \
   -H "Content-Type: application/json" \
   -H "anthropic-version: 2023-06-01" \
   -d '{
-    "model": "claude-3-opus-20240229",
+    "model": "claude-sonnet-4-20250514",
     "messages": [{"role": "user", "content": "Hello!"}],
     "max_tokens": 100
   }'
+
+# OpenAI chat completions
+curl -X POST http://localhost:8080/v1/openai/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+
+# OpenAI responses
+curl -X POST http://localhost:8080/v1/openai/responses \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o",
+    "input": "Hello!"
+  }'
 ```
+
+---
+
+### ccflare Compatibility Proxy
+
+#### POST /v1/ccflare/anthropic/messages
+#### POST /v1/ccflare/openai/chat/completions
+#### POST /v1/ccflare/openai/responses
+
+Compatibility routes keep the client-facing Anthropic/OpenAI schema while routing
+through a connected provider family chosen from the `model` prefix.
+
+**Model Prefix Rules:**
+- `openai/<model-id>` → prefers `codex`, then `openai`
+- `anthropic/<model-id>` → prefers `claude-code`, then `anthropic`
+
+Bare model names are rejected with `400`.
+
+**Examples:**
+```bash
+# Ask for an Anthropic model through the OpenAI chat schema
+curl -X POST http://localhost:8080/v1/ccflare/openai/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "anthropic/claude-sonnet-4",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+
+# Ask for an OpenAI model through the Anthropic Messages schema
+curl -X POST http://localhost:8080/v1/ccflare/anthropic/messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "openai/gpt-4o-mini",
+    "max_tokens": 100,
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+**Behavior:**
+- HTTP only; websocket upgrades are not supported on `/v1/ccflare/*`
+- requests use the same load-balancing and failover logic as native provider routes
+- responses are translated back into the requested client schema, including SSE streams
+- if no usable accounts exist in the requested family, ccflare returns `503`
 
 ---
 
@@ -161,18 +181,28 @@ List all configured accounts with their current status.
     "id": "uuid-here",
     "name": "account1",
     "provider": "anthropic",
+    "auth_method": "api_key",
+    "base_url": null,
     "requestCount": 150,
     "totalRequests": 1500,
     "lastUsed": "2024-12-17T10:25:30.123Z",
     "created": "2024-12-01T08:00:00.000Z",
-    "priority": 50,
+    "weight": 1,
     "paused": false,
     "tokenStatus": "valid",
-    "rateLimitStatus": "allowed_warning (5m)",
+    "tokenExpiresAt": null,
+    "rateLimitStatus": {
+      "code": "ok",
+      "isLimited": false,
+      "until": null
+    },
     "rateLimitReset": "2024-12-17T10:30:00.000Z",
     "rateLimitRemaining": 100,
-    "sessionInfo": "Session: 25 requests",
-    "autoFallbackEnabled": false
+    "sessionInfo": {
+      "active": true,
+      "startedAt": "2024-12-17T10:00:00.000Z",
+      "requestCount": 25
+    }
   }
 ]
 ```
@@ -184,18 +214,18 @@ curl http://localhost:8080/api/accounts
 
 ---
 
-### OAuth Flow
+### Auth Flow
 
-#### POST /api/oauth/init
+OAuth and auth endpoints are provider-scoped. The `{provider}` path segment determines which provider's OAuth flow is used (e.g., `anthropic`, `openai`, `claude-code`, `codex`).
 
-Initialize OAuth flow for adding a new account.
+#### POST /api/auth/{provider}/init
+
+Initialize an OAuth flow for adding a new account.
 
 **Request:**
 ```json
 {
-  "name": "myaccount",
-  "mode": "claude-oauth",  // "claude-oauth" or "console" (default: "claude-oauth")
-  "priority": 50  // 0-100, lower value = higher priority (optional, defaults: 0)
+  "name": "myaccount"
 }
 ```
 
@@ -203,22 +233,25 @@ Initialize OAuth flow for adding a new account.
 ```json
 {
   "success": true,
-  "authUrl": "https://console.anthropic.com/oauth/authorize?...",
-  "sessionId": "uuid-here",
-  "step": "authorize"
+  "message": "OAuth flow initiated for 'myaccount'",
+  "data": {
+    "authUrl": "https://claude.ai/oauth/authorize?...",
+    "sessionId": "uuid-here",
+    "provider": "claude-code"
+  }
 }
 ```
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8080/api/oauth/init \
+curl -X POST http://localhost:8080/api/auth/claude-code/init \
   -H "Content-Type: application/json" \
-  -d '{"name": "myaccount", "mode": "claude-oauth"}'
+  -d '{"name": "myaccount"}'
 ```
 
-#### POST /api/oauth/callback
+#### POST /api/auth/{provider}/complete
 
-Complete OAuth flow after user authorization.
+Complete the OAuth flow after user authorization.
 
 **Request:**
 ```json
@@ -233,17 +266,31 @@ Complete OAuth flow after user authorization.
 {
   "success": true,
   "message": "Account 'myaccount' added successfully!",
-  "mode": "Claude CLI",
-  "priority": 50
+  "data": {
+    "provider": "claude-code"
+  }
 }
 ```
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8080/api/oauth/callback \
+curl -X POST http://localhost:8080/api/auth/claude-code/complete \
   -H "Content-Type: application/json" \
   -d '{"sessionId": "uuid-here", "code": "auth-code"}'
 ```
+
+#### GET /api/auth/session/{sessionId}/status
+
+Check the status of an in-progress OAuth session.
+
+**Example:**
+```bash
+curl http://localhost:8080/api/auth/session/uuid-here/status
+```
+
+#### GET /oauth/{provider}/callback
+
+Browser redirect target for the OAuth flow. This is the callback URL that the OAuth provider redirects to after the user authorizes. Not called directly by API consumers.
 
 ---
 
@@ -251,14 +298,7 @@ curl -X POST http://localhost:8080/api/oauth/callback \
 
 #### DELETE /api/accounts/:accountId
 
-Remove an account. Requires confirmation.
-
-**Request:**
-```json
-{
-  "confirm": "account-name"
-}
-```
+Remove an account.
 
 **Response:**
 ```json
@@ -270,20 +310,18 @@ Remove an account. Requires confirmation.
 
 **Example:**
 ```bash
-curl -X DELETE http://localhost:8080/api/accounts/uuid-here \
-  -H "Content-Type: application/json" \
-  -d '{"confirm": "myaccount"}'
+curl -X DELETE http://localhost:8080/api/accounts/uuid-here
 ```
 
+#### PATCH /api/accounts/:accountId
 
-#### POST /api/accounts/:accountId/priority
-
-Update account priority. Lower priority values increase the likelihood of the account being selected by the load balancer.
+Update an account (e.g., rename or change `base_url`).
 
 **Request:**
 ```json
 {
-  "priority": 75  // 0-100, lower value = higher priority
+  "name": "new-name",
+  "base_url": "https://custom-endpoint.example.com"
 }
 ```
 
@@ -291,71 +329,34 @@ Update account priority. Lower priority values increase the likelihood of the ac
 ```json
 {
   "success": true,
-  "priority": 75
+  "message": "Account updated"
 }
 ```
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8080/api/accounts/uuid-here/priority \
+curl -X PATCH http://localhost:8080/api/accounts/uuid-here \
   -H "Content-Type: application/json" \
-  -d '{"priority": 75}'
+  -d '{"name": "new-name"}'
 ```
 
-**How Priorities Work:**
-- Priority values range from 0 to 100
-- Lower values indicate higher priority in load balancing
-- Priority is optional and defaults to 0 (highest priority) if not specified
-- Priority affects both primary account selection and fallback order
-- Changes take effect immediately without restarting the server
+#### POST /api/accounts/:accountId/rename
 
-#### POST /api/accounts/:accountId/auto-fallback
-
-Enable or disable auto-fallback for an account. When enabled, the system will automatically switch back to this account when its usage window resets and it has higher priority than the currently active account.
-
-**Important**: Auto-fallback is only available for Anthropic accounts since only they provide rate limit reset information via the API. Attempts to enable auto-fallback on non-Anthropic accounts will result in an error.
+Rename an account.
 
 **Request:**
 ```json
 {
-  "enabled": 1  // 1 to enable, 0 to disable
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Auto-fallback enabled for account 'myaccount'",
-  "autoFallbackEnabled": true
+  "name": "new-name"
 }
 ```
 
 **Example:**
 ```bash
-# Enable auto-fallback
-curl -X POST http://localhost:8080/api/accounts/uuid-here/auto-fallback \
+curl -X POST http://localhost:8080/api/accounts/uuid-here/rename \
   -H "Content-Type: application/json" \
-  -d '{"enabled": 1}'
-
-# Disable auto-fallback
-curl -X POST http://localhost:8080/api/accounts/uuid-here/auto-fallback \
-  -H "Content-Type: application/json" \
-  -d '{"enabled": 0}'
+  -d '{"name": "new-name"}'
 ```
-
-**How Auto-Fallback Works:**
-- Auto-fallback is a per-account setting that defaults to disabled
-- When enabled, the system monitors the account's API rate limit reset time
-- If the account becomes available (usage window resets) and has higher priority than the current active account, the system automatically switches to it
-- The system logs when auto-fallback is triggered for transparency
-- Only accounts that are not paused and not currently rate limited will be considered for auto-fallback
-
-**Use Cases:**
-- **Primary Account Recovery**: Automatically switch back to your main account as soon as its rate limit window resets
-- **Cost Optimization**: Prioritize lower-cost accounts when they become available
-- **Performance Management**: Automatically use higher-performance accounts when they're ready
-- **Tiered Access**: Ensure priority accounts get used first when available
 
 #### POST /api/accounts/:accountId/pause
 
@@ -372,31 +373,6 @@ Pause an account temporarily.
 **Example:**
 ```bash
 curl -X POST http://localhost:8080/api/accounts/uuid-here/pause
-```
-
-#### POST /api/accounts/:accountId/force-reset-rate-limit
-
-Force-clear persisted rate-limit lock state for an account and trigger immediate usage polling when possible.
-
-**What it does:**
-- Clears `rate_limited_until`
-- Clears `rate_limit_reset`
-- Clears `rate_limit_status`
-- Clears `rate_limit_remaining`
-- Triggers immediate usage poll for the account (if polling is configured in-process)
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Rate limit state cleared for account 'myaccount'",
-  "usagePollTriggered": true
-}
-```
-
-**Example:**
-```bash
-curl -X POST http://localhost:8080/api/accounts/uuid-here/force-reset-rate-limit
 ```
 
 #### POST /api/accounts/:accountId/resume
@@ -481,14 +457,14 @@ Get recent request summary.
     "id": "request-uuid",
     "timestamp": "2024-12-17T10:30:45.123Z",
     "method": "POST",
-    "path": "/v1/messages",
+    "path": "/v1/anthropic/v1/messages",
     "accountUsed": "account1",
     "statusCode": 200,
     "success": true,
     "errorMessage": null,
     "responseTimeMs": 1234,
     "failoverAttempts": 0,
-    "model": "claude-3-opus-20240229",
+    "model": "claude-sonnet-4-20250514",
     "promptTokens": 50,
     "completionTokens": 100,
     "totalTokens": 150,
@@ -522,7 +498,7 @@ Get detailed request information including payloads. Request and response bodies
     "id": "request-uuid",
     "timestamp": "2024-12-17T10:30:45.123Z",
     "method": "POST",
-    "path": "/v1/messages",
+    "path": "/v1/anthropic/v1/messages",
     "accountUsed": "account1",
     "statusCode": 200,
     "success": true,
@@ -555,6 +531,17 @@ Get detailed request information including payloads. Request and response bodies
 curl "http://localhost:8080/api/requests/detail?limit=10"
 ```
 
+#### GET /api/requests/stream
+
+Stream real-time request events via Server-Sent Events (SSE).
+
+**Response:** SSE stream with request events
+
+**Example:**
+```bash
+curl -N http://localhost:8080/api/requests/stream
+```
+
 ---
 
 ### Configuration
@@ -566,7 +553,7 @@ Get current configuration.
 **Response:**
 ```json
 {
-  "lb_strategy": "session",
+  "lbStrategy": "session",
   "port": 8080,
   "sessionDurationMs": 18000000
 }
@@ -650,7 +637,6 @@ Get detailed analytics data.
 - `range` - Time range: `1h`, `6h`, `24h`, `7d`, `30d` (default: `24h`)
 - `accounts` - Filter by account names (comma-separated list)
 - `models` - Filter by model names (comma-separated list)
-- `apiKeys` - Filter by API key names (comma-separated list)
 - `status` - Filter by request status: `all`, `success`, `error` (default: `all`)
 - `mode` - Display mode: `normal`, `cumulative` (default: `normal`). Cumulative mode shows running totals over time
 - `modelBreakdown` - Include per-model time series data: `true`, `false` (default: `false`)
@@ -697,9 +683,6 @@ Get detailed analytics data.
   "accountPerformance": [
     {"name": "account1", "requests": 2500, "successRate": 99}
   ],
-  "apiKeyPerformance": [
-    {"id": "key-123", "name": "Production App", "requests": 1500, "successRate": 99.5}
-  ],
   "costByModel": [
     {"model": "claude-3-opus-20240229", "costUsd": 100.50, "requests": 3000, "totalTokens": 1200000}
   ],
@@ -728,197 +711,70 @@ curl "http://localhost:8080/api/analytics?range=24h&accounts=account1,account2"
 # Analytics for specific models with success status only
 curl "http://localhost:8080/api/analytics?range=24h&models=claude-3-opus-20240229,claude-3-sonnet-20240229&status=success"
 
-# Analytics filtered by API keys
-curl "http://localhost:8080/api/analytics?range=24h&apiKeys=Production%20App,Development%20App"
-
-# Combined filters (accounts, models, API keys, and status)
-curl "http://localhost:8080/api/analytics?range=7d&accounts=premium1,premium2&models=claude-3-opus-20240229&apiKeys=Production%20App&status=error"
+# Combined filters
+curl "http://localhost:8080/api/analytics?range=7d&accounts=premium1,premium2&models=claude-3-opus-20240229&status=error"
 ```
 
 ---
 
-### Agent Management
+### Maintenance
 
-#### GET /api/agents
+#### POST /api/maintenance/cleanup
 
-List all available agents with their preferences.
+Run data cleanup based on configured retention settings.
+
+**Example:**
+```bash
+curl -X POST http://localhost:8080/api/maintenance/cleanup
+```
+
+#### POST /api/maintenance/compact
+
+Compact the database to reclaim disk space.
+
+**Example:**
+```bash
+curl -X POST http://localhost:8080/api/maintenance/compact
+```
+
+---
+
+### Data Retention
+
+#### GET /api/config/retention
+
+Get current data retention settings.
 
 **Response:**
 ```json
 {
-  "agents": [
-    {
-      "id": "agent-uuid",
-      "name": "code-reviewer",
-      "description": "Reviews code for quality and best practices",
-      "model": "claude-3-5-sonnet-20241022",
-      "source": "global",
-      "workspace": null
-    }
-  ],
-  "globalAgents": [...],
-  "workspaceAgents": [...],
-  "workspaces": [
-    {
-      "name": "my-workspace",
-      "path": "/path/to/workspace"
-    }
-  ]
+  "payloadDays": 7,
+  "requestDays": 30
 }
 ```
 
 **Example:**
 ```bash
-curl http://localhost:8080/api/agents
+curl http://localhost:8080/api/config/retention
 ```
 
-#### POST /api/agents/:agentId/preference
+#### POST /api/config/retention
 
-Update model preference for a specific agent.
+Update data retention settings.
 
 **Request:**
 ```json
 {
-  "model": "claude-3-5-sonnet-20241022"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "agentId": "agent-uuid",
-  "model": "claude-3-5-sonnet-20241022"
+  "payloadDays": 14,
+  "requestDays": 90
 }
 ```
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8080/api/agents/agent-uuid/preference \
+curl -X POST http://localhost:8080/api/config/retention \
   -H "Content-Type: application/json" \
-  -d '{"model": "claude-3-5-sonnet-20241022"}'
-```
-
-#### DELETE /api/agents/:agentId/preference
-
-Remove an agent's model preference, reverting it to its default (the agent's frontmatter model, or the session model if it has none).
-
-**Response:**
-```json
-{
-  "success": true,
-  "agentId": "agent-uuid",
-  "deleted": true
-}
-```
-
-**Example:**
-```bash
-curl -X DELETE http://localhost:8080/api/agents/agent-uuid/preference
-```
-
-#### PATCH /api/agents/:agentId
-
-Update an agent's configuration. Changes are written to the agent's `.md` file.
-
-**Request:** (all fields optional)
-```json
-{
-  "description": "Reviews code for quality and best practices",
-  "model": "claude-3-5-sonnet-20241022",
-  "tools": ["Read", "Edit"],
-  "color": "blue",
-  "systemPrompt": "You are a code reviewer...",
-  "mode": "edit"
-}
-```
-
-`model` accepts a valid model id, `null`, or the string `"inherit"` (case-insensitive); the latter two remove the `model:` key from the agent file so it inherits the session model. **Side effect:** including `model` in the request body at all — even to set it to `null` — clears the agent's runtime model preference (see `POST`/`DELETE /api/agents/:agentId/preference` above), so the two override mechanisms don't end up conflicting.
-
-**Response:**
-```json
-{
-  "success": true,
-  "agent": { ... }
-}
-```
-
-**Example:**
-```bash
-curl -X PATCH http://localhost:8080/api/agents/agent-uuid \
-  -H "Content-Type: application/json" \
-  -d '{"model": null}'
-```
-
-#### GET /api/workspaces
-
-List all available workspaces with agent counts.
-
-**Response:**
-```json
-{
-  "workspaces": [
-    {
-      "name": "my-workspace",
-      "path": "/path/to/workspace",
-      "agentCount": 5
-    }
-  ]
-}
-```
-
-**Example:**
-```bash
-curl http://localhost:8080/api/workspaces
-```
-
----
-
-### Model Catalog
-
-#### GET /api/models
-
-Return the cached Anthropic model catalog used to populate model dropdowns (dashboard agent/default-model selects). Returns the live catalog if a successful fetch has occurred (scheduled refresh, manual refresh, or passive capture from a proxied `GET /v1/models`); otherwise the bundled static fallback shipped with better-ccflare.
-
-**Response:**
-```json
-{
-  "models": [
-    { "id": "claude-sonnet-5", "displayName": "Claude Sonnet 5", "createdAt": "2026-01-15T00:00:00Z" }
-  ],
-  "fetchedAt": 1751270400000,
-  "source": "live"
-}
-```
-
-`source` is `"live"` when the catalog came from a real Anthropic response, or `"fallback"` when no live fetch has ever succeeded and the bundled model list is being served instead (`fetchedAt` is then the bundled list's snapshot date, not the current time — see [Model Catalog](configuration.md#model-catalog) in the configuration guide).
-
-**Example:**
-```bash
-curl http://localhost:8080/api/models
-```
-
-#### POST /api/models/refresh
-
-Force an immediate live model catalog refresh, bypassing the scheduled interval. Prefers a console/API-key account but falls back to an OAuth account if `BETTER_CCFLARE_MODELS_OAUTH_REFRESH` (or the equivalent config toggle) is enabled. Never throws — always returns `200` with the outcome, even on failure (e.g. no eligible account, network error).
-
-**Response:**
-```json
-{
-  "success": true,
-  "catalog": {
-    "models": [ ... ],
-    "fetchedAt": 1751270400000,
-    "source": "live"
-  }
-}
-```
-
-On failure, `success` is `false` and an `error` field describes the reason; `catalog` still reflects the current (unchanged) cached catalog.
-
-**Example:**
-```bash
-curl -X POST http://localhost:8080/api/models/refresh
+  -d '{"payloadDays": 14, "requestDays": 90}'
 ```
 
 ---
@@ -985,7 +841,7 @@ All API errors follow a consistent format:
 
 ### Rate Limiting
 
-When an account hits rate limits, better-ccflare automatically fails over to the next available account. If all accounts are rate limited, a 503 error is returned.
+When an account hits rate limits, ccflare automatically fails over to the next available account. If all accounts are rate limited, a 503 error is returned.
 
 Rate limit information is included in account responses:
 - `rateLimitStatus` - Current status (e.g., "allowed", "allowed_warning", "rate_limited")
@@ -1003,7 +859,7 @@ The proxy endpoints support streaming responses for compatible Claude API calls.
 3. Each chunk is delivered as a Server-Sent Event
 
 **Streaming Response Capture:**
-better-ccflare automatically captures streaming response bodies for analytics and debugging purposes:
+ccflare automatically captures streaming response bodies for analytics and debugging purposes:
 - Captured data is limited to `CF_STREAM_BODY_MAX_BYTES` (default: 256KB)
 - The capture process doesn't interfere with the client's stream
 - Captured bodies are stored base64-encoded in the request history
@@ -1011,11 +867,11 @@ better-ccflare automatically captures streaming response bodies for analytics an
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8080/v1/messages \
+curl -X POST http://localhost:8080/v1/anthropic/v1/messages \
   -H "Content-Type: application/json" \
   -H "anthropic-version: 2023-06-01" \
   -d '{
-    "model": "claude-3-opus-20240229",
+    "model": "claude-sonnet-4-20250514",
     "messages": [{"role": "user", "content": "Write a poem"}],
     "max_tokens": 100,
     "stream": true
@@ -1029,8 +885,7 @@ curl -X POST http://localhost:8080/v1/messages \
 A web dashboard is available at:
 
 ```
-http://localhost:8080/dashboard
-http://localhost:8080/          # Redirects to /dashboard
+http://localhost:8080/          # Dashboard
 ```
 
 The dashboard provides a visual interface for:
@@ -1045,7 +900,7 @@ The dashboard provides a visual interface for:
 
 ### Environment Variables
 
-better-ccflare can be configured using the following environment variables:
+ccflare can be configured using the following environment variables:
 
 - `PORT` - Server port (default: 8080)
 - `LB_STRATEGY` - Load balancing strategy (default: session)
@@ -1055,17 +910,12 @@ better-ccflare can be configured using the following environment variables:
 - `RETRY_ATTEMPTS` - Number of retry attempts for failed requests (default: 3)
 - `RETRY_DELAY_MS` - Initial delay between retries in milliseconds (default: 1000)
 - `RETRY_BACKOFF` - Exponential backoff multiplier for retries (default: 2)
-- `BETTER_CCFLARE_MODELS_REFRESH_HOURS` - Hours between scheduled model catalog refreshes, 0 disables scheduled refresh (default: 168 / 7 days). See [Model Catalog](configuration.md#model-catalog).
-- `BETTER_CCFLARE_MODELS_OFFLINE` - Disable scheduled/manual model catalog refresh and passive `/v1/models` capture (default: unset)
-- `BETTER_CCFLARE_MODELS_CACHE_DIR` - Directory for the persisted model catalog cache file (default: platform config dir)
-- `BETTER_CCFLARE_MODELS_OAUTH_REFRESH` - Allow OAuth accounts as a fallback source for manual model catalog refreshes (default: unset / console-only)
 
 ### Configuration File
 
-In addition to environment variables, better-ccflare supports configuration through a JSON file. The config file location varies by platform:
-- macOS: `~/Library/Application Support/better-ccflare/config.json`
-- Linux: `~/.config/better-ccflare/config.json`
-- Windows: `%APPDATA%\better-ccflare\config.json`
+In addition to environment variables, ccflare supports configuration through a JSON file. The config file location varies by platform:
+- macOS/Linux: `~/.config/ccflare/ccflare.json` (or `$XDG_CONFIG_HOME/ccflare/ccflare.json`)
+- Windows: `%LOCALAPPDATA%\ccflare\ccflare.json` (or `%APPDATA%\ccflare\ccflare.json`)
 
 **Supported Configuration Keys:**
 ```json
@@ -1092,21 +942,16 @@ The following strategy is available:
 
 ## Notes
 
-1. **No Authentication**: The API endpoints do not require authentication. better-ccflare manages the OAuth tokens internally for proxying to Claude.
+1. **No Authentication**: The API endpoints do not require authentication. ccflare manages the OAuth tokens internally for proxying to Claude.
 
-2. **Automatic Failover**: When a request fails or an account is rate limited, better-ccflare automatically tries the next available account. If no accounts are available, requests are forwarded without authentication as a fallback.
+2. **Automatic Failover**: When a request fails or an account is rate limited, ccflare automatically tries the next available account. If no accounts are available, requests are forwarded without authentication as a fallback.
 
 3. **Token Refresh**: Access tokens are automatically refreshed when they expire.
 
 4. **Request Logging**: All requests are logged with detailed metrics including tokens used, cost, and response times. Database writes are performed asynchronously to avoid blocking request processing.
 
-5. **Account Priority System**: Accounts can have different priority values (0-100) which determine their order in load balancing.
+5. **Session Affinity**: The "session" strategy maintains sticky sessions for consistent routing within a time window.
 
-6. **Session Affinity**: The "session" strategy maintains sticky sessions for consistent routing within a time window.
+6. **Rate Limit Tracking**: Rate limit information is automatically extracted from responses and stored for each account, including reset times and remaining requests.
 
-7. **Rate Limit Tracking**: Rate limit information is automatically extracted from responses and stored for each account, including reset times and remaining requests.
-
-8. **Provider Filtering**: Accounts are automatically filtered by provider when selecting for requests, ensuring compatibility.
-
----
-
+7. **Provider Filtering**: Accounts are automatically filtered by provider when selecting for requests, ensuring compatibility.

@@ -1,67 +1,58 @@
-import type { Account } from "@better-ccflare/types";
-import type { Provider, RateLimitInfo, TokenRefreshResult } from "./types";
+import { sanitizeProxyHeaders } from "@ccflare/http";
+import type { Account } from "@ccflare/types";
+import type { Provider, RateLimitInfo } from "./types";
+
+/**
+ * Headers that are provider-neutral transport artifacts and should always be
+ * removed before forwarding a request upstream.
+ */
+const TRANSPORT_HEADERS_TO_DELETE = [
+	"host",
+	"accept-encoding",
+	"content-encoding",
+] as const;
+
+/**
+ * Remove provider-neutral transport headers from a Headers object.
+ * Auth-specific headers (Authorization, x-api-key, anthropic-version, etc.)
+ * are NOT touched here -- those belong to the concrete providers.
+ */
+export function deleteTransportHeaders(headers: Headers): void {
+	for (const h of TRANSPORT_HEADERS_TO_DELETE) {
+		headers.delete(h);
+	}
+}
 
 export abstract class BaseProvider implements Provider {
 	abstract name: string;
+	abstract defaultBaseUrl: string;
 
 	/**
-	 * Check if this provider can handle the given request path
-	 * Default implementation: handle all paths
+	 * Build the target URL for the provider.
+	 * Default: trim trailing slashes from the base URL and append path + query.
+	 * Override only if a provider needs genuinely different URL construction.
 	 */
-	canHandle(_path: string): boolean {
-		return true;
+	buildUrl(upstreamPath: string, query: string, account?: Account): string {
+		const baseUrl = (account?.base_url ?? this.defaultBaseUrl).replace(
+			/\/+$/,
+			"",
+		);
+		return `${baseUrl}${upstreamPath}${query}`;
 	}
 
 	/**
-	 * Refresh the access token for an account
-	 * Must be implemented by each provider
+	 * Prepare headers for the provider request.
+	 * Default implementation: add Bearer auth from the account (if present)
+	 * and remove provider-neutral transport headers.
+	 * Subclasses should call super or use deleteTransportHeaders() to get the
+	 * transport cleanup, then layer on auth-specific headers.
 	 */
-	abstract refreshToken(
-		account: Account,
-		clientId: string,
-	): Promise<TokenRefreshResult>;
-
-	/**
-	 * Build the target URL for the provider
-	 * Must be implemented by each provider
-	 */
-	abstract buildUrl(path: string, query: string, account?: Account): string;
-
-	/**
-	 * Prepare headers for the provider request
-	 * Default implementation: Add Bearer token (if provided) and remove host header
-	 * @param headers - Original request headers
-	 * @param accessToken - OAuth access token (for Bearer authentication)
-	 * @param apiKey - API key (provider-specific header)
-	 */
-	prepareHeaders(
-		headers: Headers,
-		accessToken?: string,
-		_apiKey?: string,
-	): Headers {
+	prepareHeaders(headers: Headers, account: Account | null): Headers {
 		const newHeaders = new Headers(headers);
-
-		// SECURITY: Remove client's authorization header when we have provider credentials
-		// to prevent credential leakage. If no credentials provided (passthrough mode),
-		// preserve client's authorization for direct API access.
-		// Use explicit undefined checks to handle empty strings correctly.
-		if (accessToken !== undefined || _apiKey !== undefined) {
-			newHeaders.delete("authorization");
+		if (account?.access_token) {
+			newHeaders.set("Authorization", `Bearer ${account.access_token}`);
 		}
-
-		// Set provider-specific authorization
-		if (accessToken) {
-			newHeaders.set("Authorization", `Bearer ${accessToken}`);
-		}
-		// Note: API key handling is provider-specific and should be
-		// implemented in the provider subclass
-		newHeaders.delete("host");
-		// Strip internal proxy headers — never forward to upstream providers
-		for (const key of [...newHeaders.keys()]) {
-			if (key.startsWith("x-better-ccflare-")) {
-				newHeaders.delete(key);
-			}
-		}
+		deleteTransportHeaders(newHeaders);
 		return newHeaders;
 	}
 
@@ -114,33 +105,21 @@ export abstract class BaseProvider implements Provider {
 	}
 
 	/**
-	 * Process the response before returning to client
-	 * Default implementation: Return response as-is
+	 * Process the response before returning to client.
+	 * Default implementation: sanitize hop-by-hop proxy headers.
+	 * Override only if a provider needs custom response transformation.
 	 */
 	async processResponse(
 		response: Response,
 		_account: Account | null,
 	): Promise<Response> {
-		return response;
-	}
+		const headers = sanitizeProxyHeaders(response.headers);
 
-	/**
-	 * Transform the request body before sending to the provider
-	 * Default implementation: return original request
-	 */
-	async transformRequestBody(
-		request: Request,
-		_account?: Account,
-	): Promise<Request> {
-		return request;
-	}
-
-	/**
-	 * Extract tier information from response if available
-	 * Default implementation: Return null (no tier info)
-	 */
-	async extractTierInfo?(_response: Response): Promise<number | null> {
-		return null;
+		return new Response(response.body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers,
+		});
 	}
 
 	/**

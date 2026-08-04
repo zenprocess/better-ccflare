@@ -1,17 +1,56 @@
-import type { Config } from "@better-ccflare/config";
-import type { DatabaseOperations } from "@better-ccflare/database";
+import type { Config } from "@ccflare/config";
+import type { DatabaseOperations } from "@ccflare/database";
 import {
 	generatePKCE,
-	getOAuthProvider,
+	getOAuthProvider as getRegisteredOAuthProvider,
+	type OAuthProvider,
 	type OAuthProviderConfig,
 	type OAuthTokens,
 	type PKCEChallenge,
-} from "@better-ccflare/providers";
+} from "@ccflare/providers";
+import {
+	isOAuthProvider,
+	isRecord,
+	type OAuthProvider as OAuthFlowProvider,
+} from "@ccflare/types";
+
+export {
+	isOAuthProvider as isOAuthFlowProvider,
+	type OAuthProvider as OAuthFlowProvider,
+} from "@ccflare/types";
+
+/**
+ * Resolves the OAuthProvider implementation via the provider registry
+ * rather than hardcoding class constructors. The registry is populated
+ * at import time by @ccflare/providers.
+ */
+function getOAuthProviderForFlow(provider: OAuthFlowProvider): OAuthProvider {
+	const oauthProvider = getRegisteredOAuthProvider(provider);
+	if (!oauthProvider) {
+		throw new Error(
+			`No OAuth provider registered for '${provider}'. Ensure @ccflare/providers is imported.`,
+		);
+	}
+	return oauthProvider;
+}
+
+function getOAuthConfigForFlow(
+	provider: OAuthFlowProvider,
+	config: Config,
+	oauthProvider: OAuthProvider,
+): OAuthProviderConfig {
+	const oauthConfig = oauthProvider.getOAuthConfig();
+
+	if (provider === "claude-code") {
+		oauthConfig.clientId = config.getRuntime().clientId;
+	}
+
+	return oauthConfig;
+}
 
 export interface BeginOptions {
 	name: string;
-	mode: "claude-oauth" | "console";
-	skipAccountCheck?: boolean; // Skip account existence check for re-authentication
+	provider: OAuthFlowProvider;
 }
 
 export interface BeginResult {
@@ -19,55 +58,30 @@ export interface BeginResult {
 	authUrl: string;
 	pkce: PKCEChallenge;
 	oauthConfig: OAuthProviderConfig;
-	mode: "claude-oauth" | "console"; // Track mode to handle differently in complete()
 }
 
 export interface CompleteOptions {
 	sessionId: string;
 	code: string;
-	name: string; // Required to properly create the account
-	id?: string; // Account ID for re-authentication (UPDATE by id instead of name)
-	priority?: number;
-	customEndpoint?: string; // Custom API endpoint
+	name?: string;
 }
 
 export interface AccountCreated {
 	id: string;
 	name: string;
-	provider: "anthropic" | "claude-console-api";
-	authType: "oauth" | "api_key"; // Track authentication type
+	provider: OAuthFlowProvider;
+	authType: "oauth";
+}
+
+interface SessionState {
+	verifier: string;
+	state: string;
+	status: "pending" | "completed";
 }
 
 /**
- * SQLite surfaces a UNIQUE-constraint violation as an Error whose message
- * contains "UNIQUE constraint failed:". PostgreSQL (via Bun.SQL) surfaces
- * the same condition as SQLSTATE 23505 (unique_violation) on `.code`, with
- * a message that does NOT contain the SQLite string — so both must be
- * checked for this to work on either database backend.
- */
-const PG_UNIQUE_VIOLATION = "23505";
-
-function isUniqueConstraintError(error: unknown): boolean {
-	if (!(error instanceof Error)) return false;
-	if (error.message.includes("UNIQUE constraint failed")) return true;
-	const code = (error as { code?: string }).code;
-	return code === PG_UNIQUE_VIOLATION;
-}
-
-export interface OAuthFlowResult {
-	success: boolean;
-	message: string;
-	data?: AccountCreated;
-}
-
-/**
- * Handles the Anthropic OAuth flow for both "claude-oauth" and "console" authentication modes.
- *
- * - "claude-oauth" mode: Standard OAuth with refresh tokens for Claude CLI OAuth accounts
- * - "console" mode: OAuth flow that creates a static API key
- *
- * This class does not persist session data. The caller must handle storage
- * between {@link begin} and {@link complete} calls.
+ * Handles OAuth flows for OAuth-only providers and persists transient auth
+ * session state in the generic auth_sessions table.
  */
 export class OAuthFlow {
 	constructor(
@@ -76,333 +90,203 @@ export class OAuthFlow {
 	) {}
 
 	/**
-	 * Starts an Anthropic OAuth flow.
-	 *
-	 * The caller MUST persist the returned `sessionId`, `pkce.verifier`,
-	 * `mode`, and `tier` so that {@link complete} can validate the callback.
+	 * Starts an OAuth flow for an OAuth-only provider.
 	 *
 	 * @param opts - OAuth flow options
 	 * @param opts.name - Unique account name
-	 * @param opts.mode - Authentication mode ("claude-oauth" for Claude CLI OAuth, "console" for API key)
 	 * @returns OAuth flow data including auth URL and session info
 	 * @throws {Error} If account name already exists
 	 */
 	async begin(opts: BeginOptions): Promise<BeginResult> {
-		const { name, mode, skipAccountCheck = false } = opts;
+		const { name, provider } = opts;
 
-		// Check if account already exists (unless skipAccountCheck is true for re-authentication)
-		if (!skipAccountCheck) {
-			const existingAccounts = await this.dbOps.getAllAccounts();
-			if (existingAccounts.some((a) => a.name === name)) {
-				throw new Error(`Account with name '${name}' already exists`);
-			}
+		// Check if account already exists
+		if (this.dbOps.getAccountByName(name)) {
+			throw new Error(`Account with name '${name}' already exists`);
 		}
 
 		// Get OAuth provider
-		const oauthProvider = getOAuthProvider("anthropic");
-		if (!oauthProvider) {
-			throw new Error("Anthropic OAuth provider not found");
-		}
+		const oauthProvider = getOAuthProviderForFlow(provider);
 
 		// Generate PKCE challenge
 		const pkce = await generatePKCE();
 
-		// Get OAuth config with runtime client ID
-		const runtime = this.config.getRuntime();
-		const oauthConfig = oauthProvider.getOAuthConfig(mode);
-		oauthConfig.clientId = runtime.clientId;
+		// Get OAuth config with provider-specific client ID handling
+		const oauthConfig = getOAuthConfigForFlow(
+			provider,
+			this.config,
+			oauthProvider,
+		);
 
 		// Generate auth URL
 		const authUrl = oauthProvider.generateAuthUrl(oauthConfig, pkce);
 
-		// Create session ID for this OAuth flow
-		const sessionId = crypto.randomUUID();
+		const sessionState: SessionState = {
+			verifier: pkce.verifier,
+			state: pkce.verifier,
+			status: "pending",
+		};
 
-		// NOTE: OAuthFlow itself does not persist the session.
-		//       The caller (HTTP-API oauth-init handler) must
-		//       store {sessionId, verifier, mode, tier} – typically
-		//       via DatabaseOperations.createOAuthSession().
+		const sessionId = this.dbOps.createAuthSession(
+			provider,
+			"oauth",
+			name,
+			JSON.stringify(sessionState),
+			Date.now() + 10 * 60 * 1000,
+		);
 
 		return {
 			sessionId,
 			authUrl,
 			pkce,
 			oauthConfig,
-			mode,
 		};
 	}
 
 	/**
-	 * Completes the Anthropic OAuth flow after user authorization.
-	 *
-	 * Exchanges the authorization code for tokens and creates the account.
-	 * For "console" mode, creates an API key instead of storing OAuth tokens.
+	 * Completes the OAuth flow after user authorization.
 	 *
 	 * @param opts - Completion options
 	 * @param opts.sessionId - Session ID from {@link begin}
 	 * @param opts.code - Authorization code from OAuth callback
-	 * @param opts.tier - Account tier (1, 5, or 20)
 	 * @param opts.name - Account name (must match the one from begin)
-	 * @param flowData - Flow data returned from {@link begin}
 	 * @returns Created account information
 	 * @throws {Error} If OAuth provider not found or token exchange fails
 	 */
 	async complete(
 		opts: CompleteOptions,
-		flowData: BeginResult,
+		flowData?: BeginResult,
 	): Promise<AccountCreated> {
-		const { code, name, priority = 0, customEndpoint } = opts;
-
-		// Get OAuth provider
-		const oauthProvider = getOAuthProvider("anthropic");
-		if (!oauthProvider) {
-			throw new Error("Anthropic OAuth provider not found");
+		const { sessionId, code } = opts;
+		const authSession = this.dbOps.getAuthSession(sessionId);
+		if (!authSession) {
+			throw new Error("OAuth session expired or invalid. Please try again.");
 		}
 
-		// Exchange authorization code for tokens
-		const tokens = await oauthProvider.exchangeCode(
-			code,
-			flowData.pkce.verifier,
-			flowData.oauthConfig,
-		);
-
-		const accountId = crypto.randomUUID();
-
-		// Handle console mode - create API key
-		if (flowData.mode === "console" || !tokens.refreshToken) {
-			const apiKey = await this.createAnthropicApiKey(tokens.accessToken);
-			return await this.createAccountWithApiKey(
-				accountId,
-				name,
-				apiKey,
-				priority,
-				customEndpoint,
-			);
+		if (
+			!isOAuthProvider(authSession.provider) ||
+			authSession.authMethod !== "oauth"
+		) {
+			throw new Error("OAuth session expired or invalid. Please try again.");
 		}
 
-		// Handle claude-oauth mode - standard OAuth flow
-		return await this.createAccountWithOAuth(
-			accountId,
-			name,
-			tokens,
-			priority,
-			customEndpoint,
-		);
-	}
+		const sessionState = this.parseSessionState(authSession.stateJson);
+		const provider = authSession.provider;
+		const name = opts.name ?? authSession.accountName;
 
-	/**
-	 * Completes re-authentication for an existing Anthropic account.
-	 *
-	 * Exchanges the authorization code for tokens and UPDATEs the existing account
-	 * in place, preserving all metadata (stats, priority, settings).
-	 *
-	 * @param opts - Completion options (sessionId, code, name — the existing account name)
-	 * @param flowData - Flow data returned from {@link begin}
-	 * @throws {Error} If OAuth provider not found or token exchange fails
-	 */
-	async completeReauth(
-		opts: CompleteOptions,
-		flowData: BeginResult,
-	): Promise<void> {
-		const { code, id } = opts;
+		if (sessionState.status === "completed") {
+			const existingAccount = this.dbOps.getAccountByName(name);
 
-		if (!id) {
-			throw new Error("Account id is required for re-authentication");
-		}
-
-		// Get OAuth provider
-		const oauthProvider = getOAuthProvider("anthropic");
-		if (!oauthProvider) {
-			throw new Error("Anthropic OAuth provider not found");
-		}
-
-		// Exchange authorization code for tokens
-		const tokens = await oauthProvider.exchangeCode(
-			code,
-			flowData.pkce.verifier,
-			flowData.oauthConfig,
-		);
-
-		const adapter = this.dbOps.getAdapter();
-
-		// Handle console mode — create new API key and update account
-		if (flowData.mode === "console" || !tokens.refreshToken) {
-			const apiKey = await this.createAnthropicApiKey(tokens.accessToken);
-			await adapter.run(
-				`UPDATE accounts SET api_key = ?, requires_reauth = 0 WHERE id = ?`,
-				[apiKey, id],
-			);
-			return;
-		}
-
-		// Handle claude-oauth mode — update OAuth tokens in place
-		await adapter.run(
-			`UPDATE accounts SET refresh_token = ?, access_token = ?, expires_at = ?, refresh_token_issued_at = ?, requires_reauth = 0 WHERE id = ?`,
-			[
-				tokens.refreshToken,
-				tokens.accessToken,
-				tokens.expiresAt,
-				Date.now(),
-				id,
-			],
-		);
-	}
-
-	/**
-	 * Creates an API key using the Anthropic console endpoint.
-	 *
-	 * This is used for "console" mode accounts where users want a static API key
-	 * instead of OAuth tokens that need refreshing.
-	 *
-	 * @param accessToken - Temporary access token from OAuth flow
-	 * @returns The newly created API key
-	 * @throws {Error} If API key creation fails
-	 */
-	private async createAnthropicApiKey(accessToken: string): Promise<string> {
-		const response = await fetch(
-			"https://api.anthropic.com/api/oauth/claude_cli/create_api_key",
-			{
-				method: "POST",
-				headers: {
-					Authorization: `Bearer ${accessToken}`,
-					"Content-Type": "application/x-www-form-urlencoded",
-					Accept: "application/json, text/plain, */*",
-				},
-			},
-		);
-
-		if (!response.ok) {
-			throw new Error(`Failed to create API key: ${response.statusText}`);
-		}
-
-		const json = (await response.json()) as { raw_key: string };
-		return json.raw_key;
-	}
-
-	/**
-	 * Creates an account with OAuth tokens (claude-oauth mode).
-	 *
-	 * Stores refresh token, access token, and expiration for automatic token refresh.
-	 *
-	 * @param id - Unique account ID
-	 * @param name - Account name
-	 * @param tokens - OAuth tokens from token exchange
-	 * @param priority - Account priority
-	 * @param customEndpoint - Custom API endpoint (optional)
-	 * @returns Created account information
-	 */
-	private async createAccountWithOAuth(
-		id: string,
-		name: string,
-		tokens: OAuthTokens,
-		priority: number,
-		customEndpoint?: string,
-	): Promise<AccountCreated> {
-		const adapter = this.dbOps.getAdapter();
-
-		try {
-			await adapter.run(
-				`
-				INSERT INTO accounts (
-					id, name, provider, api_key, refresh_token, access_token, expires_at,
-					created_at, request_count, total_requests, priority, custom_endpoint,
-					refresh_token_issued_at
-				) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, 0, 0, ?, ?, ?)
-				`,
-				[
-					id,
-					name,
-					"anthropic",
-					tokens.refreshToken || "",
-					tokens.accessToken,
-					tokens.expiresAt,
-					Date.now(),
-					priority,
-					customEndpoint || null,
-					Date.now(),
-				],
-			);
-		} catch (insertErr) {
-			// The DB-level UNIQUE index
-			// (idx_accounts_unique_name_provider_endpoint) is the
-			// authoritative gate. begin() does a name-only pre-check
-			// (no provider/custom_endpoint) and `complete()` may run
-			// minutes later, so a concurrent OAuth completion or any
-			// other add path could claim the tuple between begin and
-			// complete. Surface the same "is already taken" message the
-			// http-api handlers use so the dashboard renders a uniform
-			// error.
-			if (isUniqueConstraintError(insertErr)) {
-				throw new Error(`Account name '${name}' is already taken`);
+			if (
+				existingAccount &&
+				existingAccount.provider === provider &&
+				existingAccount.auth_method === "oauth"
+			) {
+				return {
+					id: existingAccount.id,
+					name: existingAccount.name,
+					provider,
+					authType: "oauth",
+				};
 			}
-			throw insertErr;
+
+			throw new Error("OAuth session has already been completed.");
 		}
+
+		const resolvedFlowData =
+			flowData ??
+			this.createFlowDataFromSession(sessionId, provider, sessionState);
+
+		// Get OAuth provider
+		const oauthProvider = getOAuthProviderForFlow(provider);
+
+		// Exchange authorization code for tokens
+		const tokens = await oauthProvider.exchangeCode(
+			code,
+			resolvedFlowData.pkce.verifier,
+			resolvedFlowData.oauthConfig,
+		);
+
+		const account = this.createAccountWithOAuth(name, provider, tokens);
+		this.dbOps.updateAuthSessionState(
+			sessionId,
+			JSON.stringify({
+				...sessionState,
+				status: "completed",
+			} satisfies SessionState),
+			Date.now() + 5 * 60 * 1000,
+		);
+		return account;
+	}
+
+	private createFlowDataFromSession(
+		sessionId: string,
+		provider: OAuthFlowProvider,
+		sessionState: SessionState,
+	): BeginResult {
+		const oauthProvider = getOAuthProviderForFlow(provider);
+		const oauthConfig = getOAuthConfigForFlow(
+			provider,
+			this.config,
+			oauthProvider,
+		);
 
 		return {
-			id,
-			name,
-			provider: "anthropic",
-			authType: "oauth",
+			sessionId,
+			authUrl: "",
+			pkce: {
+				verifier: sessionState.verifier,
+				challenge: "",
+			},
+			oauthConfig,
 		};
 	}
 
-	/**
-	 * Creates an account with API key (console mode).
-	 *
-	 * Stores only the API key, no OAuth tokens. These accounts don't require
-	 * token refresh but cannot be refreshed if the API key is revoked.
-	 *
-	 * @param id - Unique account ID
-	 * @param name - Account name
-	 * @param apiKey - API key from Anthropic console
-	 * @param tier - Account tier (1, 5, or 20)
-	 * @param priority - Account priority
-	 * @param customEndpoint - Custom API endpoint (optional)
-	 * @returns Created account information
-	 */
-	private async createAccountWithApiKey(
-		id: string,
-		name: string,
-		apiKey: string,
-		priority: number,
-		customEndpoint?: string,
-	): Promise<AccountCreated> {
-		const adapter = this.dbOps.getAdapter();
-
+	private parseSessionState(stateJson: string): SessionState {
+		let parsed: unknown;
 		try {
-			await adapter.run(
-				`
-				INSERT INTO accounts (
-					id, name, provider, api_key, refresh_token, access_token, expires_at,
-					created_at, request_count, total_requests, priority, custom_endpoint
-				) VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, 0, 0, ?, ?)
-				`,
-				[
-					id,
-					name,
-					"claude-console-api",
-					apiKey,
-					Date.now(),
-					priority,
-					customEndpoint || null,
-				],
-			);
-		} catch (insertErr) {
-			// Same atomicity rationale as createAccountWithOAuth — the
-			// DB UNIQUE index is the authoritative gate, this catch
-			// only translates the error into the same wording the
-			// http-api handlers emit.
-			if (isUniqueConstraintError(insertErr)) {
-				throw new Error(`Account name '${name}' is already taken`);
-			}
-			throw insertErr;
+			parsed = JSON.parse(stateJson);
+		} catch {
+			throw new Error("OAuth session expired or invalid. Please try again.");
+		}
+
+		if (!isRecord(parsed) || typeof parsed.verifier !== "string") {
+			throw new Error("OAuth session expired or invalid. Please try again.");
+		}
+
+		if (typeof parsed.state !== "string") {
+			throw new Error("OAuth session expired or invalid. Please try again.");
+		}
+
+		if (parsed.status !== "pending" && parsed.status !== "completed") {
+			throw new Error("OAuth session expired or invalid. Please try again.");
 		}
 
 		return {
-			id,
+			verifier: parsed.verifier,
+			state: parsed.state,
+			status: parsed.status,
+		};
+	}
+
+	private createAccountWithOAuth(
+		name: string,
+		provider: OAuthFlowProvider,
+		tokens: OAuthTokens,
+	): AccountCreated {
+		const account = this.dbOps.createOAuthAccount({
 			name,
-			provider: "claude-console-api",
-			authType: "api_key",
+			provider,
+			accessToken: tokens.accessToken,
+			refreshToken: tokens.refreshToken ?? null,
+			expiresAt: tokens.expiresAt,
+		});
+
+		return {
+			id: account.id,
+			name: account.name,
+			provider,
+			authType: "oauth",
 		};
 	}
 }

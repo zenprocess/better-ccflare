@@ -1,4 +1,4 @@
-import type { Account } from "@better-ccflare/types";
+import type { Account } from "@ccflare/types";
 
 export interface TokenRefreshResult {
 	accessToken: string;
@@ -15,44 +15,30 @@ export interface RateLimitInfo {
 
 export interface Provider {
 	name: string;
+	defaultBaseUrl: string;
 
 	/**
-	 * Check if this provider can handle the given request path
+	 * Whether the provider supports websocket upgrades for the given upstream path.
 	 */
-	canHandle(path: string): boolean;
+	supportsWebSocket?(upstreamPath: string): boolean;
 
 	/**
 	 * Refresh the access token for an account
 	 */
-	refreshToken(account: Account, clientId: string): Promise<TokenRefreshResult>;
+	refreshToken?(
+		account: Account,
+		clientId: string,
+	): Promise<TokenRefreshResult>;
 
 	/**
 	 * Build the target URL for the provider
 	 */
-	buildUrl(path: string, query: string, account?: Account): string;
-
-	/**
-	 * Optional: Pre-process the request before building URL
-	 * This allows providers to extract information from the request body
-	 * before buildUrl is called (e.g., for including model in URL path)
-	 */
-	prepareRequest?(
-		request: Request,
-		requestBodyBuffer: ArrayBuffer | null,
-		account: Account,
-	): void;
+	buildUrl(upstreamPath: string, query: string, account?: Account): string;
 
 	/**
 	 * Prepare headers for the provider request
-	 * @param headers - Original request headers
-	 * @param accessToken - OAuth access token (for Bearer authentication)
-	 * @param apiKey - API key (provider-specific header)
 	 */
-	prepareHeaders(
-		headers: Headers,
-		accessToken?: string,
-		apiKey?: string,
-	): Headers;
+	prepareHeaders(headers: Headers, account: Account | null): Headers;
 
 	/**
 	 * Parse rate limit information from response
@@ -65,40 +51,12 @@ export interface Provider {
 	processResponse(
 		response: Response,
 		account: Account | null,
-		requestHeaders?: Headers,
 	): Promise<Response>;
-
-	/**
-	 * Transform the request body before sending to the provider
-	 */
-	transformRequestBody?(request: Request, account?: Account): Promise<Request>;
-
-	/**
-	 * Extract tier information from response if available
-	 */
-	extractTierInfo?(response: Response): Promise<number | null>;
 
 	/**
 	 * Extract usage information from response if available
 	 */
 	extractUsageInfo?(response: Response): Promise<{
-		model?: string;
-		promptTokens?: number;
-		completionTokens?: number;
-		totalTokens?: number;
-		costUsd?: number;
-		inputTokens?: number;
-		cacheReadInputTokens?: number;
-		cacheCreationInputTokens?: number;
-		outputTokens?: number;
-	} | null>;
-
-	/**
-	 * Parse usage information from streaming SSE response if available
-	 * This is called for streaming responses to extract usage from final SSE events
-	 * Falls back to extractUsageInfo for non-streaming responses
-	 */
-	parseUsage?(response: Response): Promise<{
 		model?: string;
 		promptTokens?: number;
 		completionTokens?: number;
@@ -123,11 +81,10 @@ export interface OAuthProviderConfig {
 	clientId: string;
 	scopes: string[];
 	redirectUri: string;
-	mode?: string;
 }
 
 export interface OAuthProvider {
-	getOAuthConfig(mode?: string, redirectUri?: string): OAuthProviderConfig;
+	getOAuthConfig(): OAuthProviderConfig;
 	exchangeCode(
 		code: string,
 		verifier: string,

@@ -1,12 +1,12 @@
 # Security Documentation
 
-**Last Security Review**: October 27, 2025
+**Last Security Review**: July 30, 2025
 
-This document outlines the security considerations, practices, and recommendations for the better-ccflare load balancer system.
+This document outlines the security considerations, practices, and recommendations for the ccflare load balancer system.
 
 ## ⚠️ Critical Security Notice
 
-**IMPORTANT**: better-ccflare is designed for local development and trusted environments. The current implementation has several security limitations:
+**IMPORTANT**: ccflare is designed for local development and trusted environments. The current implementation has several security limitations:
 
 1. **No Authentication**: All API endpoints and the dashboard are publicly accessible
 2. **Network Exposure**: Server binds to all interfaces (0.0.0.0) by default
@@ -45,7 +45,7 @@ Based on the latest security review, the following critical issues require immed
 
 ## Security Overview
 
-better-ccflare is a load balancer proxy that manages multiple OAuth accounts to distribute requests to the Claude API. The system handles sensitive authentication tokens and request/response data, requiring careful security considerations.
+ccflare is a load balancer proxy that manages multiple OAuth accounts to distribute requests to the Claude API. The system handles sensitive authentication tokens and request/response data, requiring careful security considerations.
 
 ### Key Security Components
 
@@ -63,7 +63,7 @@ better-ccflare is a load balancer proxy that manages multiple OAuth accounts to 
 1. **OAuth Tokens**: Refresh tokens and access tokens for Claude API access
 2. **Request Data**: User prompts and API request payloads
 3. **Response Data**: Claude's responses containing potentially sensitive information
-4. **Account Metadata**: Usage statistics, rate limit information, and priority data
+4. **Account Metadata**: Usage statistics, rate limit information, and account configuration data
 
 ### Threat Actors
 
@@ -107,15 +107,16 @@ generateAuthUrl(config: OAuthConfig, pkce: PKCEChallenge): string {
     // ...
 }
 
-// Session-based OAuth flow with secure verifier storage
+// Session-based OAuth flow with secure state storage
 // packages/database/src/migrations.ts
-CREATE TABLE IF NOT EXISTS oauth_sessions (
+CREATE TABLE IF NOT EXISTS auth_sessions (
     id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    auth_method TEXT NOT NULL,
     account_name TEXT NOT NULL,
-    verifier TEXT NOT NULL,  // PKCE verifier stored securely
-    mode TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    expires_at INTEGER NOT NULL  // Auto-cleanup of expired sessions
+    state_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
 )
 
 // Scopes requested from Anthropic
@@ -178,7 +179,7 @@ async function encryptToken(token: string, key: Buffer): Promise<EncryptedToken>
 ```
 
 #### 2. Key Management
-- Use environment variable for encryption key: `better-ccflare_ENCRYPTION_KEY`
+- Use environment variable for encryption key: `ccflare_ENCRYPTION_KEY`
 - Implement key derivation from master password
 - Consider integration with OS keychain/credential store
 
@@ -250,31 +251,16 @@ iptables -A INPUT -p tcp --dport 8080 -s 127.0.0.1 -j ACCEPT
 iptables -A INPUT -p tcp --dport 8080 -j DROP
 ```
 
-**✅ Implemented**: Server now supports the `BETTER_CCFLARE_HOST` environment variable for binding configuration:
+**Recommended Enhancement**: Modify the server to support a HOST environment variable:
 ```typescript
-// Implemented in apps/server/src/server.ts:480
-const hostname = process.env.BETTER_CCFLARE_HOST || "0.0.0.0"; // Allow binding configuration
-const serverConfig = {
+// Proposed server.ts modification
+const server = serve({
     port: runtime.port,
-    hostname,
-    idleTimeout: NETWORK.IDLE_TIMEOUT_MAX,
-    // ... rest of configuration
-};
-```
-
-**Usage Examples**:
-```bash
-# Bind to localhost only (secure)
-export BETTER_CCFLARE_HOST=127.0.0.1
-bun start
-
-# Bind to all interfaces (default - insecure)
-export BETTER_CCFLARE_HOST=0.0.0.0
-bun start
-
-# Bind to specific network interface
-export BETTER_CCFLARE_HOST=192.168.1.100
-bun start
+    hostname: process.env.HOST || "0.0.0.0", // Allow binding configuration
+    async fetch(req) {
+        // Handle requests
+    }
+});
 ```
 
 #### 2. Reverse Proxy Setup
@@ -282,7 +268,7 @@ bun start
 # Nginx configuration example
 server {
     listen 443 ssl http2;
-    server_name better-ccflare.internal;
+    server_name ccflare.internal;
     
     ssl_certificate /path/to/cert.pem;
     ssl_certificate_key /path/to/key.pem;
@@ -362,7 +348,7 @@ if (isStream && response.body) {
 }
 ```
 
-**Privacy Concerns**:
+**Privacy Concerns**: 
 - Full request/response bodies are stored, potentially containing sensitive information
 - Streaming responses are cloned and processed chunk by chunk in background workers
 - Chunks are accumulated in memory without explicit size limits in the worker process
@@ -370,42 +356,12 @@ if (isStream && response.body) {
 - Error payloads include full error details and request metadata
 - Asynchronous writes may delay data persistence
 
-**Recent Improvements (October 2025)**:
-- **Sensitive Data Redaction**: Error logging now automatically redacts API keys, tokens, passwords, and other sensitive patterns before logging
-- **Object Redaction**: Recursive redaction of objects with sensitive fields (value, apiKey, password, token)
-- **Pattern-based Redaction**: String-based redaction using regex patterns for sensitive data in error messages
-
 ### Storage Security Considerations
 
-1. **Base64 Encoding**: Request/response bodies are Base64 encoded; **optional AES-256-GCM encryption at rest is available** via the `PAYLOAD_ENCRYPTION_KEY` environment variable (see [Payload Encryption at Rest](#payload-encryption-at-rest) below)
-2. **Auth Header Stripping**: `authorization`, `x-api-key`, and `cookie` headers are stripped from persisted request payloads (`sanitizeRequestHeaders` in `packages/http-common/src/headers.ts`) so analytics rows never contain client credentials
-3. **Database File Access**: SQLite database file can be read by any process with file system access — encryption at rest mitigates this when enabled
-4. **No Body-Content Sanitization**: Sensitive patterns inside request/response **bodies** (API keys, passwords, PII) are not redacted
-5. **Unlimited Retention**: No automatic cleanup of old request payloads (configurable via `DATA_RETENTION_DAYS`)
-
-### Payload Encryption at Rest
-
-When `PAYLOAD_ENCRYPTION_KEY` is set to a 64-character hex string (32 bytes / AES-256), every payload row is encrypted with AES-256-GCM before being written to `request_payloads.json`.
-
-**Format**: `enc:` + base64(iv ‖ ciphertext ‖ authTag), where the 12-byte IV is generated per-encryption with `crypto.getRandomValues`.
-
-**Properties**:
-- **Authenticated**: GCM's auth tag detects tampering — wrong-key or modified-ciphertext reads throw rather than returning garbage
-- **Backward compatible**: Pre-encryption plaintext rows (no `enc:` prefix) pass through readers untouched
-- **Per-row IV**: Identical plaintexts produce different ciphertexts
-- **Loud failures**: Decrypting an encrypted row without a key configured throws (operator must notice misconfiguration)
-- **Bun worker safe**: `encryptPayload`/`decryptPayload` self-initialize, so workers (which have isolated module scopes) cannot accidentally write plaintext
-
-**Key management**:
-- Generate with `openssl rand -hex 32`
-- Back up the key alongside the database — losing it makes encrypted rows unreadable
-- Rotation requires a re-encrypt migration (not yet built)
-- The key is read from `process.env.PAYLOAD_ENCRYPTION_KEY` once per process and once per Bun worker
-
-**Threat model coverage**:
-- ✅ Stolen DB file (laptop, backup, container layer): payloads unreadable without the key
-- ✅ Read access to the SQLite file by another local user: same
-- ❌ Compromised process: the key is in process memory; encryption-at-rest is not a defense against memory dumps
+1. **Base64 Encoding**: Request/response bodies are Base64 encoded but not encrypted
+2. **Database File Access**: SQLite database file can be read by any process with file system access
+3. **No Data Sanitization**: Sensitive patterns (API keys, passwords, PII) are not redacted
+4. **Unlimited Retention**: No automatic cleanup of old request payloads
 
 ### PII Considerations
 
@@ -449,7 +405,7 @@ bun cli cleanup --type requests --force
 
 ### Current State
 - **No authentication required**: All endpoints are publicly accessible when network-reachable
-- **Dashboard**: Accessible without authentication at `/dashboard`
+- **Dashboard**: Accessible without authentication at `/`
 - **API endpoints**: All `/api/*` endpoints are unprotected
 - **No CORS headers**: The server does not set any CORS headers, effectively allowing requests from any origin
 - **No rate limiting**: Individual clients can make unlimited requests to API endpoints
@@ -465,36 +421,17 @@ bun cli cleanup --type requests --force
 
 #### 1. API Key Authentication
 ```typescript
-// ✅ IMPLEMENTED: API key authentication with timing attack prevention
-// Location: packages/types/src/api-key.ts:85-114
-async verifyApiKey(apiKey: string, hashedKey: string): Promise<boolean> {
-    try {
-        const [salt, hash] = hashedKey.split(":");
-        if (!salt || !hash) {
-            return false;
-        }
-
-        const candidateHash = this.crypto
-            .scryptSync(apiKey, salt, 64)
-            .toString("hex");
-
-        // Length validation before timing-safe comparison
-        if (candidateHash.length !== hash.length) {
-            return false;
-        }
-
-        // Constant-time comparison to prevent timing attacks
-        const candidateBuffer = Buffer.from(candidateHash, "utf8");
-        const storedBuffer = Buffer.from(hash, "utf8");
-
-        return this.crypto.timingSafeEqual(candidateBuffer, storedBuffer);
-    } catch (error) {
-        console.error(
-            "API key verification error:",
-            error instanceof Error ? error.message : "Unknown error",
-        );
-        return false;
-    }
+// Proposed middleware
+async function authenticateRequest(req: Request): Promise<boolean> {
+    const apiKey = req.headers.get('X-API-Key');
+    if (!apiKey) return false;
+    
+    const hashedKey = await crypto.subtle.digest(
+        'SHA-256', 
+        new TextEncoder().encode(apiKey)
+    );
+    
+    return timingSafeEqual(hashedKey, storedHashedKey);
 }
 ```
 
@@ -524,7 +461,7 @@ interface User {
 ### Deployment Checklist
 
 - [ ] **Network Configuration**
-  - [ ] ✅ Bind server to localhost only using `BETTER_CCFLARE_HOST=127.0.0.1`
+  - [ ] Bind server to localhost only
   - [ ] Configure firewall rules
   - [ ] Set up reverse proxy with TLS
   - [ ] Disable unnecessary network services
@@ -602,12 +539,12 @@ interface User {
 ## Common Security Pitfalls
 
 ### 1. Exposed Development Instance
-**Risk**: Running better-ccflare with default settings exposes it to the network
+**Risk**: Running ccflare with default settings exposes it to the network
 **Mitigation**: Always bind to localhost in development
 
 ### 2. Token in Logs
 **Risk**: OAuth tokens appearing in debug logs
-**Mitigation**: ✅ **FIXED** - Implemented comprehensive log sanitization with automatic redaction of sensitive patterns (API keys, tokens, passwords) in `packages/http-common/src/responses.ts`
+**Mitigation**: Implement log sanitization, never log full tokens
 
 ### 3. Shared Database Access
 **Risk**: Multiple users accessing the same SQLite database
@@ -653,40 +590,15 @@ function addSecurityHeaders(response: Response): Response {
 **Risk**: Predictable IDs or tokens
 **Mitigation**: Use crypto.randomUUID() and crypto.getRandomValues()
 
-### 9. Regular Expression Denial of Service (ReDoS)
-**Risk**: Complex regex patterns causing catastrophic backtracking on malicious inputs
-**Mitigation**: ✅ **FIXED** - Replaced polynomial regex with deterministic string-based parsing for system reminder removal in `packages/ui-common/src/parsers/parse-conversation.ts:50-78`
-
-### 10. Streaming Response Capture
+### 9. Streaming Response Capture
 **Risk**: Large streaming responses consuming excessive memory/storage
 **Mitigation**: Implement size limits in worker chunk accumulation; monitor memory usage for large streams
 
-### 11. Asynchronous Database Writes
+### 10. Asynchronous Database Writes
 **Risk**: Data loss if application crashes before async writes complete
 **Mitigation**: Graceful shutdown handlers ensure queue is flushed
 
-### 12. Timing Attacks on API Key Verification
-**Risk**: Attackers could use timing differences in string comparison to brute-force API keys
-**Mitigation**: ✅ **FIXED** - Implemented constant-time comparison using `crypto.timingSafeEqual()` with proper length validation and error handling in `packages/types/src/api-key.ts:85-114`
-
-**Implementation Details**:
-- Uses `crypto.timingSafeEqual()` for constant-time hash comparison
-- Length validation before comparison to optimize performance
-- Explicit UTF-8 encoding in Buffer conversion
-- Comprehensive error handling with secure fallback
-- Test coverage in `__tests__/api-auth.test.ts` including edge cases
-
 ## Recent Security Updates
-
-### Critical Security Fixes (October 28, 2025)
-- **Timing Attack Prevention**: Implemented constant-time comparison for API key verification using `crypto.timingSafeEqual()` to prevent brute-force attacks via timing analysis (`packages/types/src/api-key.ts:85-114`)
-- **API Key Verification Security**: Added length validation, explicit encoding, comprehensive error handling, and extensive test coverage for timing attack prevention (`__tests__/api-auth.test.ts`)
-
-### Critical Security Fixes (October 27, 2025)
-- **ReDoS Vulnerability Fix**: Replaced polynomial regex with deterministic string-based approach for system reminder parsing in `packages/ui-common/src/parsers/parse-conversation.ts:50-78`
-- **Sensitive Data Logging Fix**: Added comprehensive redaction for API keys, tokens, passwords, and other sensitive patterns in error logs (`packages/http-common/src/responses.ts:42-83`)
-- **GitHub Actions Security**: Implemented principle of least privilege in workflow permissions (`.github/workflows/release.yml`, `.github/workflows/docker-publish.yml`)
-- **Code Injection Prevention**: Fixed potential code injection vulnerabilities in Docker publishing workflow
 
 ### Response Header Sanitization (July 2025)
 - **Change**: Added `sanitizeProxyHeaders` utility function
@@ -702,10 +614,7 @@ function addSecurityHeaders(response: Response): Response {
 ### Session-Based OAuth Flow
 - **Change**: Migrated from direct account creation to session-based OAuth endpoints
 - **Security Benefit**: Improved PKCE flow with session management
-- **Implementation**: Stores verifier securely in oauth_sessions table with expiration
-
-### Agent-Based Model Selection
-- **Feature**: Added ability to override model selection based on agent preferences
+- **Implementation**: Stores OAuth session state securely in `auth_sessions` with expiration
 - **Security Consideration**: Model modifications are tracked in request metadata
 - **Implementation**: Intercepts and modifies request body before proxying
 
@@ -721,8 +630,8 @@ function addSecurityHeaders(response: Response): Response {
 
 ## Security Roadmap
 
-### ✅ Phase 1: Authentication & Access Control (Priority: CRITICAL)
-- ~~Implement API key authentication middleware~~
+### Phase 1: Authentication & Access Control (Priority: CRITICAL)
+- Implement API key authentication middleware
 - Add rate limiting per client/IP
 - Implement CORS headers with proper origin restrictions
 - Add audit logging for all API access
@@ -759,15 +668,14 @@ function addSecurityHeaders(response: Response): Response {
 # Logging and Debugging
 LOG_LEVEL=INFO                  # Set to ERROR in production
 LOG_FORMAT=json                 # Use json for structured logging
-better-ccflare_DEBUG=0            # Set to 1 only for debugging
+ccflare_DEBUG=0            # Set to 1 only for debugging
 
 # Configuration
-better-ccflare_CONFIG_PATH=/path/to/config.json  # Custom config location
+ccflare_CONFIG_PATH=/path/to/config.json  # Custom config location
 CLIENT_ID=your-client-id       # OAuth client ID
 
 # Server Configuration
 PORT=8080                      # Server port
-BETTER_CCFLARE_HOST=0.0.0.0   # Server binding host (use 127.0.0.1 for localhost-only)
 LB_STRATEGY=session           # Load balancing strategy
 
 # Retry Configuration
@@ -822,14 +730,14 @@ SESSION_DURATION_MS=18000000 # Session duration (5 hours)
 grep -v "127.0.0.1\|::1" access.log
 
 # Monitor for high request volumes
-sqlite3 better-ccflare.db "SELECT COUNT(*) as count, account_used 
+sqlite3 ccflare.db "SELECT COUNT(*) as count, account_used 
 FROM requests 
 WHERE timestamp > strftime('%s', 'now', '-1 hour') * 1000 
 GROUP BY account_used 
 ORDER BY count DESC"
 
 # Check for configuration changes
-sqlite3 better-ccflare.db "SELECT * FROM audit_log WHERE action LIKE '%config%'"
+sqlite3 ccflare.db "SELECT * FROM audit_log WHERE action LIKE '%config%'"
 ```
 
 ### Incident Response
@@ -838,7 +746,7 @@ sqlite3 better-ccflare.db "SELECT * FROM audit_log WHERE action LIKE '%config%'"
    - Immediately pause affected accounts via API
    - Rotate OAuth tokens through Anthropic console
    - Review request logs for unauthorized usage
-   - Update tokens in better-ccflare
+   - Update tokens in ccflare
 
 2. **Unauthorized Access**
    - Implement firewall rules immediately
@@ -905,7 +813,7 @@ curl -I http://localhost:8080/api/health
 Security is an ongoing process. This documentation should be reviewed and updated regularly as the system evolves and new threats emerge. All contributors should familiarize themselves with these security considerations and follow the best practices outlined above.
 
 ### Key Takeaways
-1. **better-ccflare prioritizes functionality over security** - suitable for development, not production
+1. **ccflare prioritizes functionality over security** - suitable for development, not production
 2. **Network isolation is critical** - always restrict access to trusted networks
 3. **Token security requires enhancement** - implement encryption for production use
 4. **Authentication is missing** - all endpoints are currently public

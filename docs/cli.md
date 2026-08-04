@@ -1,6 +1,6 @@
-# better-ccflare CLI Documentation
+# ccflare CLI Documentation
 
-The better-ccflare CLI provides a command-line interface for managing OAuth accounts, monitoring usage statistics, and controlling the load balancer.
+The ccflare CLI provides a command-line interface for managing OAuth accounts, monitoring usage statistics, and controlling the load balancer.
 
 ## Table of Contents
 
@@ -8,7 +8,6 @@ The better-ccflare CLI provides a command-line interface for managing OAuth acco
 - [Global Options and Help](#global-options-and-help)
 - [Command Reference](#command-reference)
   - [Account Management](#account-management)
-  - [Account Priorities](#account-priorities)
   - [Statistics and History](#statistics-and-history)
   - [System Commands](#system-commands)
   - [Server and Monitoring](#server-and-monitoring)
@@ -28,8 +27,8 @@ The better-ccflare CLI provides a command-line interface for managing OAuth acco
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/tombii/better-ccflare.git
-cd better-ccflare
+git clone https://github.com/snipe-code/ccflare.git
+cd ccflare
 ```
 
 2. Install dependencies:
@@ -44,23 +43,19 @@ bun run build
 
 4. Run the CLI:
 ```bash
-bun run cli [command]
-# or if globally installed:
-better-ccflare [command]
+ccflare [options]
 ```
 
 ### First-time Setup
 
 1. Add your first OAuth account:
 ```bash
-bun run cli --add-account myaccount --mode claude-oauth --priority 0
+ccflare --add-account myaccount
 ```
 
 2. Start the load balancer server:
 ```bash
-bun run cli --serve
-# or just:
-bun start
+ccflare --serve
 ```
 
 ## Global Options and Help
@@ -70,21 +65,21 @@ bun start
 Display all available commands and options:
 
 ```bash
-bun run cli --help
+ccflare --help
 ```
 
 Or use the short form:
 
 ```bash
-bun run cli -h
+ccflare -h
 ```
 
 ### Help Output Format
 
 ```
-🎯 better-ccflare - Load Balancer for Claude
+🎯 ccflare - Multi-provider Load Balancer
 
-Usage: better-ccflare [options]
+Usage: ccflare [options]
 
 Options:
   --serve              Start API server with dashboard
@@ -92,22 +87,18 @@ Options:
   --logs [N]           Stream latest N lines then follow
   --stats              Show statistics (JSON output)
   --add-account <name> Add a new account
-    --mode <claude-oauth|console>  Account mode (default: claude-oauth)
-    --priority <number>    Account priority (0-100, default: 0)
+    --provider <anthropic|openai|claude-code|codex>  Account provider (required)
   --list               List all accounts
   --remove <name>      Remove an account
-  --force-reset-rate-limit <name> Force-clear stale rate-limit lock fields for an account
   --pause <name>       Pause an account
   --resume <name>      Resume an account
-  --set-priority <name> <priority> Set account priority (0-100)
   --analyze            Analyze database performance
-  --repair-db          Check and repair database integrity
   --reset-stats        Reset usage statistics
   --clear-history      Clear request history
   --help, -h           Show this help message
 
-Default Mode:
-  bun run cli             Start server (default behavior)
+Interactive Mode:
+  ccflare          Launch interactive TUI (default)
 ```
 
 ## Command Reference
@@ -116,35 +107,22 @@ Default Mode:
 
 #### `--add-account <name>`
 
-Add a new OAuth account to the load balancer pool.
+Add a new account to the load balancer pool.
 
 **Syntax:**
 ```bash
-bun run cli --add-account <name> --mode <claude-oauth|console|codex|qwen|xai|zai|minimax|anthropic-compatible|openai-compatible> --priority <number>
+ccflare --add-account <name> --provider <anthropic|openai|claude-code|codex>
 ```
 
-**Note:** All flags must be provided explicitly as the CLI requires explicit parameters.
+**Options:**
+- `--provider`: Target provider. API-key providers prompt for a key; OAuth providers start a browser flow.
 
-**Required Options:**
-- `--mode`: Account type (required)
-  - `claude-oauth`: Claude CLI OAuth account
-  - `console`: Claude API account
-  - `codex`: Codex/OpenAI account (OAuth)
-  - `qwen`: Qwen account (OAuth device code)
-  - `xai`: xAI/Grok account (imports local Grok CLI OAuth credentials from `~/.grok/auth.json`; token values are never displayed). xAI refresh tokens may rotate, so if you keep using Grok CLI separately, re-authenticate or refresh Grok CLI after importing so each tool has a fresh token chain. Per-request token usage is recorded from responses, and Grok Build credits usage is polled via grok.com gRPC-web for dashboard bars.
-  - `zai`: z.ai account (API key)
-  - `openai-compatible`: OpenAI-compatible provider (API key)
-- `--priority`: Account priority (optional, defaults to 0)
-  - Range: 0-100
-  - Lower numbers indicate higher priority in load balancing
-
-**Account Setup Process:**
-1. Execute command with all required flags
-2. For OAuth accounts (claude-oauth/console), opens browser for authentication
-3. Waits for OAuth callback on localhost:7856
-4. For xAI/Grok accounts, imports existing Grok CLI OAuth credentials from `~/.grok/auth.json` without printing token values
-5. For API key accounts (zai/openai-compatible), prompts for API key
-6. Stores account credentials securely in the database
+**Interactive Flow:**
+1. Validates the provider
+2. For API-key providers, prompts for the API key
+3. For OAuth providers, opens a browser to start the OAuth flow
+4. Exchanges the returned authorization code for tokens
+5. Stores the account credentials in the database
 
 #### `--list`
 
@@ -152,14 +130,15 @@ Display all configured accounts with their current status.
 
 **Syntax:**
 ```bash
-bun run cli --list
+ccflare --list
 ```
 
 **Output Format:**
 ```
 Accounts:
-  - account1 (claude-oauth mode, priority 10)
-  - account2 (console mode, priority 5)
+  Name                Provider      Auth Method   Weight  Status
+  work-account        anthropic     api_key       1       ok
+  claude-work         claude-code   oauth         1       ok
 ```
 
 #### `--remove <name>`
@@ -168,13 +147,13 @@ Remove an account from the configuration.
 
 **Syntax:**
 ```bash
-bun run cli --remove <name>
+ccflare --remove <name>
 ```
 
 **Behavior:**
 - Removes account from database immediately
 - Cleans up associated session data
-- Account removal is immediate with no confirmation prompts
+- For confirmation prompts, use the older `ccflare-cli remove <name>` command
 
 #### `--pause <name>`
 
@@ -182,7 +161,7 @@ Temporarily exclude an account from the load balancer rotation.
 
 **Syntax:**
 ```bash
-bun run cli --pause <name>
+ccflare --pause <name>
 ```
 
 **Use Cases:**
@@ -190,62 +169,13 @@ bun run cli --pause <name>
 - Manual rate limit management
 - Maintenance or debugging
 
-#### `--force-reset-rate-limit <name>`
-
-Force-clear a potentially stale account rate-limit lock.
-
-**Syntax:**
-```bash
-bun run cli --force-reset-rate-limit <name>
-```
-
-**What it does:**
-- Clears `rate_limited_until`
-- Clears `rate_limit_reset`
-- Clears `rate_limit_status`
-- Clears `rate_limit_remaining`
-- Attempts to trigger immediate usage polling on running local servers
-
 #### `--resume <name>`
 
 Re-enable a paused account for load balancing.
 
 **Syntax:**
 ```bash
-bun run cli --resume <name>
-```
-
-### Account Priorities
-
-#### `--set-priority <name> <priority>`
-
-Set or update the priority of an account. Accounts with lower priority numbers are preferred in the load balancing algorithm.
-
-**Syntax:**
-```bash
-bun run cli --set-priority <name> <priority>
-```
-
-**Parameters:**
-- `name`: Account name to update
-- `priority`: Priority value (0-100, where lower numbers indicate higher priority)
-
-**How Priorities Work:**
-- Accounts with lower priority numbers are selected first
-- Default priority is 0 if not specified
-- Priority affects both primary account selection and fallback order
-- Changes take effect immediately without restarting the server
-
-**Example:**
-```bash
-# Set account to high priority (low number)
-bun run cli --set-priority production-account 10
-
-# Set account to medium priority
-bun run cli --set-priority development-account 50
-
-# Set account to low priority (high number)
-bun run cli --set-priority backup-account 90
+ccflare --resume <name>
 ```
 
 ### Statistics and History
@@ -256,7 +186,7 @@ Display current statistics in JSON format.
 
 **Syntax:**
 ```bash
-bun run cli --stats
+ccflare --stats
 ```
 
 **Output:**
@@ -268,7 +198,7 @@ Reset request counters for all accounts.
 
 **Syntax:**
 ```bash
-bun run cli --reset-stats
+ccflare --reset-stats
 ```
 
 **Effects:**
@@ -282,7 +212,7 @@ Remove all request history records.
 
 **Syntax:**
 ```bash
-bun run cli --clear-history
+ccflare --clear-history
 ```
 
 **Effects:**
@@ -298,7 +228,7 @@ Analyze database performance and index usage.
 
 **Syntax:**
 ```bash
-bun run cli --analyze
+ccflare --analyze
 ```
 
 **Output:**
@@ -306,71 +236,19 @@ bun run cli --analyze
 - Index usage statistics
 - Query optimization suggestions
 
-#### `--repair-db`
+#### Interactive Terminal UI (TUI)
 
-Check and repair database integrity issues.
-
-**Syntax:**
-```bash
-bun run cli --repair-db
-```
-
-**What it does:**
-- Runs `PRAGMA integrity_check` to verify database health
-- Detects and fixes NULL values in numeric fields
-- Validates foreign key constraints
-- Vacuums database to reclaim space and rebuild structure
-- Optimizes database with `ANALYZE` and `PRAGMA optimize`
-
-**When to use:**
-- After encountering "All accounts failed" errors
-- When you suspect database corruption
-- If you see database-related error messages
-- As part of regular maintenance
-
-**Example output:**
-```
-🔧 BETTER-CCFLARE DATABASE REPAIR
-══════════════════════════════════════════════════
-
-🔍 Checking database integrity...
-✅ Database integrity check: PASSED
-
-🔍 Checking for NULL values in account fields...
-⚠️  Found NULL values in account fields:
-   - request_count: 3
-   - total_requests: 2
-   - session_request_count: 1
-
-🔧 Fixing NULL values...
-✅ Fixed 3 account records with NULL values
-
-✅ Database vacuumed successfully
-✅ Database optimized successfully
-
-DATABASE REPAIR SUMMARY
-══════════════════════════════════════════════════
-📊 Results:
-   Integrity Check: ✅ PASSED
-   NULL Values Fixed: 3
-   Database Vacuumed: ✅ YES
-
-✅ Database is healthy!
-```
-
-**Exit codes:**
-- `0`: Success (database healthy or repaired)
-- `1`: Critical errors require manual intervention
-
-#### Default Behavior
-
-When no command is specified, the CLI starts the server by default:
+Launch the interactive terminal interface (default mode):
 
 ```bash
-bun run cli
-# Equivalent to:
-bun run cli --serve
+ccflare
 ```
+
+**Features:**
+- Real-time account monitoring
+- Request logs viewing
+- Performance analytics
+- Interactive account management
 
 ### Server and Monitoring
 
@@ -380,7 +258,7 @@ Start the API server with dashboard.
 
 **Syntax:**
 ```bash
-bun run cli --serve [--port <number>]
+ccflare --serve [--port <number>]
 ```
 
 **Options:**
@@ -388,7 +266,7 @@ bun run cli --serve [--port <number>]
 
 **Access:**
 - API endpoint: `http://localhost:8080`
-- Dashboard: `http://localhost:8080/dashboard`
+- Dashboard: `http://localhost:8080`
 
 #### `--logs [N]`
 
@@ -396,7 +274,7 @@ Stream request logs in real-time.
 
 **Syntax:**
 ```bash
-bun run cli --logs [N]
+ccflare --logs [N]
 ```
 
 **Options:**
@@ -405,10 +283,10 @@ bun run cli --logs [N]
 **Examples:**
 ```bash
 # Stream live logs only
-bun run cli --logs
+ccflare --logs
 
 # Show last 50 lines then stream
-bun run cli --logs 50
+ccflare --logs 50
 ```
 
 ## Usage Examples
@@ -416,122 +294,113 @@ bun run cli --logs 50
 ### Basic Account Setup
 
 ```bash
-# Add a Claude CLI OAuth account with high priority (low number)
-bun run cli --add-account work-account --mode claude-oauth --priority 10
+# Add an Anthropic API key account
+ccflare --add-account work-account --provider anthropic
 
-# Add a Console account with medium priority
-bun run cli --add-account personal-account --mode console --priority 50
-
-# Add a backup account with low priority (high number)
-bun run cli --add-account backup-account --mode claude-oauth --priority 90
+# Start a Claude Code OAuth flow
+ccflare --add-account personal-account --provider claude-code
 
 # List all accounts
-bun run cli --list
-
-# Update account priority
-bun run cli --set-priority backup-account 20
+ccflare --list
 
 # View statistics
-bun run cli --stats
+ccflare --stats
 ```
 
 ### Server Operations
 
 ```bash
 # Start server on default port
-bun run cli --serve
-# or simply:
-bun start
+ccflare --serve
 
 # Start server on custom port
-bun run cli --serve --port 3000
+ccflare --serve --port 3000
 
 # Stream logs
-bun run cli --logs
+ccflare --logs
 
 # View last 100 lines then stream
-bun run cli --logs 100
+ccflare --logs 100
 ```
 
 ### Managing Rate Limits
 
 ```bash
 # Pause account hitting rate limits
-bun run cli --pause work-account
-
-# Force-clear stale rate-limit lock
-bun run cli --force-reset-rate-limit work-account
+ccflare --pause work-account
 
 # Resume after cooldown
-bun run cli --resume work-account
+ccflare --resume work-account
 
 # Reset statistics for fresh start
-bun run cli --reset-stats
+ccflare --reset-stats
 ```
 
 ### Maintenance Operations
 
 ```bash
 # Remove account
-bun run cli --remove old-account
+ccflare --remove old-account
 
 # Clear old request logs
-bun run cli --clear-history
+ccflare --clear-history
 
 # Analyze database performance
-bun run cli --analyze
+ccflare --analyze
+```
 
-# Repair database if you encounter errors
-bun run cli --repair-db
+### Interactive Mode
+
+```bash
+# Launch interactive TUI (default)
+ccflare
+
+# TUI launches with auto-started server
+# Navigate with arrow keys, tab between sections
 ```
 
 ### Automation Examples
 
 ```bash
-# Add multiple accounts with different priorities
-bun run cli --add-account "primary-account" --mode max --priority 10
-bun run cli --add-account "secondary-account" --mode max --priority 50
-bun run cli --add-account "backup-account" --mode max --priority 90
+# Add multiple accounts via script
+for i in {1..3}; do
+  ccflare --add-account "account-$i" --provider anthropic
+done
 
 # Monitor account status
-watch -n 5 'bun run cli --list'
+watch -n 5 'ccflare --list'
 
 # Automated cleanup
-bun run cli --clear-history && bun run cli --reset-stats
+ccflare --clear-history && ccflare --reset-stats
 
 # Export statistics for monitoring
-bun run cli --stats > stats.json
-
-# Prioritize specific account temporarily
-bun run cli --set-priority primary-account 5
-# ... run important workload ...
-bun run cli --set-priority primary-account 10  # Restore normal priority
+ccflare --stats > stats.json
 ```
 
 ## Configuration
 
 ### Configuration File Location
 
-better-ccflare stores its configuration in platform-specific directories:
+ccflare stores its configuration in platform-specific directories:
 
 #### macOS/Linux
 ```
-~/.config/better-ccflare/better-ccflare.json
+~/.config/ccflare/ccflare.json
 ```
 
 Or if `XDG_CONFIG_HOME` is set:
 ```
-$XDG_CONFIG_HOME/better-ccflare/better-ccflare.json
+$XDG_CONFIG_HOME/ccflare/ccflare.json
 ```
 
 #### Windows
 ```
-%LOCALAPPDATA%\better-ccflare\better-ccflare.json
+%LOCALAPPDATA%\ccflare\ccflare.json
 ```
 
 Or fallback to:
 ```
-%APPDATA%\better-ccflare\better-ccflare.json
+%APPDATA%\ccflare\ccflare.json
 ```
 
 ### Configuration Structure
@@ -551,8 +420,8 @@ Or fallback to:
 ### Database Location
 
 The SQLite database follows the same directory structure:
-- **macOS/Linux**: `~/.config/better-ccflare/better-ccflare.db`
-- **Windows**: `%LOCALAPPDATA%\better-ccflare\better-ccflare.db`
+- **macOS/Linux**: `~/.config/ccflare/ccflare.db`
+- **Windows**: `%LOCALAPPDATA%\ccflare\ccflare.db`
 
 ## Environment Variables
 
@@ -560,8 +429,8 @@ The SQLite database follows the same directory structure:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `better-ccflare_CONFIG_PATH` | Override config file location | Platform default |
-| `better-ccflare_DB_PATH` | Override database location | Platform default |
+| `ccflare_CONFIG_PATH` | Override config file location | Platform default |
+| `ccflare_DB_PATH` | Override database location | Platform default |
 | `PORT` | Server port | 8080 |
 | `CLIENT_ID` | OAuth client ID | 9d1c250a-e61b-44d9-88ed-5944d1962f5e |
 
@@ -591,14 +460,13 @@ The SQLite database follows the same directory structure:
 |----------|-------------|---------|
 | `LOG_LEVEL` | Log verbosity (DEBUG/INFO/WARN/ERROR) | INFO |
 | `LOG_FORMAT` | Output format (pretty/json) | pretty |
-| `better-ccflare_DEBUG` | Enable debug mode (1/0) - enables console output | 0 |
+| `ccflare_DEBUG` | Enable debug mode (1/0) - enables console output | 0 |
 
 ### Pricing and Features
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `CF_PRICING_REFRESH_HOURS` | Pricing cache duration | 24 |
-| `CF_PRICING_OFFLINE` | Offline mode flag (1/0) | 0 |
 
 ## Troubleshooting
 
@@ -638,12 +506,12 @@ The SQLite database follows the same directory structure:
 **Problem**: "Database is locked" or corruption errors
 
 **Solutions**:
-1. Stop all better-ccflare processes
+1. Stop all ccflare processes
 2. Check file permissions on database
 3. Backup and recreate if corrupted:
    ```bash
-   cp ~/.config/better-ccflare/better-ccflare.db ~/.config/better-ccflare/better-ccflare.db.backup
-   rm ~/.config/better-ccflare/better-ccflare.db
+   cp ~/.config/ccflare/ccflare.db ~/.config/ccflare/ccflare.db.backup
+   rm ~/.config/ccflare/ccflare.db
    ```
 
 ### Debug Mode
@@ -652,14 +520,14 @@ Enable detailed logging for troubleshooting:
 
 ```bash
 # Enable debug logging
-export BETTER_CCFLARE_DEBUG=1
+export ccflare_DEBUG=1
 export LOG_LEVEL=DEBUG
 
 # Run with verbose output
-bun run cli --list
+ccflare --list
 
 # Stream debug logs
-bun run cli --logs
+ccflare --logs
 ```
 
 ### Getting Support
@@ -674,26 +542,23 @@ bun run cli --logs
 1. **Regular Maintenance**
    - Clear history periodically to manage database size
    - Reset stats monthly for accurate metrics
-   - Monitor account health with regular `bun run cli --list` commands
-   - Use `bun run cli --analyze` to optimize database performance
+   - Monitor account health with regular `ccflare --list` commands
+   - Use `ccflare --analyze` to optimize database performance
 
 2. **Account Management**
    - Use descriptive account names
    - Distribute load across multiple accounts
-   - Use account priorities to control load distribution:
-     - Set lower priority numbers for premium or preferred accounts
-     - Use higher priority numbers for backup or development accounts
-     - Adjust priorities temporarily for specific workloads
+   - Keep accounts of similar tiers for consistent performance
    - Pause accounts proactively when approaching rate limits
 
 3. **Security**
    - Protect configuration directory permissions
    - Don't share OAuth tokens or session data
    - Rotate accounts periodically
-   - Monitor logs with `bun run cli --logs` for suspicious activity
+   - Monitor logs with `ccflare --logs` for suspicious activity
 
 4. **Performance**
-   - Use accounts with higher rate limits for heavy workloads
+   - Use multiple accounts to spread traffic and absorb rate limits
    - Implement client-side retry logic
-   - Monitor rate limit patterns with `bun run cli --stats`
-   - Run server with `bun run cli --serve` for production use
+   - Monitor rate limit patterns with `ccflare --stats`
+   - Run server with `ccflare --serve` for production use

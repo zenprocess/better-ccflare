@@ -1,26 +1,32 @@
 {
 	"private": true,
-	"name": "better-ccflare",
-	"description": "A load balancer proxy for Claude Code with intelligent load balancing across multiple accounts",
+	"name": "ccflare",
 	"workspaces": [
 		"apps/*",
 		"packages/*"
 	],
 	"scripts": {
-		"better-ccflare": "bun run build && bun run cli",
-		"cli": "bun run apps/cli/src/main.ts",
-		"dev": "bun run cli",
+		"ccflare": "bun run build:clients && bun run tui",
+		"tui": "bun run apps/tui/src/main.ts",
+		"dev": "bun run tui",
 		"start": "bun run apps/server/src/server.ts",
 		"server": "bun run apps/server/src/server.ts",
 		"dev:server": "bun run --hot apps/server/src/server.ts",
-		"dev:dashboard": "bun --hot packages/dashboard-web/src/index.tsx",
-		"typecheck": "bunx tsc --noEmit",
-		"test": "bun test",
-		"test:cli": "bun test apps/cli/__tests__",
-		"build": "echo \"🏗️  Building better-ccflare v$(node -p \"require('./package.json').version\")\" && bun run build:dashboard && bun run build:cli",
-		"build:dashboard": "bun run --cwd packages/dashboard-web build",
-		"build:cli": "bun run --cwd apps/cli build",
+		"desktop": "bun run --cwd apps/desktop start",
+		"dev:desktop": "bun run --cwd apps/desktop dev:watch",
+		"dev:dashboard": "bun run --cwd apps/web dev",
+		"typecheck": "for d in packages/*/tsconfig.json apps/*/tsconfig.json; do echo \"typechecking $(dirname $d)...\" && bunx tsc -p $(dirname $d) --noEmit || exit 1; done",
+		"test": "for d in packages/* apps/*; do if [ -f \"$d/package.json\" ] && [ -d \"$d/src\" ]; then echo \"testing $d...\" && (cd \"$d\" && bun test ./src --pass-with-no-tests) || exit 1; fi; done",
+		"lint:check": "bunx --bun biome check apps/server apps/tui apps/desktop apps/web packages",
+		"verify": "bun run test && bun run typecheck && bun run lint:check",
+		"build": "bun run build:clients",
+		"build:clients": "bun run build:dashboard && bun run build:tui",
+		"build:dashboard": "bun run --cwd apps/web build",
+		"build:tui": "bun run --cwd apps/tui build",
+		"build:server": "bun run --cwd apps/server build",
+		"build:desktop": "bun run --cwd apps/desktop build",
 		"build:lander": "bun run --cwd apps/lander build",
+		"dupes": "jscpd apps packages --config .jscpd.json",
 		"format": "bunx biome format --write .",
 		"lint": "bunx --bun biome check --write --unsafe ."
 	},
@@ -28,10 +34,14 @@
 		"bun": ">=1.2.8"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.4.10",
+		"@biomejs/biome": "^2.4.10",
 		"@types/bun": "latest",
 		"bun-types": "latest",
-		"typescript": "^6.0.2"
+		"jscpd": "^4.0.9",
+		"typescript": "^5.9.3"
 	},
-	"version": "3.5.44"
+	"overrides": {
+		"react": "^19.0.0",
+		"@types/react": "^19.0.0"
+	}
 }

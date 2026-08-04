@@ -1,9 +1,7 @@
 /**
- * Centralized constants for the better-ccflare application
+ * Centralized constants for the ccflare application
  * All magic numbers should be defined here to improve maintainability
  */
-
-import type { RateLimitReason } from "@better-ccflare/types";
 
 // Time constants (all in milliseconds)
 export const TIME_CONSTANTS = {
@@ -13,223 +11,24 @@ export const TIME_CONSTANTS = {
 	HOUR: 60 * 60 * 1000,
 	DAY: 24 * 60 * 60 * 1000,
 
-	// Session durations - specifically for Anthropic usage windows
-	ANTHROPIC_SESSION_DURATION_DEFAULT: 5 * 60 * 60 * 1000, // 5 hours - default for Anthropic provider session tracking
-	ANTHROPIC_SESSION_DURATION_FALLBACK: 1 * 60 * 60 * 1000, // 1 hour - fallback for Anthropic provider
-	/**
-	 * @deprecated Use ANTHROPIC_SESSION_DURATION_DEFAULT instead.
-	 * This constant is kept for backward compatibility only and should not be used in new code.
-	 */
-	SESSION_DURATION_DEFAULT: 5 * 60 * 60 * 1000, // 5 hours - kept for backward compatibility - new code should use ANTHROPIC_SESSION_DURATION_DEFAULT
+	// Session durations
+	SESSION_DURATION_DEFAULT: 5 * 60 * 60 * 1000, // 5 hours
+	SESSION_DURATION_FALLBACK: 3600000, // 1 hour
 
 	// Timeouts
 	STREAM_TIMEOUT_DEFAULT: 1000 * 60 * 1, // 1 minute
-	STREAM_READ_TIMEOUT_MS: 60000, // 60 seconds - overall timeout for stream reads
-	STREAM_OPERATION_TIMEOUT_MS: 30000, // 30 seconds - timeout per read operation
-
 	OAUTH_STATE_TTL: 10, // 10 minutes (stored separately as minutes)
 	RETRY_DELAY_DEFAULT: 1000, // 1 second
-	PROXY_REQUEST_TIMEOUT_MS: 30 * 60 * 1000, // 30 minutes — covers long agent calls
 
 	// Cache durations
 	CACHE_YEAR: 31536000, // 365 days in seconds for HTTP cache headers
-
-	// Token expiration durations
-	API_KEY_TOKEN_EXPIRY_MS: 365 * 24 * 60 * 60 * 1000, // 1 year - for API keys that don't expire
-	GOOGLE_TOKEN_EXPIRY_MS: 60 * 60 * 1000, // 1 hour - Google Cloud access tokens
-
-	// Default cooldown applied when an upstream returns 429 *without* a
-	// reset hint (no `retry-after`, no rate-limit-reset header, no SSE
-	// reset frame, no usage-cache window reset). Treats the cooldown
-	// as a probe interval rather than a hard ban: the account is
-	// excluded for a short window, then the next request re-probes.
-	// Real upstream rate-limit replies ship a retry-after / reset
-	// header and use the precise value from the header — those flows
-	// are unaffected by this default.
-	// Override at runtime via CCFLARE_DEFAULT_COOLDOWN_NO_RESET_MS.
-	DEFAULT_RATE_LIMIT_NO_RESET_COOLDOWN_MS: 60 * 1000, // 60s
-
-	// Adaptive rate-limit cooldown with exponential backoff.
-	// Cooldown for streak of n consecutive 429s = BASE * 2^(n-1), capped at MAX.
-	// Override at runtime via CCFLARE_RATE_LIMIT_BACKOFF_BASE_MS /
-	// CCFLARE_RATE_LIMIT_BACKOFF_MAX_MS / CCFLARE_RATE_LIMIT_RESET_STABILITY_MS.
-	RATE_LIMIT_BACKOFF_BASE_MS: 30 * 1000, // 30s: cooldown for the 1st 429 in a streak
-	RATE_LIMIT_BACKOFF_MAX_MS: 5 * 60 * 1000, // 5min: ceiling for the exponential ramp
-	RATE_LIMIT_RESET_STABILITY_MS: 5 * 60 * 1000, // 5min: healthy operation needed to reset the streak counter
-
-	// Fixed cooldown applied when an upstream returns 529 (overloaded_error)
-	// with NO retry-after / reset hint. A 529 is a transient upstream SERVER
-	// state, not a signal about the account's own quota — it says nothing
-	// about how much capacity the account has left. Unlike 429 cooldowns it
-	// never ramps with a streak and never touches consecutive_rate_limits:
-	// that counter is reserved for genuine 429 quota exhaustion.
-	//
-	// This is deliberately much shorter than the reset-less 429 default
-	// (DEFAULT_RATE_LIMIT_NO_RESET_COOLDOWN_MS, 60s, above): that 60s cooldown
-	// is UNGATED — once it expires, full concurrency returns to the account
-	// immediately, so a long cooldown is the only thing limiting request rate.
-	// This 10s cooldown pairs with the single-flight probe gate
-	// (getRateLimitProbeAdmission in rate-limit-cooldown.ts), but what the
-	// gate actually does for a suppressed request depends on whether ANY
-	// other candidate is available, not on pool size:
-	// - At least one other candidate is not suppressed: once the cooldown
-	//   expires, the gate admits exactly one probe request for THIS account
-	//   and suppresses the rest — a suppressed request does not wait for
-	//   that probe, it moves on to the next candidate account in the same
-	//   selection (proxy.ts's account loop), so concurrent requests spread
-	//   across the pool instead of piling onto the one recovering account.
-	// - EVERY candidate is suppressed (a single-account pool, or a
-	//   pool-wide overload storm where every account's probe lease happens
-	//   to be held): there is no other candidate to defer to, so the
-	//   request runs the highest-priority candidate ungated instead of
-	//   failing outright (proxy.ts's "every candidate suppressed"
-	//   fallback). The gate suppresses nothing in that case; the short 10s
-	//   value is the only thing bounding how often that ungated path
-	//   re-hits the account during an overload storm.
-	// Override at runtime via CCFLARE_OVERLOAD_COOLDOWN_MS.
-	OVERLOAD_COOLDOWN_MS: 10 * 1000, // 10s
-
-	// Cap on a 529-with-reset cooldown duration. A 529-with-reset honors
-	// Anthropic's own retry-after value (min(resetTime, now + cap)), but that
-	// resetTime can come from the anthropic-ratelimit-unified-reset header —
-	// a quota-window reset that can be hours away (see provider.ts:368-380) —
-	// rather than a short, per-request retry-after. A quota-window timestamp
-	// carries no information about how long the *overload* itself lasts, so
-	// this caps at OVERLOAD scale, not the 429 ramp ceiling: deliberately
-	// identical to DEFAULT_RATE_LIMIT_NO_RESET_COOLDOWN_MS (60s, above) — the
-	// repo's established "no usable signal" answer. A real, short retry-after
-	// (≤ 60s) is still honored literally; only a multi-hour unified-reset
-	// value gets capped down to this bound.
-	// Override at runtime via CCFLARE_OVERLOAD_WITH_RESET_MAX_MS.
-	OVERLOAD_WITH_RESET_MAX_MS: 60 * 1000, // 60s
 } as const;
-
-/**
- * Read a duration (ms) override from the environment, falling back to the
- * compiled-in default unless the value is a finite, positive number.
- *
- * Only a positive finite value is a usable duration. The other outcomes are
- * not weaker settings but broken state: a negative duration puts every
- * cooldown computed from it in the past, so it expires the moment it is
- * written (silently disabling the mechanism), and Infinity benches the
- * account forever — and throws RangeError where the resulting timestamp is
- * rendered via `new Date(...).toISOString()` for the audit log. Unset,
- * unparseable and 0 keep their previous meaning of "use the default".
- */
-function readDurationOverrideMs(
-	raw: string | undefined,
-	fallback: number,
-): number {
-	const parsed = Number(raw);
-	return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
-/**
- * Compute exponential-backoff cooldown (ms) for a given streak depth.
- *   backoff = BASE * 2^(consecutiveCount - 1), capped at MAX.
- * Reads BASE/MAX from env (CCFLARE_RATE_LIMIT_BACKOFF_BASE_MS /
- * CCFLARE_RATE_LIMIT_BACKOFF_MAX_MS), falling back to TIME_CONSTANTS
- * for anything that is not a positive finite duration.
- */
-export function computeRateLimitBackoffMs(consecutiveCount: number): number {
-	const count = Math.max(1, consecutiveCount);
-	const base = readDurationOverrideMs(
-		process.env.CCFLARE_RATE_LIMIT_BACKOFF_BASE_MS,
-		TIME_CONSTANTS.RATE_LIMIT_BACKOFF_BASE_MS,
-	);
-	const max = readDurationOverrideMs(
-		process.env.CCFLARE_RATE_LIMIT_BACKOFF_MAX_MS,
-		TIME_CONSTANTS.RATE_LIMIT_BACKOFF_MAX_MS,
-	);
-	// Guard against overflow: 2^53 is JS safe-integer limit.
-	const exponent = Math.min(count - 1, 52);
-	return Math.min(base * 2 ** exponent, max);
-}
-
-/**
- * Read the stability-reset window (ms) for the consecutive_rate_limits counter.
- * Reads CCFLARE_RATE_LIMIT_RESET_STABILITY_MS from env.
- */
-export function getRateLimitResetStabilityMs(): number {
-	return readDurationOverrideMs(
-		process.env.CCFLARE_RATE_LIMIT_RESET_STABILITY_MS,
-		TIME_CONSTANTS.RATE_LIMIT_RESET_STABILITY_MS,
-	);
-}
-
-/**
- * Read the fixed 529-overload cooldown (ms).
- * Reads CCFLARE_OVERLOAD_COOLDOWN_MS from env.
- */
-export function computeOverloadCooldownMs(): number {
-	return readDurationOverrideMs(
-		process.env.CCFLARE_OVERLOAD_COOLDOWN_MS,
-		TIME_CONSTANTS.OVERLOAD_COOLDOWN_MS,
-	);
-}
-
-/**
- * Read the cap (ms) on a 529-with-reset cooldown duration.
- * Reads CCFLARE_OVERLOAD_WITH_RESET_MAX_MS from env.
- *
- * This value is applied as `min(resetTime, now + cap)`, so it is the only
- * clamp standing between a 529 that carries an anthropic-ratelimit-unified-reset
- * header (a quota window hours out) and an hours-long bench — a non-finite
- * override would not widen the cap but remove it.
- */
-export function computeOverloadWithResetCapMs(): number {
-	return readDurationOverrideMs(
-		process.env.CCFLARE_OVERLOAD_WITH_RESET_MAX_MS,
-		TIME_CONSTANTS.OVERLOAD_WITH_RESET_MAX_MS,
-	);
-}
-
-/**
- * True for RateLimitReason values that represent an Anthropic 529
- * (overloaded_error) — a transient upstream state, not account quota
- * exhaustion. Used to route cooldown handling to the fixed overload
- * cooldown instead of the exponential 429 backoff ramp.
- */
-export function isOverloadReason(reason: RateLimitReason): boolean {
-	return (
-		reason === "upstream_529_overloaded_with_reset" ||
-		reason === "upstream_529_overloaded_no_reset"
-	);
-}
-
-/**
- * Configuration for in-place retry of reset-less 529 (overloaded_error) responses.
- * Used by proxyWithAccount before applying account cooldown.
- *
- * Env knobs:
- *   CCFLARE_OVERLOAD_RETRY_ENABLED      — set to "false" to disable (default: true)
- *   CCFLARE_OVERLOAD_RETRY_MAX_ATTEMPTS — max in-place attempts (default: 2)
- *   CCFLARE_OVERLOAD_RETRY_BASE_MS      — jitter backoff base delay ms (default: 750)
- *   CCFLARE_OVERLOAD_RETRY_MAX_MS       — jitter backoff ceiling ms (default: 3000)
- */
-export function getOverloadRetryConfig(): {
-	enabled: boolean;
-	maxAttempts: number;
-	baseMs: number;
-	maxMs: number;
-} {
-	const enabled = process.env.CCFLARE_OVERLOAD_RETRY_ENABLED !== "false";
-	// maxAttempts: 0 is not useful (use ENABLED=false to disable), so || is correct.
-	const maxAttempts =
-		Number(process.env.CCFLARE_OVERLOAD_RETRY_MAX_ATTEMPTS) || 2;
-	// baseMs/maxMs: 0 is valid (zero delay for tests), so use explicit finite check.
-	const rawBase = Number(process.env.CCFLARE_OVERLOAD_RETRY_BASE_MS);
-	const rawMax = Number(process.env.CCFLARE_OVERLOAD_RETRY_MAX_MS);
-	const baseMs = Number.isFinite(rawBase) && rawBase >= 0 ? rawBase : 750;
-	const maxMs = Number.isFinite(rawMax) && rawMax >= 0 ? rawMax : 3000;
-	return { enabled, maxAttempts, baseMs, maxMs };
-}
 
 // Buffer sizes (in bytes unless specified)
 export const BUFFER_SIZES = {
 	// Stream usage buffer size in KB (multiplied by 1024 to get bytes)
-	STREAM_USAGE_BUFFER_KB: 64,
-	STREAM_USAGE_BUFFER_BYTES: 64 * 1024,
+	STREAM_USAGE_BUFFER_KB: 256,
+	STREAM_USAGE_BUFFER_BYTES: 256 * 1024,
 
 	// Stream body max size
 	STREAM_BODY_MAX_KB: 256,
@@ -280,6 +79,7 @@ export const LIMITS = {
 	CONSOLE_COLUMN_PADDING: {
 		NAME: 20,
 		TYPE: 10,
+		TIER: 6,
 		REQUESTS: 12,
 		TOKEN: 10,
 		STATUS: 20,
@@ -294,6 +94,3 @@ export const HTTP_STATUS = {
 	INTERNAL_SERVER_ERROR: 500,
 	SERVICE_UNAVAILABLE: 503,
 } as const;
-
-// Account tiers - removed unused ACCOUNT_TIERS export
-// Statistical calculations - removed unused STATS export

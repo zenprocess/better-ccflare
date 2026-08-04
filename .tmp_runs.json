@@ -1,0 +1,3195 @@
+{
+  "total_count": 41387,
+  "workflow_runs": [
+    {
+      "id": 30522480904,
+      "name": "source-lints",
+      "node_id": "WFR_kwLOFVKCyc8AAAAHG0gZCA",
+      "head_branch": "main",
+      "head_sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+      "path": ".github/workflows/source-lints.yml",
+      "display_title": "test(harness): replace toRun matcher with async bunRun + toSpawn (#36…",
+      "run_number": 8574,
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "workflow_id": 316005820,
+      "check_suite_id": 82750079537,
+      "check_suite_node_id": "CS_kwDOFVKCyc8AAAATREoCMQ",
+      "url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30522480904",
+      "html_url": "https://github.com/oven-sh/bun/actions/runs/30522480904",
+      "pull_requests": [
+        {
+          "url": "https://api.github.com/repos/MC-MAGA/bun/pulls/931",
+          "id": 4167396324,
+          "number": 931,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "77ab49c2a8a054f07c59d8cf230b4355b44e2ca6",
+            "repo": {
+              "id": 994145820,
+              "url": "https://api.github.com/repos/MC-MAGA/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun/pulls/2",
+          "id": 1859407515,
+          "number": 2,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "4970ffc3a4e69827c0a411a1be20634af6ae7f74",
+            "repo": {
+              "id": 730930264,
+              "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun",
+              "name": "oven-sh-bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/nonomal/bun/pulls/11",
+          "id": 1516506718,
+          "number": 11,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "92e95c86dd100f167fb4cf8da1db202b5211d2c1",
+            "repo": {
+              "id": 689555194,
+              "url": "https://api.github.com/repos/nonomal/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/JDiaz11/bun/pulls/1",
+          "id": 1025599389,
+          "number": 1,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "3c5b68caa727477f603e93731a77ec035e7d3438",
+            "repo": {
+              "id": 521149498,
+              "url": "https://api.github.com/repos/JDiaz11/bun",
+              "name": "bun"
+            }
+          }
+        }
+      ],
+      "created_at": "2026-07-30T07:17:58Z",
+      "updated_at": "2026-07-30T07:18:17Z",
+      "actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "run_attempt": 1,
+      "referenced_workflows": [
+
+      ],
+      "run_started_at": "2026-07-30T07:17:58Z",
+      "triggering_actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "jobs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30522480904/jobs",
+      "logs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30522480904/logs",
+      "check_suite_url": "https://api.github.com/repos/oven-sh/bun/check-suites/82750079537",
+      "artifacts_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30522480904/artifacts",
+      "cancel_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30522480904/cancel",
+      "rerun_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30522480904/rerun",
+      "previous_attempt_url": null,
+      "workflow_url": "https://api.github.com/repos/oven-sh/bun/actions/workflows/316005820",
+      "head_commit": {
+        "id": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+        "tree_id": "c4828906b865014e2199f6bba7d965a29a955005",
+        "message": "test(harness): replace toRun matcher with async bunRun + toSpawn (#36424)",
+        "timestamp": "2026-07-30T07:17:51Z",
+        "author": {
+          "name": "robobun",
+          "email": "robobun@oven.sh"
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com"
+        }
+      },
+      "repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      },
+      "head_repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      }
+    },
+    {
+      "id": 30522401413,
+      "name": "source-lints",
+      "node_id": "WFR_kwLOFVKCyc8AAAAHG0bihQ",
+      "head_branch": "main",
+      "head_sha": "176fc3fb130c478e07ae4bc46d17816208d8de73",
+      "path": ".github/workflows/source-lints.yml",
+      "display_title": "test: measure memory via harness rss() instead of process.memoryUsage…",
+      "run_number": 8573,
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "workflow_id": 316005820,
+      "check_suite_id": 82749855736,
+      "check_suite_node_id": "CS_kwDOFVKCyc8AAAATREaX-A",
+      "url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30522401413",
+      "html_url": "https://github.com/oven-sh/bun/actions/runs/30522401413",
+      "pull_requests": [
+        {
+          "url": "https://api.github.com/repos/MC-MAGA/bun/pulls/931",
+          "id": 4167396324,
+          "number": 931,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "77ab49c2a8a054f07c59d8cf230b4355b44e2ca6",
+            "repo": {
+              "id": 994145820,
+              "url": "https://api.github.com/repos/MC-MAGA/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun/pulls/2",
+          "id": 1859407515,
+          "number": 2,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "4970ffc3a4e69827c0a411a1be20634af6ae7f74",
+            "repo": {
+              "id": 730930264,
+              "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun",
+              "name": "oven-sh-bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/nonomal/bun/pulls/11",
+          "id": 1516506718,
+          "number": 11,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "92e95c86dd100f167fb4cf8da1db202b5211d2c1",
+            "repo": {
+              "id": 689555194,
+              "url": "https://api.github.com/repos/nonomal/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/JDiaz11/bun/pulls/1",
+          "id": 1025599389,
+          "number": 1,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "3c5b68caa727477f603e93731a77ec035e7d3438",
+            "repo": {
+              "id": 521149498,
+              "url": "https://api.github.com/repos/JDiaz11/bun",
+              "name": "bun"
+            }
+          }
+        }
+      ],
+      "created_at": "2026-07-30T07:16:39Z",
+      "updated_at": "2026-07-30T07:16:58Z",
+      "actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "run_attempt": 1,
+      "referenced_workflows": [
+
+      ],
+      "run_started_at": "2026-07-30T07:16:39Z",
+      "triggering_actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "jobs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30522401413/jobs",
+      "logs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30522401413/logs",
+      "check_suite_url": "https://api.github.com/repos/oven-sh/bun/check-suites/82749855736",
+      "artifacts_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30522401413/artifacts",
+      "cancel_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30522401413/cancel",
+      "rerun_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30522401413/rerun",
+      "previous_attempt_url": null,
+      "workflow_url": "https://api.github.com/repos/oven-sh/bun/actions/workflows/316005820",
+      "head_commit": {
+        "id": "176fc3fb130c478e07ae4bc46d17816208d8de73",
+        "tree_id": "30a3f28c09c2c472c1be8ce3278b2b2f94301074",
+        "message": "test: measure memory via harness rss() instead of process.memoryUsage.rss() (#36429)",
+        "timestamp": "2026-07-30T07:16:33Z",
+        "author": {
+          "name": "Jarred Sumner",
+          "email": "jarred@jarredsumner.com"
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com"
+        }
+      },
+      "repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      },
+      "head_repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      }
+    },
+    {
+      "id": 30520190763,
+      "name": "Auto Assign Types Issues",
+      "node_id": "WFR_kwLOFVKCyc8AAAAHGyUnKw",
+      "head_branch": "main",
+      "head_sha": "6b463d01c478674c3ef9f8557092b9edf2b6b7c7",
+      "path": ".github/workflows/auto-assign-types.yml",
+      "display_title": "Feature Request: Vite-compatible plugin mode / build hooks for seamless Vite project migration",
+      "run_number": 7128,
+      "event": "issues",
+      "status": "completed",
+      "conclusion": "skipped",
+      "workflow_id": 188537163,
+      "check_suite_id": 82743582821,
+      "check_suite_node_id": "CS_kwDOFVKCyc8AAAATQ-bgZQ",
+      "url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30520190763",
+      "html_url": "https://github.com/oven-sh/bun/actions/runs/30520190763",
+      "pull_requests": [
+        {
+          "url": "https://api.github.com/repos/MC-MAGA/bun/pulls/931",
+          "id": 4167396324,
+          "number": 931,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "77ab49c2a8a054f07c59d8cf230b4355b44e2ca6",
+            "repo": {
+              "id": 994145820,
+              "url": "https://api.github.com/repos/MC-MAGA/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun/pulls/2",
+          "id": 1859407515,
+          "number": 2,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "4970ffc3a4e69827c0a411a1be20634af6ae7f74",
+            "repo": {
+              "id": 730930264,
+              "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun",
+              "name": "oven-sh-bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/nonomal/bun/pulls/11",
+          "id": 1516506718,
+          "number": 11,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "92e95c86dd100f167fb4cf8da1db202b5211d2c1",
+            "repo": {
+              "id": 689555194,
+              "url": "https://api.github.com/repos/nonomal/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/JDiaz11/bun/pulls/1",
+          "id": 1025599389,
+          "number": 1,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "3c5b68caa727477f603e93731a77ec035e7d3438",
+            "repo": {
+              "id": 521149498,
+              "url": "https://api.github.com/repos/JDiaz11/bun",
+              "name": "bun"
+            }
+          }
+        }
+      ],
+      "created_at": "2026-07-30T06:37:51Z",
+      "updated_at": "2026-07-30T06:38:02Z",
+      "actor": {
+        "login": "yathink3",
+        "id": 52459137,
+        "node_id": "MDQ6VXNlcjUyNDU5MTM3",
+        "avatar_url": "https://avatars.githubusercontent.com/u/52459137?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/yathink3",
+        "html_url": "https://github.com/yathink3",
+        "followers_url": "https://api.github.com/users/yathink3/followers",
+        "following_url": "https://api.github.com/users/yathink3/following{/other_user}",
+        "gists_url": "https://api.github.com/users/yathink3/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/yathink3/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/yathink3/subscriptions",
+        "organizations_url": "https://api.github.com/users/yathink3/orgs",
+        "repos_url": "https://api.github.com/users/yathink3/repos",
+        "events_url": "https://api.github.com/users/yathink3/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/yathink3/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "run_attempt": 1,
+      "referenced_workflows": [
+
+      ],
+      "run_started_at": "2026-07-30T06:37:51Z",
+      "triggering_actor": {
+        "login": "yathink3",
+        "id": 52459137,
+        "node_id": "MDQ6VXNlcjUyNDU5MTM3",
+        "avatar_url": "https://avatars.githubusercontent.com/u/52459137?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/yathink3",
+        "html_url": "https://github.com/yathink3",
+        "followers_url": "https://api.github.com/users/yathink3/followers",
+        "following_url": "https://api.github.com/users/yathink3/following{/other_user}",
+        "gists_url": "https://api.github.com/users/yathink3/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/yathink3/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/yathink3/subscriptions",
+        "organizations_url": "https://api.github.com/users/yathink3/orgs",
+        "repos_url": "https://api.github.com/users/yathink3/repos",
+        "events_url": "https://api.github.com/users/yathink3/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/yathink3/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "jobs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30520190763/jobs",
+      "logs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30520190763/logs",
+      "check_suite_url": "https://api.github.com/repos/oven-sh/bun/check-suites/82743582821",
+      "artifacts_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30520190763/artifacts",
+      "cancel_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30520190763/cancel",
+      "rerun_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30520190763/rerun",
+      "previous_attempt_url": null,
+      "workflow_url": "https://api.github.com/repos/oven-sh/bun/actions/workflows/188537163",
+      "head_commit": {
+        "id": "6b463d01c478674c3ef9f8557092b9edf2b6b7c7",
+        "tree_id": "4dfb642c3db5d264c1e57ab7726c8c40a67ee13f",
+        "message": "Deflake a few tests",
+        "timestamp": "2026-07-30T05:20:27Z",
+        "author": {
+          "name": "Jarred Sumner",
+          "email": "jarred@jarredsumner.com"
+        },
+        "committer": {
+          "name": "Jarred Sumner",
+          "email": "jarred@jarredsumner.com"
+        }
+      },
+      "repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      },
+      "head_repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      }
+    },
+    {
+      "id": 30520190412,
+      "name": "Claude Issue Dedupe",
+      "node_id": "WFR_kwLOFVKCyc8AAAAHGyUlzA",
+      "head_branch": "main",
+      "head_sha": "6b463d01c478674c3ef9f8557092b9edf2b6b7c7",
+      "path": ".github/workflows/claude-dedupe-issues.yml",
+      "display_title": "Feature Request: Vite-compatible plugin mode / build hooks for seamless Vite project migration",
+      "run_number": 4030,
+      "event": "issues",
+      "status": "completed",
+      "conclusion": "success",
+      "workflow_id": 199785596,
+      "check_suite_id": 82743581813,
+      "check_suite_node_id": "CS_kwDOFVKCyc8AAAATQ-bcdQ",
+      "url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30520190412",
+      "html_url": "https://github.com/oven-sh/bun/actions/runs/30520190412",
+      "pull_requests": [
+        {
+          "url": "https://api.github.com/repos/MC-MAGA/bun/pulls/931",
+          "id": 4167396324,
+          "number": 931,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "77ab49c2a8a054f07c59d8cf230b4355b44e2ca6",
+            "repo": {
+              "id": 994145820,
+              "url": "https://api.github.com/repos/MC-MAGA/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun/pulls/2",
+          "id": 1859407515,
+          "number": 2,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "4970ffc3a4e69827c0a411a1be20634af6ae7f74",
+            "repo": {
+              "id": 730930264,
+              "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun",
+              "name": "oven-sh-bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/nonomal/bun/pulls/11",
+          "id": 1516506718,
+          "number": 11,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "92e95c86dd100f167fb4cf8da1db202b5211d2c1",
+            "repo": {
+              "id": 689555194,
+              "url": "https://api.github.com/repos/nonomal/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/JDiaz11/bun/pulls/1",
+          "id": 1025599389,
+          "number": 1,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "3c5b68caa727477f603e93731a77ec035e7d3438",
+            "repo": {
+              "id": 521149498,
+              "url": "https://api.github.com/repos/JDiaz11/bun",
+              "name": "bun"
+            }
+          }
+        }
+      ],
+      "created_at": "2026-07-30T06:37:51Z",
+      "updated_at": "2026-07-30T06:42:49Z",
+      "actor": {
+        "login": "yathink3",
+        "id": 52459137,
+        "node_id": "MDQ6VXNlcjUyNDU5MTM3",
+        "avatar_url": "https://avatars.githubusercontent.com/u/52459137?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/yathink3",
+        "html_url": "https://github.com/yathink3",
+        "followers_url": "https://api.github.com/users/yathink3/followers",
+        "following_url": "https://api.github.com/users/yathink3/following{/other_user}",
+        "gists_url": "https://api.github.com/users/yathink3/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/yathink3/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/yathink3/subscriptions",
+        "organizations_url": "https://api.github.com/users/yathink3/orgs",
+        "repos_url": "https://api.github.com/users/yathink3/repos",
+        "events_url": "https://api.github.com/users/yathink3/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/yathink3/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "run_attempt": 1,
+      "referenced_workflows": [
+
+      ],
+      "run_started_at": "2026-07-30T06:37:51Z",
+      "triggering_actor": {
+        "login": "yathink3",
+        "id": 52459137,
+        "node_id": "MDQ6VXNlcjUyNDU5MTM3",
+        "avatar_url": "https://avatars.githubusercontent.com/u/52459137?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/yathink3",
+        "html_url": "https://github.com/yathink3",
+        "followers_url": "https://api.github.com/users/yathink3/followers",
+        "following_url": "https://api.github.com/users/yathink3/following{/other_user}",
+        "gists_url": "https://api.github.com/users/yathink3/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/yathink3/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/yathink3/subscriptions",
+        "organizations_url": "https://api.github.com/users/yathink3/orgs",
+        "repos_url": "https://api.github.com/users/yathink3/repos",
+        "events_url": "https://api.github.com/users/yathink3/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/yathink3/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "jobs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30520190412/jobs",
+      "logs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30520190412/logs",
+      "check_suite_url": "https://api.github.com/repos/oven-sh/bun/check-suites/82743581813",
+      "artifacts_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30520190412/artifacts",
+      "cancel_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30520190412/cancel",
+      "rerun_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30520190412/rerun",
+      "previous_attempt_url": null,
+      "workflow_url": "https://api.github.com/repos/oven-sh/bun/actions/workflows/199785596",
+      "head_commit": {
+        "id": "6b463d01c478674c3ef9f8557092b9edf2b6b7c7",
+        "tree_id": "4dfb642c3db5d264c1e57ab7726c8c40a67ee13f",
+        "message": "Deflake a few tests",
+        "timestamp": "2026-07-30T05:20:27Z",
+        "author": {
+          "name": "Jarred Sumner",
+          "email": "jarred@jarredsumner.com"
+        },
+        "committer": {
+          "name": "Jarred Sumner",
+          "email": "jarred@jarredsumner.com"
+        }
+      },
+      "repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      },
+      "head_repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      }
+    },
+    {
+      "id": 30512473680,
+      "name": "source-lints",
+      "node_id": "WFR_kwLOFVKCyc8AAAAHGq9mUA",
+      "head_branch": "main",
+      "head_sha": "070b0c9247eca67394eb2801b5a2839d7d7e6f54",
+      "path": ".github/workflows/source-lints.yml",
+      "display_title": "no-orphans(windows): allow CREATE_BREAKAWAY_FROM_JOB and set DIE_ON_U…",
+      "run_number": 8549,
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "workflow_id": 316005820,
+      "check_suite_id": 82722291000,
+      "check_suite_node_id": "CS_kwDOFVKCyc8AAAATQqH9OA",
+      "url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30512473680",
+      "html_url": "https://github.com/oven-sh/bun/actions/runs/30512473680",
+      "pull_requests": [
+        {
+          "url": "https://api.github.com/repos/MC-MAGA/bun/pulls/931",
+          "id": 4167396324,
+          "number": 931,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "77ab49c2a8a054f07c59d8cf230b4355b44e2ca6",
+            "repo": {
+              "id": 994145820,
+              "url": "https://api.github.com/repos/MC-MAGA/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun/pulls/2",
+          "id": 1859407515,
+          "number": 2,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "4970ffc3a4e69827c0a411a1be20634af6ae7f74",
+            "repo": {
+              "id": 730930264,
+              "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun",
+              "name": "oven-sh-bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/nonomal/bun/pulls/11",
+          "id": 1516506718,
+          "number": 11,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "92e95c86dd100f167fb4cf8da1db202b5211d2c1",
+            "repo": {
+              "id": 689555194,
+              "url": "https://api.github.com/repos/nonomal/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/JDiaz11/bun/pulls/1",
+          "id": 1025599389,
+          "number": 1,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "3c5b68caa727477f603e93731a77ec035e7d3438",
+            "repo": {
+              "id": 521149498,
+              "url": "https://api.github.com/repos/JDiaz11/bun",
+              "name": "bun"
+            }
+          }
+        }
+      ],
+      "created_at": "2026-07-30T03:55:44Z",
+      "updated_at": "2026-07-30T03:56:03Z",
+      "actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "run_attempt": 1,
+      "referenced_workflows": [
+
+      ],
+      "run_started_at": "2026-07-30T03:55:44Z",
+      "triggering_actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "jobs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30512473680/jobs",
+      "logs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30512473680/logs",
+      "check_suite_url": "https://api.github.com/repos/oven-sh/bun/check-suites/82722291000",
+      "artifacts_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30512473680/artifacts",
+      "cancel_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30512473680/cancel",
+      "rerun_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30512473680/rerun",
+      "previous_attempt_url": null,
+      "workflow_url": "https://api.github.com/repos/oven-sh/bun/actions/workflows/316005820",
+      "head_commit": {
+        "id": "070b0c9247eca67394eb2801b5a2839d7d7e6f54",
+        "tree_id": "c7f48fbf4c23e92d9e4d2d52ec839599c5b65359",
+        "message": "no-orphans(windows): allow CREATE_BREAKAWAY_FROM_JOB and set DIE_ON_UNHANDLED_EXCEPTION on the Job (#36414)\n\n## What\n\n`ParentDeathWatchdog::enable()` on Windows creates a Job Object for\n`--no-orphans` and self-assigns Bun into it, so it becomes the immediate\njob for every descendant. It set only\n`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`.\n\n## Why it matters\n\nTwo observable problems:\n\n1. **`CreateProcess(CREATE_BREAKAWAY_FROM_JOB)` fails.** Any descendant\nthat passes that flag gets `ERROR_ACCESS_DENIED` because the immediate\njob does not permit breakaway. On a Windows 2019 box against current\nmain:\n\n   ```\nwith --no-orphans: LimitFlags=0x2000, CreateProcessW(BREAKAWAY) ok=0\nerr=5\n   without:            CreateProcessW(BREAKAWAY) ok=1\n   ```\n\nThat is a hard spawn failure `--no-orphans` should not cause. libuv's\nown comment on its global job notes the same hazard.\n\n2. **WER can park a crashed descendant.** A non-Bun child that crashes\nwith no top-level filter reaches `UnhandledExceptionFilter`'s default\npath (WER dialog / JIT debugger prompt), which on a headless box blocks\nforever. `JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION` makes it exit\nwith the NTSTATUS instead.\n\n## Fix\n\nSet `LimitFlags = KILL_ON_JOB_CLOSE | DIE_ON_UNHANDLED_EXCEPTION |\nBREAKAWAY_OK`.\n\n**Why this is safe for Bun itself:** Bun's crash reporter is installed\nvia `SetUnhandledExceptionFilter` (`handle_unhandled_exception_windows`\nin `src/crash_handler/lib.rs`). That callback runs before the Job flag\napplies; `crash_handler()` is `-> !`. The flag only changes the behavior\nfor exception codes Bun's classifier declines and for non-Bun\ndescendants, both of which should terminate rather than prompt under\n`--no-orphans`.\n\n**Why not `SILENT_BREAKAWAY_OK`:** libuv's global job sets it because\nlibuv explicitly assigns each child, so grandchildren intentionally\nescape. The `--no-orphans` Job relies on inheritance to cover the whole\ndescendant tree; `SILENT_BREAKAWAY_OK` would make every child escape and\nbreak the feature. The existing \"cmd.exe-spawned descendant\" tests\nalready rely on this.\n\nApplied the same flag set to the parallel test runner's kill-on-close\nJob in `Coordinator.rs` (same shape, same failure modes).\n\n## Verification\n\nNew test in `test/cli/run/no-orphans.test.ts` probes the immediate Job's\n`LimitFlags` via `QueryInformationJobObject(NULL)` and exercises\n`CreateProcess(CREATE_BREAKAWAY_FROM_JOB)` via FFI.\n\n<details><summary>fail-before (canary on Windows Server 2019)</summary>\n\n```\nerror: expect(received).toEqual(expected)\n  {\n-   \"BREAKAWAY_OK\": true,\n-   \"DIE_ON_UNHANDLED_EXCEPTION\": true,\n+   \"BREAKAWAY_OK\": false,\n+   \"DIE_ON_UNHANDLED_EXCEPTION\": false,\n    \"KILL_ON_JOB_CLOSE\": true,\n    \"SILENT_BREAKAWAY_OK\": false,\n    \"qok\": 1,\n  }\n(fail) windows: --no-orphans Job allows breakaway and sets DIE_ON_UNHANDLED_EXCEPTION, not SILENT_BREAKAWAY\n```\n</details>\n\n<details><summary>pass-after (`bun bd test` on Windows Server\n2019)</summary>\n\n```\n(pass) windows: --no-orphans Job allows breakaway and sets DIE_ON_UNHANDLED_EXCEPTION, not SILENT_BREAKAWAY [571.10ms]\n 10 pass\n 14 skip\n 0 fail\n```\n</details>\n\nThe src/ change is entirely `#[cfg(windows)]` and the test is\n`skipIf(!isWindows)`, so a Linux-only gate cannot observe fail-before;\nthe evidence above was captured on windows-x64.\n\n<!-- robobun:evidence:begin -->\n\n---\n\n**no test proof** · iteration 1 · Platform-specific test(s) that do not\nrun on this machine. Deferring to CI, which covers all platforms:\ntest/cli/run/no-orphans.test.ts\n\n<!-- robobun:evidence:end -->",
+        "timestamp": "2026-07-30T03:55:40Z",
+        "author": {
+          "name": "robobun",
+          "email": "robobun@oven.sh"
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com"
+        }
+      },
+      "repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      },
+      "head_repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      }
+    },
+    {
+      "id": 30512246165,
+      "name": "source-lints",
+      "node_id": "WFR_kwLOFVKCyc8AAAAHGqvtlQ",
+      "head_branch": "main",
+      "head_sha": "68ec9e5d08002671753a425aa7759ee098007369",
+      "path": ".github/workflows/source-lints.yml",
+      "display_title": "GarbageCollectionController: replace per-tick heap sampler with idle …",
+      "run_number": 8547,
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "workflow_id": 316005820,
+      "check_suite_id": 82721674982,
+      "check_suite_node_id": "CS_kwDOFVKCyc8AAAATQpiW5g",
+      "url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30512246165",
+      "html_url": "https://github.com/oven-sh/bun/actions/runs/30512246165",
+      "pull_requests": [
+        {
+          "url": "https://api.github.com/repos/MC-MAGA/bun/pulls/931",
+          "id": 4167396324,
+          "number": 931,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "77ab49c2a8a054f07c59d8cf230b4355b44e2ca6",
+            "repo": {
+              "id": 994145820,
+              "url": "https://api.github.com/repos/MC-MAGA/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun/pulls/2",
+          "id": 1859407515,
+          "number": 2,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "4970ffc3a4e69827c0a411a1be20634af6ae7f74",
+            "repo": {
+              "id": 730930264,
+              "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun",
+              "name": "oven-sh-bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/nonomal/bun/pulls/11",
+          "id": 1516506718,
+          "number": 11,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "92e95c86dd100f167fb4cf8da1db202b5211d2c1",
+            "repo": {
+              "id": 689555194,
+              "url": "https://api.github.com/repos/nonomal/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/JDiaz11/bun/pulls/1",
+          "id": 1025599389,
+          "number": 1,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "3c5b68caa727477f603e93731a77ec035e7d3438",
+            "repo": {
+              "id": 521149498,
+              "url": "https://api.github.com/repos/JDiaz11/bun",
+              "name": "bun"
+            }
+          }
+        }
+      ],
+      "created_at": "2026-07-30T03:50:27Z",
+      "updated_at": "2026-07-30T03:50:44Z",
+      "actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "run_attempt": 1,
+      "referenced_workflows": [
+
+      ],
+      "run_started_at": "2026-07-30T03:50:27Z",
+      "triggering_actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "jobs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30512246165/jobs",
+      "logs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30512246165/logs",
+      "check_suite_url": "https://api.github.com/repos/oven-sh/bun/check-suites/82721674982",
+      "artifacts_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30512246165/artifacts",
+      "cancel_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30512246165/cancel",
+      "rerun_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30512246165/rerun",
+      "previous_attempt_url": null,
+      "workflow_url": "https://api.github.com/repos/oven-sh/bun/actions/workflows/316005820",
+      "head_commit": {
+        "id": "68ec9e5d08002671753a425aa7759ee098007369",
+        "tree_id": "84ce2a7e73b82b621046e1c2c25d4eee2cf99a11",
+        "message": "GarbageCollectionController: replace per-tick heap sampler with idle timer only (#35356)\n\nA production report of \"switched bun→node, CPU and loop-lag p95 dropped\"\ntraced to Bun's `GarbageCollectionController` running an eden collection\nroughly every 16 ms of event-loop activity regardless of allocation\nvolume. With a non-trivial live set each of those is a multi-millisecond\nstop-the-world pause, so a steady-state `Bun.serve` at 150 rps with a\n~300 MB live heap spent up to ~40% of wall time in GC at ~62\ncollections/s (vs ~1.4% for Node's scavenger at the same load).\n\n`BUN_JSC_logGC=true` on a bare `setInterval(() => alloc(~50KB), 20)`\nshows ~128 `EdenCollection` over 2 s; `BUN_GC_TIMER_DISABLE=1` has no\neffect on the count.\n\n## Cause\n\n`process_gc_timer_with_heap_size` sampled `vm.heap.blockBytesAllocated()\n+ vm.heap.extraMemorySize()` on every event-loop tick and re-armed the\n16 ms one-shot whenever that value `!= prev`. Both counters move on\nevery 16 KB block allocation and every `reportExtraMemory` call, and the\ncollection itself perturbs them, so the `RunOnNextTick` →\n`collect_async()` → `!= prev` → re-arm 16 ms loop self-perpetuated at\nthe 1000/16 ≈ 62.5/s ceiling for as long as the event loop was active.\n\nSeparately, `init()` read `BUN_GC_TIMER_DISABLE` /\n`BUN_GC_TIMER_INTERVAL` / `BUN_GC_RUNS_UNTIL_SKIP_RELEASE_ACCESS` via\n`vm.env_loader_opt()`; at `ensure_waker()` time the dotenv loader exists\nbut `load_process()` has not run yet, so its map is empty and the knobs\nwere silently ignored.\n\n## Fix\n\nDelete the 16 ms one-shot and the per-tick / per-request heap sampler\nentirely (the `GcOneShot` tag, the `GCTimerState` machine,\n`request_gc_hint`/`drain_pending_gc_hint`, and the `process_gc_timer()`\ncalls from `on_request_complete` / `auto_tick` / the fetch/h2 completion\npaths). JSC's own allocation-rate-budgeted\n`GCActivityCallback::didAllocate` / `Heap::collectIfNecessaryOrDefer` is\nalready wired onto Bun's timer heap via `WTFTimer` and is the primary\neden driver; with the sampler gone, nothing is left to self-perpetuate.\n\nKeep the controller's 1 s / 30 s repeating idle timer, which requests a\n`collect_async()` once per interval so a process that stops allocating\nstill releases memory. `process_gc_timer()` now just arms that timer on\nfirst call.\n\nLower `JSC::Options::largeHeapSize` from 32 MB to 8 MB so JSC's\nproportional-heap budget engages sooner on small heaps, trimming the\npeak-RSS plateau the sampler used to mask.\n\nDeclare the three env-var knobs in `bun_core::env_var` so `init()` reads\nthem via the typed, cached, process-env accessors; the dotenv-loader\nordering issue does not arise on that path.\n\n## Follow-on fix exposed by the sampler removal\n\n### `moduleLoaderFetch` / `functionFulfillModuleSync` /\n`moduleLoaderImportModule` drop `GCOwnedDataScope` before transpile\n\nThe `auto moduleKey = jsString->value(globalObject)` locals were\n`GCOwnedDataScope<const String&>`, alive across `fetchESMSourceCode` →\nsynchronous transpile → an async macro's `wait_for_promise` event-loop\nspin. `IncrementalSweeper` can fire during that spin with\n`vm.entryScope` null and trips the `ASSERT(!m_topGCOwnedDataScope)` in\n`Heap::clearConcurrentRetainedDataIfPossible` (x64-asan\n`macro-test.test.ts`). Take a plain `WTF::String` so the scope temporary\ndies at the statement. 5/5 pass on linux debug+asan.\n\n## Test adjustments\n\n- `test/js/bun/gc/gc-controller-cadence.test.ts` (new): `setInterval(~50\nKB / 20 ms)` × 100 ticks, counts `=> EdenCollection` lines from\n`BUN_JSC_logGC`. Asserts `eden < 30` for the default case (was ~128) and\n`eden < 5` with `BUN_GC_TIMER_DISABLE=1` (was ~128; env var ignored).\n`skipIf(isDebug)` since debug+ASAN's ~100 ms GC cycles coalesce\n`collectAsync()` requests and the count cannot distinguish fixed from\nunfixed there.\n- `test/js/bun/http/bun-server.test.ts`: add `Bun.gc(false)` (=\n`collect_async()`) to the four server-wrapper-count drain loops. On\nrelease+ASAN the wrapper was only collected by the old per-request\n`collect_async()`; `Bun.gc(true)` + `fullGC()` alone do not collect it\nthere.\n- `test/regression/issue/28632.test.ts`: `Bun.gc(true)` every 500\nqueries so the RSS delta measures the `name_or_index` leak rather than\nthe peak MarkedBlock high-water mark between opportunistic passes.\n\n## Open item\n\n`test/js/node/test/parallel/test-fs-filehandle.js` on Windows x64\nrelease: the abandoned FileHandle is not collected by 20× sync\n`globalThis.gc()` within 200 ms.\n`jsc.generateHeapSnapshotForDebugging()` reports FileHandle with a\nsingle `WeakRef[Internal]` retainer and not in `roots` (no\n`ConservativeScan` root reason recorded for any node), so per the\nsnapshot it is unreachable; `globalThis.gc()` disagrees. Passing\n`thisValue=undefined` to `JSC::profiledCall` in `Bun__JSTimeout__call`\nmakes the Immediate wrapper itself collectible but not callback-locals\nor the FileHandle. A `sanitizeStackForVM(*vm)` at\n`Bun__JSC_onBeforeWait` makes the test pass 10/10 but was rejected in\nreview; an `#[inline(never)]` split of `run_immediate_task` did not\nchange the outcome. Needs a root-cause fix or the lane accepted as a\nknown failure.\n\nFixes #27365\nRelated: #8897, #26784\n\n<!-- robobun:evidence:begin -->\n\n---\n\n**no test proof** · iteration 36 · Platform-specific test(s) that do not\nrun on this machine. Deferring to CI, which covers all platforms:\ntest/js/bun/http/bun-server.test.ts\n\n<!-- robobun:evidence:end -->\n\n---------\n\nCo-authored-by: Jarred Sumner <jarred@jarredsumner.com>\nCo-authored-by: autofix-ci[bot] <114827586+autofix-ci[bot]@users.noreply.github.com>",
+        "timestamp": "2026-07-30T03:50:24Z",
+        "author": {
+          "name": "robobun",
+          "email": "robobun@oven.sh"
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com"
+        }
+      },
+      "repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      },
+      "head_repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      }
+    },
+    {
+      "id": 30511792972,
+      "name": "source-lints",
+      "node_id": "WFR_kwLOFVKCyc8AAAAHGqUDTA",
+      "head_branch": "main",
+      "head_sha": "38e7e6fee9118cec8a490ec27ed8274df0778496",
+      "path": ".github/workflows/source-lints.yml",
+      "display_title": "exe_format(pe): write a valid OptionalHeader.CheckSum for --compile o…",
+      "run_number": 8543,
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "workflow_id": 316005820,
+      "check_suite_id": 82720454957,
+      "check_suite_node_id": "CS_kwDOFVKCyc8AAAATQoX5LQ",
+      "url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30511792972",
+      "html_url": "https://github.com/oven-sh/bun/actions/runs/30511792972",
+      "pull_requests": [
+        {
+          "url": "https://api.github.com/repos/MC-MAGA/bun/pulls/931",
+          "id": 4167396324,
+          "number": 931,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "77ab49c2a8a054f07c59d8cf230b4355b44e2ca6",
+            "repo": {
+              "id": 994145820,
+              "url": "https://api.github.com/repos/MC-MAGA/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun/pulls/2",
+          "id": 1859407515,
+          "number": 2,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "4970ffc3a4e69827c0a411a1be20634af6ae7f74",
+            "repo": {
+              "id": 730930264,
+              "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun",
+              "name": "oven-sh-bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/nonomal/bun/pulls/11",
+          "id": 1516506718,
+          "number": 11,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "92e95c86dd100f167fb4cf8da1db202b5211d2c1",
+            "repo": {
+              "id": 689555194,
+              "url": "https://api.github.com/repos/nonomal/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/JDiaz11/bun/pulls/1",
+          "id": 1025599389,
+          "number": 1,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "3c5b68caa727477f603e93731a77ec035e7d3438",
+            "repo": {
+              "id": 521149498,
+              "url": "https://api.github.com/repos/JDiaz11/bun",
+              "name": "bun"
+            }
+          }
+        }
+      ],
+      "created_at": "2026-07-30T03:40:10Z",
+      "updated_at": "2026-07-30T03:40:29Z",
+      "actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "run_attempt": 1,
+      "referenced_workflows": [
+
+      ],
+      "run_started_at": "2026-07-30T03:40:10Z",
+      "triggering_actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "jobs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30511792972/jobs",
+      "logs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30511792972/logs",
+      "check_suite_url": "https://api.github.com/repos/oven-sh/bun/check-suites/82720454957",
+      "artifacts_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30511792972/artifacts",
+      "cancel_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30511792972/cancel",
+      "rerun_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30511792972/rerun",
+      "previous_attempt_url": null,
+      "workflow_url": "https://api.github.com/repos/oven-sh/bun/actions/workflows/316005820",
+      "head_commit": {
+        "id": "38e7e6fee9118cec8a490ec27ed8274df0778496",
+        "tree_id": "c9ca7b65de8d78fa4734e9038025eb6ab4b9898e",
+        "message": "exe_format(pe): write a valid OptionalHeader.CheckSum for --compile output (#36383)\n\n## What\n\n`bun build --compile --target=bun-windows-*` wrote an invalid PE\n`OptionalHeader.CheckSum` into every output executable. The stored value\nwas always a 16/17-bit number that matched neither the file nor the\nreference algorithm, while the base `bun.exe` it embeds ships a correct\none.\n\n## Repro\n\n```sh\nprintf 'console.log(\"hi\")' > a.ts\nbun build --compile a.ts --outfile out --target=bun-windows-x64\n```\n\nInspecting `out.exe`:\n\n```\nstored   0xd694      (always <= 0x1fffe)\nstandard 0x2d692     (MapFileAndCheckSum)\n```\n\nNote `0x2d692` folded once is `(0xd692 + 2) = 0xd694`, exactly the\nstored value.\n\n## Cause\n\n`recompute_pe_checksum` in `src/exe_format/pe.rs` folded the running sum\ntwo more times after adding the file length:\n\n```rust\nsum += data.len() as u64;\nsum = (sum & 0xffff) + (sum >> 16);   // wrong\nlet final_sum = ((sum & 0xffff) + (sum >> 16)) as u32;   // wrong\n```\n\nThe PE checksum is `fold16(word_sum) + file_length` with no further\nfolding (this is what `CheckSumMappedFile` / `MapFileAndCheckSum`\ncompute). Folding after the length addition truncates the 32-bit result.\n\n## Fix\n\nDrop the two post-length folds and return\n`fold16(word_sum).wrapping_add(file_length)` as a `u32`.\n\n## Impact\n\nWindows only validates `CheckSum` for drivers and boot-critical images,\nso compiled executables still ran. But `MapFileAndCheckSum`, `dumpbin\n/headers`, and PE-anomaly scanners all reported the output as having a\nbad checksum, and the routine's comment claims the value is correct.\n\n## Verification\n\nNew test in `test/bundler/compile-windows-metadata.test.ts` crafts a\nminimal 128 KiB PE64 template, cross-compiles via\n`--compile-executable-path` (so it runs on every platform without\ndownloading a real `bun.exe`), and asserts the stored checksum equals\nthe independently recomputed reference value.\n\n- `USE_SYSTEM_BUN=1 bun test ...` fails: `Expected: 186002, Received:\n54932`\n- `bun bd test ...` passes\n\n<!-- robobun:evidence:begin -->\n\n---\n\n**no test proof** · iteration 4 · Platform-specific test(s) that do not\nrun on this machine. Deferring to CI, which covers all platforms:\ntest/bundler/compile-windows-metadata.test.ts\n\n<!-- robobun:evidence:end -->",
+        "timestamp": "2026-07-30T03:40:07Z",
+        "author": {
+          "name": "robobun",
+          "email": "robobun@oven.sh"
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com"
+        }
+      },
+      "repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      },
+      "head_repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      }
+    },
+    {
+      "id": 30511744735,
+      "name": "source-lints",
+      "node_id": "WFR_kwLOFVKCyc8AAAAHGqRG3w",
+      "head_branch": "main",
+      "head_sha": "cadff92f76472e1d16f785837412a4f7902ac144",
+      "path": ".github/workflows/source-lints.yml",
+      "display_title": "FileSink: flush buffered bytes when process.exit() runs in the same t…",
+      "run_number": 8541,
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "workflow_id": 316005820,
+      "check_suite_id": 82720317958,
+      "check_suite_node_id": "CS_kwDOFVKCyc8AAAATQoPiBg",
+      "url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30511744735",
+      "html_url": "https://github.com/oven-sh/bun/actions/runs/30511744735",
+      "pull_requests": [
+        {
+          "url": "https://api.github.com/repos/MC-MAGA/bun/pulls/931",
+          "id": 4167396324,
+          "number": 931,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "77ab49c2a8a054f07c59d8cf230b4355b44e2ca6",
+            "repo": {
+              "id": 994145820,
+              "url": "https://api.github.com/repos/MC-MAGA/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun/pulls/2",
+          "id": 1859407515,
+          "number": 2,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "4970ffc3a4e69827c0a411a1be20634af6ae7f74",
+            "repo": {
+              "id": 730930264,
+              "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun",
+              "name": "oven-sh-bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/nonomal/bun/pulls/11",
+          "id": 1516506718,
+          "number": 11,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "92e95c86dd100f167fb4cf8da1db202b5211d2c1",
+            "repo": {
+              "id": 689555194,
+              "url": "https://api.github.com/repos/nonomal/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/JDiaz11/bun/pulls/1",
+          "id": 1025599389,
+          "number": 1,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "3c5b68caa727477f603e93731a77ec035e7d3438",
+            "repo": {
+              "id": 521149498,
+              "url": "https://api.github.com/repos/JDiaz11/bun",
+              "name": "bun"
+            }
+          }
+        }
+      ],
+      "created_at": "2026-07-30T03:39:02Z",
+      "updated_at": "2026-07-30T03:39:20Z",
+      "actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "run_attempt": 1,
+      "referenced_workflows": [
+
+      ],
+      "run_started_at": "2026-07-30T03:39:02Z",
+      "triggering_actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "jobs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30511744735/jobs",
+      "logs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30511744735/logs",
+      "check_suite_url": "https://api.github.com/repos/oven-sh/bun/check-suites/82720317958",
+      "artifacts_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30511744735/artifacts",
+      "cancel_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30511744735/cancel",
+      "rerun_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30511744735/rerun",
+      "previous_attempt_url": null,
+      "workflow_url": "https://api.github.com/repos/oven-sh/bun/actions/workflows/316005820",
+      "head_commit": {
+        "id": "cadff92f76472e1d16f785837412a4f7902ac144",
+        "tree_id": "1911c752e2c114e35b07406c85441357280535a3",
+        "message": "FileSink: flush buffered bytes when process.exit() runs in the same tick as write() (#36250)\n\n## Reproduction\n\n```js\nconst w = Bun.file(p).writer();\nw.write(\"LAST-LOG-LINE:fatal error, exiting\\n\"); // 35 B, below the auto-flush threshold\nprocess.exit(0);\n```\n\n| exit path | file bytes (before) | file bytes (after) |\n| --- | --- | --- |\n| `process.exit(0)` same tick | **0** | 35 |\n| `await Bun.sleep(0); process.exit(0)` | 35 | 35 |\n| `process.exitCode = 0` | 35 | 35 |\n| natural fall-through | 35 | 35 |\n\nThe `fatal(); log.write(msg); process.exit(1)` shape silently lost the\nlast log lines with exit code 0 and no error.\n\n## Cause\n\n`FileSink.write()` buffers in userspace and, when data is pending, only\nregisters an `AutoFlusher` deferred task\n([`FileSink.rs:414`](https://github.com/oven-sh/bun/blob/main/src/runtime/webcore/FileSink.rs#L414)).\nThat task is drained by `EventLoop::deferred_tasks.run()` inside\n`drain_microtasks_with_global()`\n([`event_loop.rs:337`](https://github.com/oven-sh/bun/blob/main/src/jsc/event_loop.rs#L337)),\nwhich every other exit path reaches via `tick()` before `on_exit()`.\n\n`process.exit()` goes `Process_functionExit` -> `reallyExit` ->\n`Bun__Process__exit` -> `on_exit()` -> `global_exit()` -> `Global::exit`\nwithout ever returning to the event loop (see the existing FIXME at\n[`VirtualMachine.rs:1512`](https://github.com/oven-sh/bun/blob/main/src/jsc/VirtualMachine.rs#L1512)).\n`Global::exit` flushes only Bun's own stdout/stderr writer, which is why\na same-tick `console.log` survived.\n\n## Fix\n\nDrain `deferred_tasks` in `on_exit()` right after\n`ExitHandler::dispatch_on_exit`, so writes done before `process.exit()`\nand inside an `'exit'` listener both reach the fd. This runs only the\nbounded sync flush callbacks registered via `AutoFlusher` (a `write(2)`\nof already-accepted bytes), not JS microtasks. It is a no-op on the\nnatural-exit path (the queue is already empty by then) and also covers\nthe worker `on_exit` path.\n\nNode's `fs.createWriteStream` write is async and is documented as not\nawaited by `process.exit()`; Bun's `FileSink.write()` already accepted\nthe bytes synchronously into a userspace buffer on a plain fd, so\nflushing them is the same class of work as the stdout flush Bun already\ndoes and the SQLite close-for-termination in `dispatch_on_exit`.\n\n## Verification\n\n```\n# before (USE_SYSTEM_BUN=1)\n(fail) FileSink buffered data is flushed on process exit > same-tick process.exit()\n(fail) FileSink buffered data is flushed on process exit > write inside 'exit' listener\n(pass) ... next-tick / process.exitCode / natural fall-through\n\n# after (bun bd)\n(pass) FileSink buffered data is flushed on process exit > same-tick process.exit()\n(pass) FileSink buffered data is flushed on process exit > write inside 'exit' listener\n(pass) ... next-tick / process.exitCode / natural fall-through\n```\n\nFull `filesink.test.ts` is 55/55 green. `process/`, `worker.test.ts`,\n`spawn/exit-code.test.ts` are unchanged vs main in this environment.\n\n<!-- robobun:evidence:begin -->\n\n---\n\n**no test proof** · iteration 2 · Platform-specific test(s) that do not\nrun on this machine. Deferring to CI, which covers all platforms:\ntest/js/bun/util/filesink.test.ts\n\n<!-- robobun:evidence:end -->",
+        "timestamp": "2026-07-30T03:38:58Z",
+        "author": {
+          "name": "robobun",
+          "email": "robobun@oven.sh"
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com"
+        }
+      },
+      "repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      },
+      "head_repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      }
+    },
+    {
+      "id": 30509227875,
+      "name": "source-lints",
+      "node_id": "WFR_kwLOFVKCyc8AAAAHGn3fYw",
+      "head_branch": "main",
+      "head_sha": "8fd862d2cd8f1a1badfca7c56b9b84f170d29af1",
+      "path": ".github/workflows/source-lints.yml",
+      "display_title": "fs: return negative BigIntStats *Ns for pre-epoch timestamps (#36187)",
+      "run_number": 8521,
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "workflow_id": 316005820,
+      "check_suite_id": 82713443252,
+      "check_suite_node_id": "CS_kwDOFVKCyc8AAAATQhr7tA",
+      "url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30509227875",
+      "html_url": "https://github.com/oven-sh/bun/actions/runs/30509227875",
+      "pull_requests": [
+        {
+          "url": "https://api.github.com/repos/MC-MAGA/bun/pulls/931",
+          "id": 4167396324,
+          "number": 931,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "77ab49c2a8a054f07c59d8cf230b4355b44e2ca6",
+            "repo": {
+              "id": 994145820,
+              "url": "https://api.github.com/repos/MC-MAGA/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun/pulls/2",
+          "id": 1859407515,
+          "number": 2,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "4970ffc3a4e69827c0a411a1be20634af6ae7f74",
+            "repo": {
+              "id": 730930264,
+              "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun",
+              "name": "oven-sh-bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/nonomal/bun/pulls/11",
+          "id": 1516506718,
+          "number": 11,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "92e95c86dd100f167fb4cf8da1db202b5211d2c1",
+            "repo": {
+              "id": 689555194,
+              "url": "https://api.github.com/repos/nonomal/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/JDiaz11/bun/pulls/1",
+          "id": 1025599389,
+          "number": 1,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "3c5b68caa727477f603e93731a77ec035e7d3438",
+            "repo": {
+              "id": 521149498,
+              "url": "https://api.github.com/repos/JDiaz11/bun",
+              "name": "bun"
+            }
+          }
+        }
+      ],
+      "created_at": "2026-07-30T02:43:18Z",
+      "updated_at": "2026-07-30T02:43:42Z",
+      "actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "run_attempt": 1,
+      "referenced_workflows": [
+
+      ],
+      "run_started_at": "2026-07-30T02:43:18Z",
+      "triggering_actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "jobs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30509227875/jobs",
+      "logs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30509227875/logs",
+      "check_suite_url": "https://api.github.com/repos/oven-sh/bun/check-suites/82713443252",
+      "artifacts_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30509227875/artifacts",
+      "cancel_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30509227875/cancel",
+      "rerun_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30509227875/rerun",
+      "previous_attempt_url": null,
+      "workflow_url": "https://api.github.com/repos/oven-sh/bun/actions/workflows/316005820",
+      "head_commit": {
+        "id": "8fd862d2cd8f1a1badfca7c56b9b84f170d29af1",
+        "tree_id": "ce87f0c9fcf7dea4cda3d927cdf0a95a48cae0e7",
+        "message": "fs: return negative BigIntStats *Ns for pre-epoch timestamps (#36187)",
+        "timestamp": "2026-07-30T02:43:15Z",
+        "author": {
+          "name": "robobun",
+          "email": "robobun@oven.sh"
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com"
+        }
+      },
+      "repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      },
+      "head_repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      }
+    },
+    {
+      "id": 30509109240,
+      "name": "source-lints",
+      "node_id": "WFR_kwLOFVKCyc8AAAAHGnwP-A",
+      "head_branch": "main",
+      "head_sha": "11c383210f77067ee4d3a0eb51d9a2e26e49ff13",
+      "path": ".github/workflows/source-lints.yml",
+      "display_title": "event_loop: make DeferredTaskQueue::run tolerate re-entrant map mutat…",
+      "run_number": 8520,
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "workflow_id": 316005820,
+      "check_suite_id": 82713114222,
+      "check_suite_node_id": "CS_kwDOFVKCyc8AAAATQhX2bg",
+      "url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30509109240",
+      "html_url": "https://github.com/oven-sh/bun/actions/runs/30509109240",
+      "pull_requests": [
+        {
+          "url": "https://api.github.com/repos/MC-MAGA/bun/pulls/931",
+          "id": 4167396324,
+          "number": 931,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "77ab49c2a8a054f07c59d8cf230b4355b44e2ca6",
+            "repo": {
+              "id": 994145820,
+              "url": "https://api.github.com/repos/MC-MAGA/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun/pulls/2",
+          "id": 1859407515,
+          "number": 2,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "4970ffc3a4e69827c0a411a1be20634af6ae7f74",
+            "repo": {
+              "id": 730930264,
+              "url": "https://api.github.com/repos/yixuqiu/oven-sh-bun",
+              "name": "oven-sh-bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/nonomal/bun/pulls/11",
+          "id": 1516506718,
+          "number": 11,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "92e95c86dd100f167fb4cf8da1db202b5211d2c1",
+            "repo": {
+              "id": 689555194,
+              "url": "https://api.github.com/repos/nonomal/bun",
+              "name": "bun"
+            }
+          }
+        },
+        {
+          "url": "https://api.github.com/repos/JDiaz11/bun/pulls/1",
+          "id": 1025599389,
+          "number": 1,
+          "head": {
+            "ref": "main",
+            "sha": "e7ddfeb19e8bc714f6137aa2b1cd5a7bb56b93d7",
+            "repo": {
+              "id": 357728969,
+              "url": "https://api.github.com/repos/oven-sh/bun",
+              "name": "bun"
+            }
+          },
+          "base": {
+            "ref": "main",
+            "sha": "3c5b68caa727477f603e93731a77ec035e7d3438",
+            "repo": {
+              "id": 521149498,
+              "url": "https://api.github.com/repos/JDiaz11/bun",
+              "name": "bun"
+            }
+          }
+        }
+      ],
+      "created_at": "2026-07-30T02:40:38Z",
+      "updated_at": "2026-07-30T02:40:56Z",
+      "actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "run_attempt": 1,
+      "referenced_workflows": [
+
+      ],
+      "run_started_at": "2026-07-30T02:40:38Z",
+      "triggering_actor": {
+        "login": "Jarred-Sumner",
+        "id": 709451,
+        "node_id": "MDQ6VXNlcjcwOTQ1MQ==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/709451?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Jarred-Sumner",
+        "html_url": "https://github.com/Jarred-Sumner",
+        "followers_url": "https://api.github.com/users/Jarred-Sumner/followers",
+        "following_url": "https://api.github.com/users/Jarred-Sumner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jarred-Sumner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Jarred-Sumner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jarred-Sumner/subscriptions",
+        "organizations_url": "https://api.github.com/users/Jarred-Sumner/orgs",
+        "repos_url": "https://api.github.com/users/Jarred-Sumner/repos",
+        "events_url": "https://api.github.com/users/Jarred-Sumner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Jarred-Sumner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "jobs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30509109240/jobs",
+      "logs_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30509109240/logs",
+      "check_suite_url": "https://api.github.com/repos/oven-sh/bun/check-suites/82713114222",
+      "artifacts_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30509109240/artifacts",
+      "cancel_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30509109240/cancel",
+      "rerun_url": "https://api.github.com/repos/oven-sh/bun/actions/runs/30509109240/rerun",
+      "previous_attempt_url": null,
+      "workflow_url": "https://api.github.com/repos/oven-sh/bun/actions/workflows/316005820",
+      "head_commit": {
+        "id": "11c383210f77067ee4d3a0eb51d9a2e26e49ff13",
+        "tree_id": "91657f62b6cd4edd712e977ae2f1082d07e9e4ac",
+        "message": "event_loop: make DeferredTaskQueue::run tolerate re-entrant map mutation (#32703)",
+        "timestamp": "2026-07-30T02:40:34Z",
+        "author": {
+          "name": "robobun",
+          "email": "robobun@oven.sh"
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com"
+        }
+      },
+      "repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      },
+      "head_repository": {
+        "id": 357728969,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNTc3Mjg5Njk=",
+        "name": "bun",
+        "full_name": "oven-sh/bun",
+        "private": false,
+        "owner": {
+          "login": "oven-sh",
+          "id": 108928776,
+          "node_id": "O_kgDOBn4fCA",
+          "avatar_url": "https://avatars.githubusercontent.com/u/108928776?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oven-sh",
+          "html_url": "https://github.com/oven-sh",
+          "followers_url": "https://api.github.com/users/oven-sh/followers",
+          "following_url": "https://api.github.com/users/oven-sh/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oven-sh/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oven-sh/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oven-sh/subscriptions",
+          "organizations_url": "https://api.github.com/users/oven-sh/orgs",
+          "repos_url": "https://api.github.com/users/oven-sh/repos",
+          "events_url": "https://api.github.com/users/oven-sh/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oven-sh/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "html_url": "https://github.com/oven-sh/bun",
+        "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+        "fork": false,
+        "url": "https://api.github.com/repos/oven-sh/bun",
+        "forks_url": "https://api.github.com/repos/oven-sh/bun/forks",
+        "keys_url": "https://api.github.com/repos/oven-sh/bun/keys{/key_id}",
+        "collaborators_url": "https://api.github.com/repos/oven-sh/bun/collaborators{/collaborator}",
+        "teams_url": "https://api.github.com/repos/oven-sh/bun/teams",
+        "hooks_url": "https://api.github.com/repos/oven-sh/bun/hooks",
+        "issue_events_url": "https://api.github.com/repos/oven-sh/bun/issues/events{/number}",
+        "events_url": "https://api.github.com/repos/oven-sh/bun/events",
+        "assignees_url": "https://api.github.com/repos/oven-sh/bun/assignees{/user}",
+        "branches_url": "https://api.github.com/repos/oven-sh/bun/branches{/branch}",
+        "tags_url": "https://api.github.com/repos/oven-sh/bun/tags",
+        "blobs_url": "https://api.github.com/repos/oven-sh/bun/git/blobs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/oven-sh/bun/git/tags{/sha}",
+        "git_refs_url": "https://api.github.com/repos/oven-sh/bun/git/refs{/sha}",
+        "trees_url": "https://api.github.com/repos/oven-sh/bun/git/trees{/sha}",
+        "statuses_url": "https://api.github.com/repos/oven-sh/bun/statuses/{sha}",
+        "languages_url": "https://api.github.com/repos/oven-sh/bun/languages",
+        "stargazers_url": "https://api.github.com/repos/oven-sh/bun/stargazers",
+        "contributors_url": "https://api.github.com/repos/oven-sh/bun/contributors",
+        "subscribers_url": "https://api.github.com/repos/oven-sh/bun/subscribers",
+        "subscription_url": "https://api.github.com/repos/oven-sh/bun/subscription",
+        "commits_url": "https://api.github.com/repos/oven-sh/bun/commits{/sha}",
+        "git_commits_url": "https://api.github.com/repos/oven-sh/bun/git/commits{/sha}",
+        "comments_url": "https://api.github.com/repos/oven-sh/bun/comments{/number}",
+        "issue_comment_url": "https://api.github.com/repos/oven-sh/bun/issues/comments{/number}",
+        "contents_url": "https://api.github.com/repos/oven-sh/bun/contents/{+path}",
+        "compare_url": "https://api.github.com/repos/oven-sh/bun/compare/{base}...{head}",
+        "merges_url": "https://api.github.com/repos/oven-sh/bun/merges",
+        "archive_url": "https://api.github.com/repos/oven-sh/bun/{archive_format}{/ref}",
+        "downloads_url": "https://api.github.com/repos/oven-sh/bun/downloads",
+        "issues_url": "https://api.github.com/repos/oven-sh/bun/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/oven-sh/bun/pulls{/number}",
+        "milestones_url": "https://api.github.com/repos/oven-sh/bun/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/oven-sh/bun/notifications{?since,all,participating}",
+        "labels_url": "https://api.github.com/repos/oven-sh/bun/labels{/name}",
+        "releases_url": "https://api.github.com/repos/oven-sh/bun/releases{/id}",
+        "deployments_url": "https://api.github.com/repos/oven-sh/bun/deployments"
+      }
+    }
+  ]
+}

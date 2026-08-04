@@ -1,49 +1,20 @@
 node_modules/
-.bun-cache/
 .env
 .env.local
-.claude/
-.planning/
-.codex
 ccflare.db
 ccflare.db-wal
 ccflare.db-shm
-better-ccflare.db
-better-ccflare.db-wal
-better-ccflare.db-shm
-apps/*/dist/
-packages/dashboard-web/dist/
+dist/
+build/
+artifacts/
+apps/desktop/.desktop-runtime/
 .DS_Store
 *.log
 tsconfig.tsbuildinfo
-packages/proxy/src/inline-worker.ts
-packages/proxy/src/embedded-tiktoken-wasm.ts
-packages/database/src/inline-vacuum-worker.ts
-packages/database/src/inline-incremental-vacuum-worker.ts
-CLAUDE.md
-AGENTS.md
-# Disallow .sh files except in .github/scripts/
-**/*.sh
-!.github/scripts/*.sh
+tmp/
+.factory/
+.agents/skills/
+skills-lock.json
 
-# Build artifacts and test files
-better-ccflare-*
-config.json
-ssl-cert-snakeoil.key
-ssl-cert-snakeoil.pem
-
-# Temporarily ignore auto-refresh scheduler tests due to complex mocking
-packages/proxy/src/auto-refresh-scheduler.test.ts
-
-# Test files
-test_*.sh
-
-# Database backup files
-*.db.backup.*
-*.db-wal
-*.db-shm
-.gitnexus
-.worktrees/
-docs/superpowers/
-packages/database/src/inline-integrity-check-worker.ts
-.tmp/
+.claude/skills/
+git-crypt-key

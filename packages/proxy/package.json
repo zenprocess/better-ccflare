@@ -1,5 +1,5 @@
 {
-	"name": "@better-ccflare/proxy",
+	"name": "@ccflare/proxy",
 	"version": "0.1.0",
 	"type": "module",
 	"main": "./src/index.ts",
@@ -7,17 +7,17 @@
 		".": "./src/index.ts"
 	},
 	"scripts": {
-		"typecheck": "bunx tsc --noEmit"
+		"typecheck": "bunx tsc --noEmit",
+		"test": "bun test ./src"
 	},
 	"dependencies": {
-		"@better-ccflare/agents": "workspace:*",
-		"@better-ccflare/config": "workspace:*",
-		"@better-ccflare/core": "workspace:*",
-		"@better-ccflare/database": "workspace:*",
-		"@better-ccflare/logger": "workspace:*",
-		"@better-ccflare/providers": "workspace:*",
-		"@better-ccflare/security": "workspace:*",
-		"@better-ccflare/ui-common": "workspace:*",
-		"@dqbd/tiktoken": "^1.0.22"
+		"@ccflare/config": "workspace:*",
+		"@ccflare/core": "workspace:*",
+		"@ccflare/database": "workspace:*",
+		"@ccflare/http": "workspace:*",
+		"@ccflare/logger": "workspace:*",
+		"@ccflare/providers": "workspace:*",
+		"@ccflare/types": "workspace:*",
+		"@dqbd/tiktoken": "^1.0.21"
 	}
 }

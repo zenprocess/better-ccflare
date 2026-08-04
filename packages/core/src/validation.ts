@@ -4,47 +4,16 @@
 import { ValidationError } from "./errors";
 
 /**
- * Validates and sanitizes a string input.
- *
- * Overload: when `options.required` is the literal `true`, the function
- * either returns a `string` or throws `ValidationError` — it never returns
- * `undefined` in that branch — so callers don't need a non-null assertion.
+ * Validates and sanitizes a string input
  */
 export function validateString(
 	value: unknown,
 	field: string,
 	options: {
-		required: true;
-		minLength?: number;
-		maxLength?: number;
-		pattern?: RegExp;
-		patternErrorMessage?: string;
-		allowedValues?: readonly string[];
-		transform?: (value: string) => string;
-	},
-): string;
-export function validateString(
-	value: unknown,
-	field: string,
-	options?: {
 		required?: boolean;
 		minLength?: number;
 		maxLength?: number;
 		pattern?: RegExp;
-		patternErrorMessage?: string;
-		allowedValues?: readonly string[];
-		transform?: (value: string) => string;
-	},
-): string | undefined;
-export function validateString(
-	value: unknown,
-	field: string,
-	options: {
-		required?: boolean;
-		minLength?: number;
-		maxLength?: number;
-		pattern?: RegExp;
-		patternErrorMessage?: string;
 		allowedValues?: readonly string[];
 		transform?: (value: string) => string;
 	} = {},
@@ -84,10 +53,7 @@ export function validateString(
 
 	// Validate pattern
 	if (options.pattern && !options.pattern.test(sanitized)) {
-		const errorMessage = options.patternErrorMessage
-			? `${field} ${options.patternErrorMessage}`
-			: `${field} has an invalid format`;
-		throw new ValidationError(errorMessage, field, value);
+		throw new ValidationError(`${field} has an invalid format`, field, value);
 	}
 
 	// Validate allowed values
@@ -176,162 +142,6 @@ export function validateNumber(
 }
 
 /**
- * Validates and sanitizes a boolean input
- */
-export function validateBoolean(
-	value: unknown,
-	field: string,
-	options: { required?: boolean } = {},
-): boolean | undefined {
-	// Handle undefined/null
-	if (value === undefined || value === null) {
-		if (options.required) {
-			throw new ValidationError(`${field} is required`, field);
-		}
-		return undefined;
-	}
-
-	// Handle boolean
-	if (typeof value === "boolean") {
-		return value;
-	}
-
-	// Handle string booleans
-	if (typeof value === "string") {
-		const lower = value.toLowerCase();
-		if (lower === "true" || lower === "1" || lower === "yes") {
-			return true;
-		}
-		if (lower === "false" || lower === "0" || lower === "no") {
-			return false;
-		}
-	}
-
-	// Handle numbers
-	if (typeof value === "number") {
-		return value !== 0;
-	}
-
-	throw new ValidationError(`${field} must be a boolean`, field, value);
-}
-
-/**
- * Validates and sanitizes an array input
- */
-export function validateArray<T>(
-	value: unknown,
-	field: string,
-	options: {
-		required?: boolean;
-		minLength?: number;
-		maxLength?: number;
-		itemValidator?: (item: unknown, index: number) => T;
-	} = {},
-): T[] | undefined {
-	// Handle undefined/null
-	if (value === undefined || value === null) {
-		if (options.required) {
-			throw new ValidationError(`${field} is required`, field);
-		}
-		return undefined;
-	}
-
-	// Ensure it's an array
-	if (!Array.isArray(value)) {
-		throw new ValidationError(`${field} must be an array`, field, value);
-	}
-
-	// Validate length
-	if (options.minLength !== undefined && value.length < options.minLength) {
-		throw new ValidationError(
-			`${field} must contain at least ${options.minLength} items`,
-			field,
-			value,
-		);
-	}
-
-	if (options.maxLength !== undefined && value.length > options.maxLength) {
-		throw new ValidationError(
-			`${field} must contain at most ${options.maxLength} items`,
-			field,
-			value,
-		);
-	}
-
-	// Validate items
-	if (options.itemValidator) {
-		return value.map((item, index) => {
-			try {
-				return options.itemValidator?.(item, index);
-			} catch (error) {
-				if (error instanceof ValidationError) {
-					throw new ValidationError(
-						`${field}[${index}]: ${error.message}`,
-						`${field}[${index}]`,
-						item,
-					);
-				}
-				throw error;
-			}
-		}) as T[];
-	}
-
-	return value as T[];
-}
-
-/**
- * Validates and sanitizes an object input
- */
-export function validateObject<T extends Record<string, unknown>>(
-	value: unknown,
-	field: string,
-	options: {
-		required?: boolean;
-		schema?: {
-			[K in keyof T]: (value: unknown) => T[K];
-		};
-	} = {},
-): T | undefined {
-	// Handle undefined/null
-	if (value === undefined || value === null) {
-		if (options.required) {
-			throw new ValidationError(`${field} is required`, field);
-		}
-		return undefined;
-	}
-
-	// Ensure it's an object
-	if (typeof value !== "object" || Array.isArray(value)) {
-		throw new ValidationError(`${field} must be an object`, field, value);
-	}
-
-	// Validate schema
-	if (options.schema) {
-		const result = {} as T;
-		const obj = value as Record<string, unknown>;
-
-		for (const [key, validator] of Object.entries(options.schema)) {
-			try {
-				result[key as keyof T] = validator(obj[key]);
-			} catch (error) {
-				if (error instanceof ValidationError) {
-					throw new ValidationError(
-						`${field}.${key}: ${error.message}`,
-						`${field}.${key}`,
-						obj[key],
-					);
-				}
-				throw error;
-			}
-		}
-
-		return result;
-	}
-
-	return value as T;
-}
-
-/**
  * Common string sanitizers
  */
 export const sanitizers = {
@@ -361,180 +171,8 @@ export const patterns = {
 	uuid: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
 	alphanumeric: /^[a-zA-Z0-9]+$/,
 	alphanumericWithSpaces: /^[a-zA-Z0-9\s]+$/,
-	// Account name: alphanumeric with spaces, hyphens, and underscores
-	// Spaces are allowed for better UX - CLI command suggestions will quote names properly
-	accountName: /^[a-zA-Z0-9\s\-_.]+$/,
+	// Account name: alphanumeric with spaces, hyphens, underscores, plus @ and . for email addresses
+	accountName: /^[a-zA-Z0-9\s\-_@.+]+$/,
 	// Path pattern for API endpoints
 	apiPath: /^\/v1\/[a-zA-Z0-9\-_/]*$/,
-	// URL pattern
-	url: /^https?:\/\/.+$/i,
 };
-
-/**
- * Validate and sanitize a URL endpoint
- */
-export function validateEndpointUrl(url: unknown, field = "endpoint"): string {
-	const urlStr = validateString(url, field, {
-		required: true,
-		pattern: patterns.url,
-		transform: (value) => value.trim().replace(/\/$/, ""), // Remove trailing slash
-	});
-
-	if (!urlStr) {
-		throw new ValidationError(`${field} is required`, field);
-	}
-
-	try {
-		const parsed = new URL(urlStr);
-
-		// Validate protocol
-		if (!["http:", "https:"].includes(parsed.protocol)) {
-			throw new ValidationError(
-				`${field} protocol must be http or https`,
-				field,
-				url,
-			);
-		}
-
-		// Validate hostname exists
-		if (!parsed.hostname) {
-			throw new ValidationError(
-				`${field} must have a valid hostname`,
-				field,
-				url,
-			);
-		}
-
-		return urlStr;
-	} catch (error) {
-		if (error instanceof ValidationError) {
-			throw error;
-		}
-		throw new ValidationError(
-			`${field} has invalid URL format: ${error instanceof Error ? error.message : String(error)}`,
-			field,
-			url,
-		);
-	}
-}
-
-/**
- * Validate API key format (basic check)
- */
-export function validateApiKey(apiKey: unknown, field = "apiKey"): string {
-	const key = validateString(apiKey, field, {
-		required: true,
-		minLength: 10,
-		transform: (value) => value.trim(),
-	});
-
-	if (!key) {
-		throw new ValidationError(`${field} is required`, field);
-	}
-
-	return key;
-}
-
-/**
- * Safely parse JSON with error handling and validation
- */
-export function safeJsonParse<T = unknown>(json: unknown, field = "json"): T {
-	if (typeof json !== "string") {
-		throw new ValidationError(`${field} must be a string`, field, json);
-	}
-
-	const trimmed = json.trim();
-	if (!trimmed) {
-		throw new ValidationError(`${field} cannot be empty`, field, json);
-	}
-
-	try {
-		return JSON.parse(trimmed) as T;
-	} catch (error) {
-		throw new ValidationError(
-			`${field} contains invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
-			field,
-			json,
-		);
-	}
-}
-
-/**
- * Validate model mappings object.
- * Values may be a single model string or an ordered array of models to try.
- */
-export function validateModelMappings(
-	mappings: unknown,
-	field = "modelMappings",
-): Record<string, string | string[]> {
-	if (!mappings) {
-		throw new ValidationError(`${field} cannot be null or undefined`, field);
-	}
-
-	if (typeof mappings !== "object" || Array.isArray(mappings)) {
-		throw new ValidationError(`${field} must be an object`, field, mappings);
-	}
-
-	const obj = mappings as Record<string, unknown>;
-
-	const result: Record<string, string | string[]> = {};
-	for (const [key, value] of Object.entries(obj)) {
-		if (!key || typeof key !== "string" || !key.trim()) {
-			throw new ValidationError(
-				`${field} keys must be non-empty strings`,
-				field,
-				mappings,
-			);
-		}
-
-		if (Array.isArray(value)) {
-			const arr = value as unknown[];
-			if (arr.length === 0) {
-				throw new ValidationError(
-					`${field} value for key '${key}' must not be an empty array`,
-					field,
-					mappings,
-				);
-			}
-			const validated: string[] = [];
-			for (const item of arr) {
-				if (!item || typeof item !== "string" || !item.trim()) {
-					throw new ValidationError(
-						`${field} array values for key '${key}' must be non-empty strings`,
-						field,
-						mappings,
-					);
-				}
-				validated.push(item.trim());
-			}
-			result[key.trim()] = validated.length === 1 ? validated[0] : validated;
-		} else {
-			if (!value || typeof value !== "string" || !(value as string).trim()) {
-				throw new ValidationError(
-					`${field} value for key '${key}' must be a non-empty string or array`,
-					field,
-					mappings,
-				);
-			}
-			result[key.trim()] = (value as string).trim();
-		}
-	}
-
-	return result;
-}
-
-/**
- * Validate account priority (0-100)
- */
-export function validatePriority(
-	priority: unknown,
-	field = "priority",
-): number {
-	return (
-		validateNumber(priority, field, {
-			min: 0,
-			max: 100,
-			integer: true,
-		}) ?? 0
-	); // Default to 0 if undefined
-}

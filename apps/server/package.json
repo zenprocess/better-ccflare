@@ -1,26 +1,24 @@
 {
-	"name": "@better-ccflare/server",
+	"name": "@ccflare/server",
 	"version": "0.1.0",
 	"type": "module",
 	"main": "./src/server.ts",
 	"scripts": {
 		"dev": "bun run --hot src/server.ts",
 		"start": "bun run src/server.ts",
-		"build": "bun build src/server.ts --compile --outfile dist/better-ccflare-server",
+		"build": "bun build src/server.ts --compile --outfile dist/ccflare-server",
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
-		"@better-ccflare/core": "workspace:*",
-		"@better-ccflare/core-di": "workspace:*",
-		"@better-ccflare/database": "workspace:*",
-		"@better-ccflare/config": "workspace:*",
-		"@better-ccflare/logger": "workspace:*",
-		"@better-ccflare/load-balancer": "workspace:*",
-		"@better-ccflare/proxy": "workspace:*",
-		"@better-ccflare/dashboard-web": "workspace:*",
-		"@better-ccflare/http-api": "workspace:*",
-		"@better-ccflare/security": "workspace:*",
-		"@better-ccflare/types": "workspace:*",
-		"@better-ccflare/openai-responses-adapter": "workspace:*"
+		"@ccflare/core": "workspace:*",
+		"@ccflare/database": "workspace:*",
+		"@ccflare/config": "workspace:*",
+		"@ccflare/runtime-server": "workspace:*",
+		"@ccflare/logger": "workspace:*",
+		"@ccflare/proxy": "workspace:*",
+		"@ccflare/providers": "workspace:*",
+		"@ccflare/types": "workspace:*",
+		"@ccflare/api": "workspace:*",
+		"@ccflare/http": "workspace:*"
 	}
 }
