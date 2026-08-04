@@ -40,7 +40,7 @@ import { SQL } from "bun";
 
 // ---------------------------------------------------------------- CLI
 
-interface Args {
+export interface Args {
 	dryRun: boolean;
 	limit: number;
 	scope: string;
@@ -54,7 +54,7 @@ interface Args {
 	rollupOnly: boolean;
 }
 
-function parseArgs(argv: string[]): Args {
+export function parseArgs(argv: string[]): Args {
 	const args: Args = {
 		dryRun: false,
 		limit: 100,
@@ -136,7 +136,7 @@ function parseArgs(argv: string[]): Args {
 // ------------------------------------------------------- extraction
 
 /** Redact obvious secret material from free text before it leaves the DB. */
-function scrubSecrets(text: string): string {
+export function scrubSecrets(text: string): string {
 	return text
 		.replace(/sk-ant-[A-Za-z0-9_-]{8,}/g, "[REDACTED:anthropic-key]")
 		.replace(/sk-[A-Za-z0-9_-]{20,}/g, "[REDACTED:api-key]")
@@ -456,7 +456,7 @@ async function postWithRetry(
 	return false;
 }
 
-function getEngramToken(): string {
+export function getEngramToken(): string {
 	const env = process.env.ENGRAM_API_TOKEN;
 	if (env) return env;
 	const proc = Bun.spawnSync(["cal-infisical", "get", "/engram/ENGRAM_API_TOKEN"]);
@@ -465,6 +465,62 @@ function getEngramToken(): string {
 	throw new Error(
 		"engram token unavailable: set ENGRAM_API_TOKEN or ensure cal-infisical works",
 	);
+}
+
+/**
+ * The SQL fragment for the json body column.
+ *
+ * In `--rollup-only` mode the distiller substitutes `'{}'::text AS json` so a
+ * full-corpus pass never loads the (potentially large) payload bodies into
+ * memory — the OOM guard. In normal mode it selects the real `rp.json` column.
+ * Returning a plain string keeps both the test and the call site trivially
+ * honest: Bun's sql tagged template inlines raw SQL fragments, so the rendered
+ * query is identical to the pre-refactor behavior.
+ */
+export function jsonColumnExpression(rollupOnly: boolean): string {
+	return rollupOnly ? "'{}'::text AS json" : "rp.json";
+}
+
+/**
+ * POST a single rollup observation and, in `--rollup-only` mode, mark each of
+ * the rollup's payload ids as distilled ONLY after the POST succeeds.
+ *
+ * Marking order is the load-bearing claim: rows are NOT marked before the
+ * rollup POST succeeds, and a failed POST leaves rows unmarked so the prune
+ * gate will not delete them. Extracted to make this guarantee testable with
+ * mocked `postFn` / `markFn` injection.
+ *
+ * `postFn` and `markFn` are injected so tests can drive the success/failure
+ * outcome without touching the network or a real database. In production,
+ * `postFn` is `postWithRetry` and `markFn` is the `INSERT INTO payload_distilled`
+ * call; throws from `markFn` propagate so the caller can abort the run.
+ */
+export async function postRollupAndMark(
+	rollup: Rollup,
+	ids: string[],
+	args: Args,
+	runId: string,
+	postFn: (observation: Observation) => Promise<boolean>,
+	markFn: (id: string) => Promise<void>,
+): Promise<{ distilled: number; skipped: number }> {
+	const result = { distilled: 0, skipped: 0 };
+	if (args.dryRun) {
+		if (args.rollupOnly) result.distilled = ids.length;
+		return result;
+	}
+	const ok = await postFn(rollupObservation(rollup, runId, args));
+	if (!args.rollupOnly) {
+		return result;
+	}
+	if (!ok) {
+		result.skipped = ids.length;
+		return result;
+	}
+	for (const id of ids) {
+		await markFn(id);
+		result.distilled++;
+	}
+	return result;
 }
 
 // -------------------------------------------------------------- main
@@ -515,7 +571,7 @@ async function main(): Promise<number> {
 	// substitute an empty-object literal for the potentially-large json body so a
 	// big backfill can't OOM the box. '{}' (not NULL) keeps extractRow's payload
 	// parsing null-safe; rollups read the join columns + timestamp, never json.
-	const jsonCol = args.rollupOnly ? sql`'{}'::text AS json` : sql`rp.json`;
+	const jsonCol = sql([jsonColumnExpression(args.rollupOnly)]);
 	const rows: DbRow[] = await sql`
 		SELECT rp.id, rp.timestamp, ${jsonCol},
 		       r.model, r.cost_usd, r.success, r.status_code, r.error_message,
@@ -628,43 +684,49 @@ async function main(): Promise<number> {
 
 	// (c) cost rollups
 	for (const [key, r] of rollups.entries()) {
-		const o = rollupObservation(r, runId, args);
+		const ids = rollupIds.get(key) ?? [];
 		if (args.dryRun) {
+			const o = rollupObservation(r, runId, args);
 			console.log(`\n--- DRY RUN would POST ${observationsUrl} (rollup)`);
 			console.log(`kind=${o.kind} subject: ${o.subject}`);
 			console.log(o.body);
-			if (args.rollupOnly) distilled += rollupIds.get(key)?.length ?? 0;
-		} else {
-			const ok = await postWithRetry(
-				observationsUrl,
-				o,
-				engramHeaders,
-				`engram rollup ${r.day}/${r.model}`,
-			);
-			// --rollup-only: mark this rollup's rows ONLY after the rollup POST
-			// succeeded. A failed rollup leaves its rows undistilled -> retried,
-			// never deleted by the prune gate. Fail-closed.
-			if (args.rollupOnly) {
-				if (!ok) {
-					skipped += rollupIds.get(key)?.length ?? 0;
-					continue;
-				}
-				for (const id of rollupIds.get(key) ?? []) {
-					try {
-						await sql`INSERT INTO payload_distilled (payload_id, distilled_at)
-							VALUES (${id}, ${Date.now()})
-							ON CONFLICT (payload_id) DO NOTHING`;
-					} catch (err) {
-						console.error(
-							`[distill] ABORT: failed to mark ${id} distilled (${err instanceof Error ? err.message : err}); stopping to bound double-writes`,
-						);
-						await sql.end();
-						return 3;
-					}
-					distilled++;
-				}
-			}
+			if (args.rollupOnly) distilled += ids.length;
+			continue;
 		}
+		// --rollup-only: mark this rollup's rows ONLY after the rollup POST
+		// succeeded. A failed rollup leaves its rows undistilled -> retried,
+		// never deleted by the prune gate. Fail-closed. The markFn's INSERT
+		// throw is the abort signal: bind it to exit code 3 here so the
+		// run halts and a re-run can't double-write.
+		let sub: { distilled: number; skipped: number };
+		try {
+			sub = await postRollupAndMark(
+				r,
+				ids,
+				args,
+				runId,
+				(obs) =>
+					postWithRetry(
+						observationsUrl,
+						obs,
+						engramHeaders,
+						`engram rollup ${r.day}/${r.model}`,
+					),
+				async (id) => {
+					await sql`INSERT INTO payload_distilled (payload_id, distilled_at)
+						VALUES (${id}, ${Date.now()})
+						ON CONFLICT (payload_id) DO NOTHING`;
+				},
+			);
+		} catch (err) {
+			console.error(
+				`[distill] ABORT: failed to mark distilled (${err instanceof Error ? err.message : err}); stopping to bound double-writes`,
+			);
+			await sql.end();
+			return 3;
+		}
+		distilled += sub.distilled;
+		skipped += sub.skipped;
 	}
 
 	// (d) godkb seeds for recurring failure signatures — sparingly
@@ -697,9 +759,15 @@ async function main(): Promise<number> {
 	return skipped > 0 ? 1 : 0;
 }
 
-main()
-	.then((code) => process.exit(code))
-	.catch((err) => {
-		console.error(`[distill] fatal: ${err instanceof Error ? err.message : err}`);
-		process.exit(4);
-	});
+// Only run when invoked as a script. Importing this module (e.g. from tests)
+// must not execute main() — bun:test imports the module file to access the
+// exported parseArgs / scrubSecrets / getEngramToken / jsonColumnExpression /
+// postRollupAndMark helpers.
+if (import.meta.main) {
+	main()
+		.then((code) => process.exit(code))
+		.catch((err) => {
+			console.error(`[distill] fatal: ${err instanceof Error ? err.message : err}`);
+			process.exit(4);
+		});
+}
