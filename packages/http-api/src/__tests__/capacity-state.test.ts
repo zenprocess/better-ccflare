@@ -1,10 +1,8 @@
 /// <reference types="bun-types" />
 declare const process: { env: Record<string, string | undefined> };
+
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import {
-	CircuitBreaker,
-	createStreamAdmission,
-} from "@better-ccflare/proxy";
+import { CircuitBreaker, createStreamAdmission } from "@better-ccflare/proxy";
 
 // Stub @better-ccflare/providers so the router's transitive imports of the
 // vertex-ai provider (which requires google-auth-library) do not fail when
@@ -128,7 +126,10 @@ describe("capacity-state handler", () => {
 		const body = (await response.json()) as {
 			enabled: { circuitBreaker: boolean; streamAdmission: boolean };
 			circuitBreaker: { keys: unknown[] };
-			streamAdmission: { passesThrough: boolean; accounts: Record<string, unknown> };
+			streamAdmission: {
+				passesThrough: boolean;
+				accounts: Record<string, unknown>;
+			};
 			generatedAt: number;
 		};
 		expect(body.enabled).toEqual({

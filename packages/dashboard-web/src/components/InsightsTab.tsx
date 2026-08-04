@@ -78,9 +78,7 @@ export const InsightsTab = React.memo(() => {
 					<CardContent className="p-6">
 						<div className="flex items-center gap-2 text-destructive">
 							<AlertTriangle className="h-5 w-5" />
-							<span>
-								Failed to load anomaly insights. Please try again.
-							</span>
+							<span>Failed to load anomaly insights. Please try again.</span>
 						</div>
 					</CardContent>
 				</Card>

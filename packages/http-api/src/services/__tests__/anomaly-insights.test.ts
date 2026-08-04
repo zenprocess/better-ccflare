@@ -734,13 +734,9 @@ describe("sanitizeProjectForDisplay", () => {
 		// The gap between `alpha` and `beta` is purely C0 whitespace, so
 		// after stripping the control chars the words become adjacent
 		// (sanitisation cannot fabricate a space where none existed).
-		expect(sanitizeProjectForDisplay("  alpha\n\n\tbeta  ")).toBe(
-			"alphabeta",
-		);
+		expect(sanitizeProjectForDisplay("  alpha\n\n\tbeta  ")).toBe("alphabeta");
 		// Spaces inside the input are real whitespace and DO get collapsed.
-		expect(sanitizeProjectForDisplay("  alpha    beta  ")).toBe(
-			"alpha beta",
-		);
+		expect(sanitizeProjectForDisplay("  alpha    beta  ")).toBe("alpha beta");
 	});
 
 	test("clamps to PROJECT_DISPLAY_MAX_CHARS and appends an ellipsis", () => {

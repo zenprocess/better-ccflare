@@ -70,7 +70,9 @@ export function cancelDiscardedResponseBody(
  * Drain a ReadableStream by reading until done, dropping each chunk.
  * Exported for the regression test which exercises the drain directly.
  */
-export async function drainBody(body: ReadableStream<Uint8Array>): Promise<void> {
+export async function drainBody(
+	body: ReadableStream<Uint8Array>,
+): Promise<void> {
 	const reader = body.getReader();
 	try {
 		while (true) {

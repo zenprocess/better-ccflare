@@ -45,8 +45,7 @@ import { cancelDiscardedResponseBody } from "../handlers/discard-body-cancel";
 const ITERATIONS = 25;
 const SHOULD_RUN = process.env.BUN_LEAK_273_RUN === "1";
 
-const TEST_ENDPOINT =
-	"https://api.minimax.io/v1/text/chatcompletion_v2";
+const TEST_ENDPOINT = "https://api.minimax.io/v1/text/chatcompletion_v2";
 
 function makeRequestBody(): string {
 	return JSON.stringify({
@@ -159,8 +158,7 @@ describe("issue #273 — Bun off-heap fetch leak: harness", () => {
 		}
 		await settleRSS();
 		const withDrainAfter = rssKB();
-		const withDrainPerReq =
-			(withDrainAfter - withDrainBefore) / ITERATIONS;
+		const withDrainPerReq = (withDrainAfter - withDrainBefore) / ITERATIONS;
 
 		console.log(
 			`[harness/with-drain] iterations=${ITERATIONS} rss before=${withDrainBefore}KB after=${withDrainAfter}KB delta=${withDrainAfter - withDrainBefore}KB perReq=${withDrainPerReq.toFixed(1)}KB`,

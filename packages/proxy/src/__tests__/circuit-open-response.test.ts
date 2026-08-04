@@ -236,10 +236,7 @@ describe("createPoolExhaustedResponse — circuit_open", () => {
 			accounts,
 			"pool_exhausted",
 		);
-		const circuitOpen = createPoolExhaustedResponse(
-			accounts,
-			"circuit_open",
-		);
+		const circuitOpen = createPoolExhaustedResponse(accounts, "circuit_open");
 
 		expect(poolExhausted.status).toBe(503);
 		expect(circuitOpen.status).toBe(503);

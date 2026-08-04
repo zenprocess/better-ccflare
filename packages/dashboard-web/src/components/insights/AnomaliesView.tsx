@@ -71,24 +71,21 @@ export const AnomaliesView = ({
 						</CardTitle>
 					</div>
 					<CardDescription>
-						Detectors below flag requests whose token usage sits at or
-						above {meta.zScoreThreshold.toFixed(1)}σ above their
-						(account, model) baseline, plus dense bursts of
-						near-identical calls and expensive models handling trivial
-						traffic. With ~{scannedLabel} requests scanned and a
-						3-sigma threshold, expect some events by chance alone —
-						investigate the largest, ignore the rest.
+						Detectors below flag requests whose token usage sits at or above{" "}
+						{meta.zScoreThreshold.toFixed(1)}σ above their (account, model)
+						baseline, plus dense bursts of near-identical calls and expensive
+						models handling trivial traffic. With ~{scannedLabel} requests
+						scanned and a 3-sigma threshold, expect some events by chance alone
+						— investigate the largest, ignore the rest.
 					</CardDescription>
 					<div className="flex flex-wrap items-center gap-2 pt-2 text-xs text-muted-foreground">
 						<span>
 							Scanned: <strong>{scannedLabel}</strong> requests
 						</span>
-						{meta.truncated && (
-							<Badge variant="outline">Scan truncated</Badge>
-						)}
+						{meta.truncated && <Badge variant="outline">Scan truncated</Badge>}
 						<span>
-							Capped at <strong>{meta.maxEventsPerDetector}</strong>{" "}
-							rows per detector
+							Capped at <strong>{meta.maxEventsPerDetector}</strong> rows per
+							detector
 						</span>
 					</div>
 				</CardHeader>
@@ -176,10 +173,7 @@ function TokenOutlierPanel({
 						<table className="w-full text-sm">
 							<thead className="bg-muted/50">
 								<tr>
-									<th
-										scope="col"
-										className="text-right px-3 py-2 tabular-nums"
-									>
+									<th scope="col" className="text-right px-3 py-2 tabular-nums">
 										z-score
 									</th>
 									<th scope="col" className="text-left px-3 py-2">
@@ -188,16 +182,10 @@ function TokenOutlierPanel({
 									<th scope="col" className="text-left px-3 py-2">
 										Project
 									</th>
-									<th
-										scope="col"
-										className="text-right px-3 py-2 tabular-nums"
-									>
+									<th scope="col" className="text-right px-3 py-2 tabular-nums">
 										Tokens
 									</th>
-									<th
-										scope="col"
-										className="text-right px-3 py-2 tabular-nums"
-									>
+									<th scope="col" className="text-right px-3 py-2 tabular-nums">
 										Baseline
 									</th>
 								</tr>
@@ -267,9 +255,9 @@ function RunawayLoopPanel({
 					/>
 				</div>
 				<CardDescription>
-					Dense bursts of ≥minRequests near-identical requests per
-					(account, model, project) within a {label} window. Highest
-					request count shown first.
+					Dense bursts of ≥minRequests near-identical requests per (account,
+					model, project) within a {label} window. Highest request count shown
+					first.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -282,16 +270,10 @@ function RunawayLoopPanel({
 						<table className="w-full text-sm">
 							<thead className="bg-muted/50">
 								<tr>
-									<th
-										scope="col"
-										className="text-right px-3 py-2 tabular-nums"
-									>
+									<th scope="col" className="text-right px-3 py-2 tabular-nums">
 										Requests
 									</th>
-									<th
-										scope="col"
-										className="text-right px-3 py-2 tabular-nums"
-									>
+									<th scope="col" className="text-right px-3 py-2 tabular-nums">
 										Rate
 									</th>
 									<th scope="col" className="text-left px-3 py-2">
@@ -300,10 +282,7 @@ function RunawayLoopPanel({
 									<th scope="col" className="text-left px-3 py-2">
 										Project
 									</th>
-									<th
-										scope="col"
-										className="text-right px-3 py-2 tabular-nums"
-									>
+									<th scope="col" className="text-right px-3 py-2 tabular-nums">
 										Window
 									</th>
 								</tr>
@@ -389,11 +368,10 @@ function MisroutingPanel({
 					/>
 				</div>
 				<CardDescription>
-					(Account, model) pairs where a model with output rate ≥
-					${costThreshold}/1M tokens has been used for{" "}
-					{tokenThreshold.toLocaleString()} tokens or fewer per call at
-					least 5 times in this window. Sorted by total logged cost
-					descending.
+					(Account, model) pairs where a model with output rate ≥ $
+					{costThreshold}/1M tokens has been used for{" "}
+					{tokenThreshold.toLocaleString()} tokens or fewer per call at least 5
+					times in this window. Sorted by total logged cost descending.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -409,32 +387,20 @@ function MisroutingPanel({
 									<th scope="col" className="text-left px-3 py-2">
 										Account / Model
 									</th>
-									<th
-										scope="col"
-										className="text-right px-3 py-2 tabular-nums"
-									>
+									<th scope="col" className="text-right px-3 py-2 tabular-nums">
 										Requests
 									</th>
-									<th
-										scope="col"
-										className="text-right px-3 py-2 tabular-nums"
-									>
+									<th scope="col" className="text-right px-3 py-2 tabular-nums">
 										Mean tokens
 									</th>
-									<th
-										scope="col"
-										className="text-right px-3 py-2 tabular-nums"
-									>
+									<th scope="col" className="text-right px-3 py-2 tabular-nums">
 										Total cost
 									</th>
 								</tr>
 							</thead>
 							<tbody>
 								{rows.map((row) => (
-									<tr
-										key={`${row.account}-${row.model}`}
-										className="border-t"
-									>
+									<tr key={`${row.account}-${row.model}`} className="border-t">
 										<td className="px-3 py-2">
 											<div className="font-medium">{row.account}</div>
 											<div className="text-xs text-muted-foreground">
@@ -481,9 +447,7 @@ function DetectorTotals({
 		<div className="flex items-center gap-2 text-xs text-muted-foreground">
 			<span>{label}</span>
 			{truncated && <Badge variant="outline">Truncated</Badge>}
-			{threshold !== undefined && (
-				<span>· ≥ {threshold.toFixed(1)}σ</span>
-			)}
+			{threshold !== undefined && <span>· ≥ {threshold.toFixed(1)}σ</span>}
 		</div>
 	);
 }

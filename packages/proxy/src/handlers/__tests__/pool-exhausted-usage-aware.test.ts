@@ -240,11 +240,7 @@ describe("createPoolExhaustedResponse — usage-aware", () => {
 			[stuck.id, { utilization: 100, resetMs: Date.now() + FUTURE_OFFSET_MS }],
 		]);
 
-		const response = createPoolExhaustedResponse(
-			[stuck],
-			undefined,
-			snapshots,
-		);
+		const response = createPoolExhaustedResponse([stuck], undefined, snapshots);
 		const body = (await response.json()) as {
 			error: { accounts: Array<{ reason: string }> };
 		};

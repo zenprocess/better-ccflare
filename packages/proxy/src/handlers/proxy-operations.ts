@@ -1524,7 +1524,7 @@ export function createPoolExhaustedResponse(
 		};
 	});
 
-// next_available_at = earliest of (active cooldown) and (future usage
+	// next_available_at = earliest of (active cooldown) and (future usage
 	// reset), across all accounts. Both signals can coexist — usage-exhausted
 	// accounts with rate_limited_until=null are surfaced here even though
 	// they would have been ignored by the pre-#365 logic. This applies
@@ -1555,7 +1555,7 @@ export function createPoolExhaustedResponse(
 			? new Date(earliestRecoveryMs).toISOString()
 			: null;
 
-// Retry-After precedence (zp4 — merge of #349 circuit-open and #365
+	// Retry-After precedence (zp4 — merge of #349 circuit-open and #365
 	// usage-aware; per the user's "longer, more honest wait wins" rule):
 	//   1. If a real recovery time is known (cooldown or usage reset, via
 	//      earliestRecoveryMs above) → that wait, clamped to [1, MAX=3600].
