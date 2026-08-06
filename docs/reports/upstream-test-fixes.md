@@ -175,7 +175,41 @@ No collision risk. Our diff is strictly code (DB paths, mock-module factories, t
 - **PR:** https://github.com/tombii/better-ccflare/pull/386
 - **Branch:** `zenprocess/ao/ccflare-155/test-stability-cherrypick`
 - **Base:** `tombii/better-ccflare@main@6f2c9d28`
-- **Commits:** `c1abbb83` → `eb163fce`
-- **Files changed:** 21 (20 code + 1 doc)
+- **Commits:** `c1abbb83` → `eb163fce` → `da1c0269` (Greptile fix)
+- **Files changed:** 22 (21 code + 1 doc)
 - **Test status:** 3009 pass / 55 skip / 11 pre-existing fails, exit 1
 - **Excluded:** `d2f1d64a security: disable 9 inherited upstream workflows` (fork-specific)
+
+---
+
+## Post-#386 update — Greptile review addressed (commit `da1c0269`)
+
+Greptile (P2) flagged that `apps/cli/__tests__/cli.test.ts` line 32 leaks per-`runCLI` SQLite databases (`.db` + `-wal` + `-shm`) into `$TMPDIR` because the existing `afterEach` only unlinks the SSL fixture `tempDir`.
+
+**Falsified first.** Ran the suite twice and counted `better-ccflare-cli-test-*` files in `$TMPDIR`:
+
+```
+pre-fix (cherry-picked branch):
+  BEFORE:  14 .db, 14 .db-wal, 14 .db-shm
+  AFTER 1: 21 .db, 21 .db-wal, 21 .db-shm   (+7 per run)
+  AFTER 2: 28 .db, 28 .db-wal, 28 .db-shm   (+7 per run)
+```
+
+The +7 matches the 7 `runCLI()` calls in the `CLI Integration Tests` describe block. The 3 `runCLI()` calls in the sibling `CLI Security Tests` describe at the bottom of the file are also not cleaned by that describe's `afterEach` (and 3 of the parse-logic tests don't call `runCLI` at all). So the leak is real, not unfalsifiable.
+
+**Fix (commit `da1c0269`):**
+
+- Module-level `Set<string> createdDbPaths`; `runCLI()` pushes the per-invocation `cliDbPath` to it.
+- A file-scope `afterEach` (registered AFTER the closing of the `CLI Integration Tests` describe so it runs for every test in the file, including the sibling `CLI Security Tests` describe) drains the set, unlinking `<db>`, `<db>-wal`, `<db>-shm` with `force: true` and ignoring ENOENT. Same try/catch / ignore-error style as the existing `tempDir` cleanup.
+
+**Post-fix verification (from a clean `$TMPDIR`):**
+
+```
+  BEFORE: 0
+  AFTER 1: 0
+  AFTER 2: 0
+```
+
+CLI test suite still passes: 28 pass / 0 fail / 65 expect() calls.
+
+Replied to Greptile's review thread on PR #386 ([comment id 3729573679](https://github.com/tombii/better-ccflare/pull/386#discussion_r3729573679)).
