@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.zenprocess.ccflare-hygiene.plist.template
+  Repository: zenprocess/better-ccflare (PUBLIC FORK)
+
+  Operator render step (NOT a commit):
+
+    1. Render placeholders for the local checkout:
+         sed -e "s|__CANARY_PATH__|<absolute path of scripts/repo-hygiene-canary.sh in this checkout>|" \
+             -e "s|__LOG_PATH__|<absolute path for the canary launchd log>|" \
+             -e "s|__REPO_PATH__|<absolute path of the ccflare working tree to audit>|" \
+             scripts/launchd/com.zenprocess.ccflare-hygiene.plist.template \
+             > "$HOME/Library/LaunchAgents/com.zenprocess.ccflare-hygiene.plist"
+
+    2. Validate the rendered plist:
+         plutil -lint "$HOME/Library/LaunchAgents/com.zenprocess.ccflare-hygiene.plist"
+
+    3. Load it (operator decision; launchd will then run every 12 hours):
+         launchctl load -w "$HOME/Library/LaunchAgents/com.zenprocess.ccflare-hygiene.plist"
+         launchctl print gui/$(id -u)/com.zenprocess.ccflare-hygiene
+
+    4. Unload (revert):
+         launchctl bootout gui/$(id -u)/com.zenprocess.ccflare-hygiene
+
+  The canary script reads HYGIENE_REPO_PATH from this plist's environment
+  and falls back to PWD, so no wrapper script is needed.
+
+  Alerts on BREACH (exit 1) and COULD_NOT_CHECK (exit 2) route via the
+  existing ntfy/zenctl path used by scripts/provenance-canary.sh and the
+  com.zenprocess.fabro-gate-poll plist.
+
+  This template is committed with placeholders so the public-fork repo
+  contains NO absolute filesystem paths.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.zenprocess.ccflare-hygiene</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>__CANARY_PATH__</string>
+		<string>--offline</string>
+	</array>
+	<key>StartInterval</key>
+	<integer>43200</integer>
+	<key>RunAtLoad</key>
+	<false/>
+	<key>StandardOutPath</key>
+	<string>__LOG_PATH__</string>
+	<key>StandardErrorPath</key>
+	<string>__LOG_PATH__</string>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>HYGIENE_REPO_PATH</key>
+		<string>__REPO_PATH__</string>
+		<key>PATH</key>
+		<string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+	</dict>
+</dict>
+</plist>

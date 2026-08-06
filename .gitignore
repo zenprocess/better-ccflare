@@ -25,6 +25,8 @@ AGENTS.md
 # Disallow .sh files except in .github/scripts/
 **/*.sh
 !.github/scripts/*.sh
+# Hygiene canary (ao-company #113) — repo-sprawl budget comparator
+!scripts/repo-hygiene-canary.sh
 
 # Build artifacts and test files
 better-ccflare-*
