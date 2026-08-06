@@ -25,12 +25,12 @@ Each row: hash (8) — decision — why.
 
 | #   | Hash      | Subject (short)                                          | Decision  | Why |
 |-----|-----------|----------------------------------------------------------|-----------|-----|
-| 1   | 7f1a5d30  | feat(zp): add .zp/project.yaml for fabro/qa-pipeline gate (issue #108) | DROP | `.zp/project.yaml` references operator-internal infra (`dellsrv`, `argus`, `forkd`, `fabro`, `bin/fabro-github-gate.sh`, `ao-company #114`) and mis-records `private: true` (the fork is **public**). Leaks internal-infrastructure references into a public repo. Not upstream and not for a public fork. |
+| 1   | 7f1a5d30  | feat(zp): add .zp/project.yaml for [internal-pipeline]-gate (issue #108) | DROP | `.zp/project.yaml` references operator-internal infrastructure (hostnames, services, helper scripts, and internal tracker tickets — all names redacted) and mis-records `private: true` (the fork is **public**). Leaks internal-infrastructure references into a public repo. Not upstream and not for a public fork. |
 | 2   | 5975d5ee  | feat(docker): add Dockerfile.provenance with pinned canary Bun | DROP | Operator-internal deploy-image helper (`Dockerfile.provenance` + companion `scripts/provenance-canary.sh`). Upstream covers provenance via its own `Dockerfile` plus `325599c5 fix(docker): wire up build provenance env vars for /health [skip-version]`. |
 | 3   | 4dd0d849  | feat(health): expose build-time provenance (#109)         | DROP | **Byte-identical to upstream `38e007c9`** — same author (Val), same subject, same path-reconciliation footnote, same code. This is the upstream-side of the same PR. |
-| 4   | 04c907c1  | feat(scripts): harden verify-live-build for first-attempt correctness on ccflare@113 | DROP | Hardening of `scripts/verify-live-build.sh`, an operator-internal verification script. Comments reference `ccproxy2.zp.digital`, `ccmax.zp.digital`, sandbox DNS for `*.zp.digital`. Not for public. |
+| 4   | 04c907c1  | feat(scripts): harden verify-live-build for first-attempt correctness on ccflare@113 | DROP | Hardening of `scripts/verify-live-build.sh`, an operator-internal verification script. Comments reference operator-internal DNS hostnames (names redacted) and sandbox DNS for internal-name TLDs. Not for public. |
 | 5   | f8a052b7  | feat(scripts): add read-only live-build verification script | DROP | Adds `scripts/verify-live-build.sh` (see #4) — operator-internal. |
-| 6   | f5a03055  | feat(scripts): add deploy provenance canary (#110)        | DROP | Adds `scripts/provenance-canary.sh`, which posts results to `http://ccproxy2.zp.digital:8080/health` and depends on `dellsrv/registry.zp.digital`. Explicitly internal. |
+| 6   | f5a03055  | feat(scripts): add deploy provenance canary (#110)        | DROP | Adds `scripts/provenance-canary.sh`, which posts results to an operator-internal HTTP endpoint and depends on operator-internal registry hostnames (names redacted). Explicitly internal. |
 | 7   | 188df7a5  | Merge `ao/ccflare-120/verify-live-build-review` into main | DROP | Merge commit; disappears automatically when linearising a rebase. |
 | 8   | 73125f04  | Merge `ao/ccflare-114/issue-107-test-stability` into main | DROP | Merge commit; same reason as #7. |
 | 9   | 8bf19893  | Merge `ao/ccflare-115/disable-inherited-workflows` into main | DROP (merge) | Merge commit disappears; the merged content (`d2f1d64a`) is **kept** below. |
@@ -172,10 +172,9 @@ above are the verbatim tail of `bun test`'s summary block.
 
 ## Public-repo cleanliness check
 
-I scanned the rebased branch for any of: `*.zp.digital`, `dellsrv`, `fabro`,
-`argus`, `forkd`, `ccproxy2.zp`. Result: one hit.
+I scanned the rebased branch for any of: internal-DNS-hostname patterns, operator-internal-host shortnames, internal orchestrator/service names. Result: one hit on a path the rebase inherited from upstream.
 
-- `CB-INTEGRATION-REPORT.md` line 186: `` - Did NOT touch any live service (`ccmax.zp.digital`, etc.). ``
+- `CB-INTEGRATION-REPORT.md` line 186: `` - Did NOT touch any live service (`<internal-host>.<internal-TLD>`, etc.). ``
 
 This commit is **from upstream/main itself** (`c7b108f3 docs: CB-INTEGRATION-REPORT.md for feat/circuit-breaker`), not from our 13 ahead. The brief limits my scope to the rebase of our 13 ahead, so I did **not** scrub upstream content. Worth flagging for an upstream issue / PR follow-up.
 
@@ -204,7 +203,7 @@ The five operator-internal files I dropped do not appear on the new branch.
   branch. The brief said "DO NOT force-push origin/main" and "Rewriting main on
   a public repo is the operator's call" — so I stopped at `git push -u origin`.
 - Optional follow-up: file an upstream issue on `tombii/better-ccflare` about
-  the `cbmax.zp.digital` reference in `CB-INTEGRATION-REPORT.md`. That's an
+  the operator-internal-DNS-hostname reference in `CB-INTEGRATION-REPORT.md`. That's an
   upstream-content concern, not ours.
 
 ## Reproduce
