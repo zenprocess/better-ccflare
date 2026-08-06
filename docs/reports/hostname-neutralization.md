@@ -92,3 +92,23 @@ uses the placeholder to avoid tripping the grep.
 All rewrites are confined to comment/doc text — no code or test inputs
 changed. The diffstat is 8 files, 9 insertions, 9 deletions: exactly
 one line per rewrite.
+
+## Follow-up: round 2 (added after this report was written)
+
+A second pass, prompted by an independent review, extended the same
+neutralisation to two additional classes of internal data that the
+hostname pattern does not match:
+
+- a literal operator filesystem path (one occurrence in the
+  integration report),
+- orchestration session identifiers of the form `(ccflare-NNN)`
+  embedded in test descriptions and a few JSDoc comments.
+
+The second pass modified 6 additional files for 10 line changes, on
+top of the 8-file round-1 diff documented above. The full PR therefore
+touches 12 files for 19 line changes across 2 commits. Two synthetic
+test fixtures in `project-attribution.test.ts` are deliberately left
+in place — see the PR body for the justification.
+
+The report on this branch is the historical record of round 1; the
+PR itself is the authoritative record of both rounds.
