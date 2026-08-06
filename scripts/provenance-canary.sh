@@ -213,6 +213,36 @@ log_line() {
 }
 
 # ----------------------------------------------------------------------
+# IDENTITY ASSERTION
+# ----------------------------------------------------------------------
+#
+# The /health endpoint of ccflare emits a small set of fields that no
+# other service in this stack mirrors by accident. We assert that the
+# response body is from ccflare before trusting any field. Without
+# this check, a wrong-service response (any HTTP service that happens
+# to return JSON containing the same field names) would pass the
+# provenance comparison and report VERIFIED_MATCH while verifying
+# nothing about ccflare. That is a false-green — worse than no check.
+#
+# We assert on TWO ccflare-universal fields, not one:
+#
+#   accounts  — a non-negative integer. The ccflare health handler
+#               always returns `accounts: pool.configured`, so the
+#               field is present on every code path. No other service
+#               in this stack returns this shape.
+#
+#   strategy  — a string from the closed set declared by
+#               packages/types/src/strategy.ts (StrategyName enum).
+#               A wrong-service response cannot guess one of these
+#               values unless it is also a ccflare load-balancer.
+#
+# If either assertion fails, the canary exits COULD_NOT_CHECK (2) and
+# refuses to compare SHAs. Green is reserved for responses that look
+# like ccflare.
+
+CCFLARE_STRATEGIES='session|least-used|session-affinity|session-drain-soonest'
+
+# ----------------------------------------------------------------------
 # 1. Query /health
 # ----------------------------------------------------------------------
 #
@@ -286,6 +316,59 @@ RUNNING_SHA=$(echo "$HEALTH_BODY" | jq -r '.git_sha // "unknown"')
 RUNNING_REF=$(echo "$HEALTH_BODY" | jq -r '.git_ref // "unknown"')
 RUNNING_VERSION=$(echo "$HEALTH_BODY" | jq -r '.version // "unknown"')
 RUNNING_BUILD_DATE=$(echo "$HEALTH_BODY" | jq -r '.build_date // "unknown"')
+
+# ----------------------------------------------------------------------
+# Identity assertion: refuse to trust any response that does not look
+# like ccflare's /health. Without this check, a wrong-service response
+# (any HTTP service that happens to return JSON containing the same
+# field names) produces a false-green VERIFIED_MATCH. The two
+# assertions below cover the two simplest paths an attacker / wrong
+# host could take: a body that lacks `accounts`, and a body that has
+# `accounts` set to a non-integer. Both fail closed.
+#
+# We do NOT trust `accounts` to be ccflare on its own (a wrong service
+# could include a numeric field of any name). We require `accounts` to
+# be a non-negative integer AND `strategy` to be one of the values
+# declared by StrategyName. Either alone is forgeable; both together
+# are not.
+# ----------------------------------------------------------------------
+
+ACCOUNTS_TYPE=$(echo "$HEALTH_BODY" | jq -r '.accounts | type')
+ACCOUNTS_VALUE=$(echo "$HEALTH_BODY" | jq -r '.accounts // "null"')
+STRATEGY_VALUE=$(echo "$HEALTH_BODY" | jq -r '.strategy // ""')
+
+# accounts must exist and be a non-negative integer.
+if [ "$ACCOUNTS_TYPE" != "number" ] || ! printf '%s' "$ACCOUNTS_VALUE" | grep -qE '^[0-9]+$'; then
+	log_line "  ERROR: /health body is not from ccflare (accounts field is missing or not a non-negative integer; got type=$ACCOUNTS_TYPE value=$ACCOUNTS_VALUE)"
+	log_line "  The response shape does not match packages/types/src/stats.ts HealthResponse."
+	log_line "  Refusing to compare SHAs — a canary that reports green against the wrong service is worse than no canary."
+	log_line "VERDICT: COULD_NOT_CHECK (response is not from ccflare)"
+	if [ "$JSON" -eq 1 ]; then
+		jq -n \
+			--arg host "$HOST_URL" \
+			--arg branch "$BRANCH" \
+			--arg accounts_type "$ACCOUNTS_TYPE" \
+			--arg accounts_value "$ACCOUNTS_VALUE" \
+			'{verdict:"COULD_NOT_CHECK", reason:"not_ccflare_accounts_invalid", host:$host, branch:$branch, accounts_type:$accounts_type, accounts_value:$accounts_value}'
+	fi
+	exit 2
+fi
+
+# strategy must be a string from the closed ccflare set.
+if ! printf '%s' "$STRATEGY_VALUE" | grep -qE "^($CCFLARE_STRATEGIES)$"; then
+	log_line "  ERROR: /health body is not from ccflare (strategy field is missing or not in the ccflare StrategyName set; got '$STRATEGY_VALUE')"
+	log_line "  Expected one of: $CCFLARE_STRATEGIES"
+	log_line "  Refusing to compare SHAs."
+	log_line "VERDICT: COULD_NOT_CHECK (response is not from ccflare)"
+	if [ "$JSON" -eq 1 ]; then
+		jq -n \
+			--arg host "$HOST_URL" \
+			--arg branch "$BRANCH" \
+			--arg strategy "$STRATEGY_VALUE" \
+			'{verdict:"COULD_NOT_CHECK", reason:"not_ccflare_strategy_invalid", host:$host, branch:$branch, strategy:$strategy}'
+	fi
+	exit 2
+fi
 
 log_line "  /health reports:"
 log_line "    version:      $RUNNING_VERSION"
