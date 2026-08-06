@@ -53,11 +53,13 @@ Eight scenarios for the runtime /health comparator. The critical test
 is the second one — it is the regression test for the false-green bug
 the operator filed against an earlier release of the canary.
 
-1. **wrong-service (no identity fields)** — host returns the
-   knowledge-base service's JSON. The canary must reject.
-2. **wrong-service with injected ccflare SHAs** — same knowledge-base
-   body but with `git_sha` matching the deploy branch HEAD. The
-   identity assertion must reject this. (Without the identity
+1. **wrong-service (no identity fields)** — host returns a non-ccflare
+   service's JSON. The body uses a deliberately synthetic stand-in
+   shape (`{"status":"ok","service":"other-service","items":42}`).
+   The canary must reject.
+2. **wrong-service with injected ccflare SHAs** — same synthetic
+   stand-in body but with `git_sha` matching the deploy branch HEAD.
+   The identity assertion must reject this. (Without the identity
    assertion, the canary reports `VERIFIED_MATCH` against a
    non-ccflare service — a false-green worse than no check.)
 3. **real ccflare matches deploy HEAD** — happy path.

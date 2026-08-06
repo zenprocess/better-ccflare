@@ -10,23 +10,30 @@
 # the scenario demands it.
 #
 # Scenarios:
-#   godkb-200               /health returns the godkb knowledge-base body
-#                           that the live host currently serves. The body
-#                           does NOT include ccflare's four provenance
-#                           fields. Used to demonstrate the false-green
-#                           the live deployment now exhibits.
+#   wrong-service-200       /health returns a body from a non-ccflare
+#                           service. The body uses a deliberately
+#                           synthetic shape that no ccflare /health
+#                           response would emit. Used to demonstrate
+#                           the false-green the canary exhibited when
+#                           pointed at the wrong host.
 #
-#   godkb-with-ccflare-shas /health returns the godkb body but with the
-#                           four ccflare provenance fields injected AND
-#                           the git_sha matching the deploy branch HEAD.
-#                           Used to demonstrate that the canary's parse-
-#                           compare path treats any JSON with the right
-#                           field values as a match, regardless of which
-#                           service actually served the body.
+#   wrong-service-with-ccflare-shas
+#                           /health returns a non-ccflare body but with
+#                           the four ccflare provenance fields injected
+#                           AND the git_sha matching the deploy branch
+#                           HEAD. Used to demonstrate that the canary's
+#                           parse-compare path treated any JSON with
+#                           the right field values as a match,
+#                           regardless of which service served it.
 #
 #   real-ccflare            /health returns the full ccflare body the
 #                           running instance serves (used as the fix
 #                           verification case).
+#
+#   real-ccflare-bad-strategy
+#                           ccflare-shaped body but strategy is wrong —
+#                           proves the identity assertion catches the
+#                           second path.
 #
 #   health-down             curl exits 7 (connection refused).
 #
@@ -126,17 +133,22 @@ done
 
 # Emit body and HTTP status depending on scenario.
 case "$SCEN" in
-	godkb-200)
-		BODY='{"status":"ok","service":"godkb","last_indexed":1786054383.547513,"seconds_since_index":2024,"artifacts":38124,"projects":51,"vocabulary_terms":9}'
-		# Note: no git_sha / git_ref / version / build_date.
+	wrong-service-200)
+		# Synthetic stand-in body: clearly not ccflare. No git_sha,
+		# no accounts, no strategy. The specific shape is irrelevant —
+		# what matters is that the parser sees it came from somewhere
+		# else.
+		BODY='{"status":"ok","service":"other-service","items":42}'
 		HTTP_CODE=200
 		;;
-	godkb-with-ccflare-shas)
-		# Inject all four ccflare fields with values that match a
-		# ccflare-shaped expected SHA. This proves the canary's parse-
-		# compare path treats any JSON-with-the-right-fields as a
-		# match, regardless of which service served it.
-		BODY=$(printf '{"status":"ok","service":"godkb","version":"3.5.47","git_sha":"%s","git_ref":"main","build_date":"2026-08-07T00:00:00Z"}' "$EXPECTED_SHA")
+	wrong-service-with-ccflare-shas)
+		# The smoking-gun scenario. A non-ccflare body that happens
+		# to return JSON containing the four ccflare provenance field
+		# names with values that match a ccflare-shaped expected SHA.
+		# Without the identity assertion, the canary's parse-compare
+		# path treats this as a match regardless of which service
+		# actually served it.
+		BODY=$(printf '{"status":"ok","service":"other-service","version":"3.5.47","git_sha":"%s","git_ref":"main","build_date":"2026-08-07T00:00:00Z"}' "$EXPECTED_SHA")
 		HTTP_CODE=200
 		;;
 	real-ccflare)

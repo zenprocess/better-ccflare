@@ -3,22 +3,22 @@
 # provenance-canary.bats — tests for scripts/provenance-canary.sh.
 #
 # Demonstrates the false-green the operator reported: when the host
-# responds with the wrong service's JSON (a knowledge-base app, not
+# responds with the wrong service's JSON (any service that is not
 # ccflare), the canary was reporting VERIFIED_MATCH as long as a
 # `git_sha` happened to align. The fix asserts the response is from
-# ccflare before trusting any field. See the "wrong-service" test
-# below — that test FAILS on the unfixed script and PASSES after the fix.
+# ccflare before trusting any field. See the "wrong-service" tests
+# below — they FAIL on the unfixed script and PASS after the fix.
 
 load helpers
 
 @test "wrong-service response (no ccflare identity) is not VERIFIED_MATCH" {
 	# Live repro: the URL the operator hit now serves a different
 	# service's /health. The body has no ccflare-shaped fields at all.
-	export MOCK_SCENARIO=godkb-200
+	export MOCK_SCENARIO=wrong-service-200
 	export MOCK_EXPECTED_SHA="$EXPECTED_SHA"
 	run_canary
 	# Old script: exits 2 (no git_sha in body) → falsify-after-the-fact
-	# would call that "correctly red". New scenario below (with-injected-
+	# would call that "correctly red". The scenario below (with-injected-
 	# shas) is the one that produces a false-green.
 	[ "$status" -ne 0 ]
 	[ "$output" != *"VERIFIED_MATCH"* ]
@@ -30,7 +30,7 @@ load helpers
 	# canary into VERIFIED_MATCH. There is nothing in the response that
 	# says "I am ccflare", so any service that copies the field names
 	# passes.
-	export MOCK_SCENARIO=godkb-with-ccflare-shas
+	export MOCK_SCENARIO=wrong-service-with-ccflare-shas
 	export MOCK_EXPECTED_SHA="$EXPECTED_SHA"
 	run_canary
 	# After the fix: the canary must reject this body because it does
@@ -39,7 +39,7 @@ load helpers
 	[ "$status" -ne 0 ]
 	[ "$output" != *"VERIFIED_MATCH"* ]
 	# The diagnostic must mention the wrong-service issue so operators
-	# know what failed. Accept either of the two expected strings.
+	# know what failed. Accept any of the expected strings.
 	[[ "$output" == *"wrong service"* || "$output" == *"not ccflare"* || "$output" == *"ccflare"* ]]
 }
 
