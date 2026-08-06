@@ -1,0 +1,1057 @@
+bun test v1.3.2 (b131639c)
+
+__tests__/api-auth.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module './inline-incremental-vacuum-worker' from '/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/database/src/database-operations.ts'
+-------------------------------
+
+
+apps/server/src/server.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+apps/cli/__tests__/cli.test.ts:
+109 | 
+110 | 	describe("Version Command", () => {
+111 | 		it("should display version with --version flag", async () => {
+112 | 			const result = await runCLI(["--version"]);
+113 | 
+114 | 			expect(result.exitCode).toBe(0);
+                                 ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:114:28)
+(fail) CLI Integration Tests > Version Command > should display version with --version flag [1273.88ms]
+117 | 		});
+118 | 
+119 | 		it("should display version with -v flag", async () => {
+120 | 			const result = await runCLI(["-v"]);
+121 | 
+122 | 			expect(result.exitCode).toBe(0);
+                                 ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:122:28)
+(fail) CLI Integration Tests > Version Command > should display version with -v flag [1324.54ms]
+135 | 
+136 | 	describe("Help Command", () => {
+137 | 		it("should display help with --help flag", async () => {
+138 | 			const result = await runCLI(["--help"]);
+139 | 
+140 | 			expect(result.exitCode).toBe(0);
+                                 ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:140:28)
+(fail) CLI Integration Tests > Help Command > should display help with --help flag [1715.59ms]
+148 | 		});
+149 | 
+150 | 		it("should display help with -h flag", async () => {
+151 | 			const result = await runCLI(["-h"]);
+152 | 
+153 | 			expect(result.exitCode).toBe(0);
+                                 ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:153:28)
+(fail) CLI Integration Tests > Help Command > should display help with -h flag [1349.92ms]
+155 | 		});
+156 | 
+157 | 		it("should show SSL options in help", async () => {
+158 | 			const result = await runCLI(["--help"]);
+159 | 
+160 | 			expect(result.stdout).toContain("--ssl-key");
+                               ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "--ssl-key"
+Received: ""
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:160:26)
+(fail) CLI Integration Tests > Help Command > should show SSL options in help [1068.60ms]
+162 | 		});
+163 | 
+164 | 		it("should show compact option in help", async () => {
+165 | 			const result = await runCLI(["--help"]);
+166 | 
+167 | 			expect(result.stdout).toContain("--compact");
+                               ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "--compact"
+Received: ""
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:167:26)
+(fail) CLI Integration Tests > Help Command > should show compact option in help [1535.59ms]
+168 | 		});
+169 | 
+170 | 		it("should show account mode options", async () => {
+171 | 			const result = await runCLI(["--help"]);
+172 | 
+173 | 			expect(result.stdout).toContain("claude-oauth");
+                               ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "claude-oauth"
+Received: ""
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:173:26)
+(fail) CLI Integration Tests > Help Command > should show account mode options [1343.30ms]
+215 | 				"--ssl-cert",
+216 | 				tempSslCertPath,
+217 | 			]);
+218 | 
+219 | 			const output = result.stdout + result.stderr;
+220 | 			expect(output).toContain("SSL file path validation failed");
+                        ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "SSL file path validation failed"
+Received: "error: Cannot find module './inline-incremental-vacuum-worker' from '/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/database/src/database-operations.ts'\n\nBun v1.3.2 (macOS x64)\n"
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:220:19)
+(fail) CLI Integration Tests > SSL Certificate Validation > should reject non-existent SSL key file [1273.33ms]
+229 | 				"--ssl-cert",
+230 | 				"/nonexistent/cert.pem",
+231 | 			]);
+232 | 
+233 | 			const output = result.stdout + result.stderr;
+234 | 			expect(output).toContain("SSL file path validation failed");
+                        ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "SSL file path validation failed"
+Received: "error: Cannot find module './inline-incremental-vacuum-worker' from '/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/database/src/database-operations.ts'\n\nBun v1.3.2 (macOS x64)\n"
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:234:19)
+(fail) CLI Integration Tests > SSL Certificate Validation > should reject non-existent SSL cert file [1462.07ms]
+240 | 		it("should reject add account without required flags", async () => {
+241 | 			const result = await runCLI(["--add-account", "test-account"]);
+242 | 
+243 | 			expect(result.exitCode).toBe(1);
+244 | 			const output = result.stdout + result.stderr;
+245 | 			expect(output).toContain("Please provide --mode to specify account type");
+                        ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "Please provide --mode to specify account type"
+Received: "error: Cannot find module './inline-incremental-vacuum-worker' from '/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/database/src/database-operations.ts'\n\nBun v1.3.2 (macOS x64)\n"
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:245:19)
+(fail) CLI Integration Tests > Add Account Command > should reject add account without required flags [1642.21ms]
+249 | 
+250 | 		it("should show example usage for add account", async () => {
+251 | 			const result = await runCLI(["--add-account", "test-account"]);
+252 | 
+253 | 			const output = result.stdout + result.stderr;
+254 | 			expect(output).toContain("Example:");
+                        ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "Example:"
+Received: "error: Cannot find module './inline-incremental-vacuum-worker' from '/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/database/src/database-operations.ts'\n\nBun v1.3.2 (macOS x64)\n"
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:254:19)
+(fail) CLI Integration Tests > Add Account Command > should show example usage for add account [1429.94ms]
+271 | 				"0",
+272 | 			]);
+273 | 
+274 | 			expect(result.exitCode).toBe(1);
+275 | 			const output = result.stdout + result.stderr;
+276 | 			expect(output).toContain("Invalid mode");
+                        ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "Invalid mode"
+Received: "error: Cannot find module './inline-incremental-vacuum-worker' from '/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/database/src/database-operations.ts'\n\nBun v1.3.2 (macOS x64)\n"
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:276:19)
+(fail) CLI Integration Tests > Add Account Command > should reject invalid mode value [1550.96ms]
+281 | 	describe("Argument Parsing", () => {
+282 | 		it("should parse port number correctly", async () => {
+283 | 			const result = await runCLI(["--help", "--port", "8081"]);
+284 | 
+285 | 			// Help should work regardless of other flags
+286 | 			expect(result.exitCode).toBe(0);
+                                 ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:286:28)
+(fail) CLI Integration Tests > Argument Parsing > should parse port number correctly [1569.95ms]
+288 | 
+289 | 		it("should handle multiple flags", async () => {
+290 | 			const result = await runCLI(["--version", "--port", "8081"]);
+291 | 
+292 | 			// Version should take precedence and exit early
+293 | 			expect(result.exitCode).toBe(0);
+                                 ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:293:28)
+(fail) CLI Integration Tests > Argument Parsing > should handle multiple flags [1242.21ms]
+323 | 		it("should execute version command quickly (< 1s)", async () => {
+324 | 			const startTime = Date.now();
+325 | 			await runCLI(["--version"]);
+326 | 			const duration = Date.now() - startTime;
+327 | 
+328 | 			expect(duration).toBeLessThan(1000);
+                          ^
+error: expect(received).toBeLessThan(expected)
+
+Expected: < 1000
+Received: 1044
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:328:21)
+(fail) CLI Integration Tests > Performance > should execute version command quickly (< 1s) [1045.69ms]
+331 | 		it("should execute help command quickly (< 1s)", async () => {
+332 | 			const startTime = Date.now();
+333 | 			await runCLI(["--help"]);
+334 | 			const duration = Date.now() - startTime;
+335 | 
+336 | 			expect(duration).toBeLessThan(1000);
+                          ^
+error: expect(received).toBeLessThan(expected)
+
+Expected: < 1000
+Received: 1083
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:336:21)
+(fail) CLI Integration Tests > Performance > should execute help command quickly (< 1s) [1085.14ms]
+438 | 			"test.crt",
+439 | 		]);
+440 | 
+441 | 		// Should fail with directory traversal detection, not expose system paths
+442 | 		const output = result.stdout + result.stderr;
+443 | 		expect(output).toContain("SSL file path validation failed");
+                       ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "SSL file path validation failed"
+Received: "error: Cannot find module './inline-incremental-vacuum-worker' from '/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/database/src/database-operations.ts'\n\nBun v1.3.2 (macOS x64)\n"
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/apps/cli/__tests__/cli.test.ts:443:18)
+(fail) CLI Security Tests > should handle path traversal attempts in SSL paths gracefully [995.72ms]
+
+packages/database/src/migrations.test.ts:
+Initial zai account: {
+  id: "zai-account",
+  name: "zai-account",
+  provider: "zai",
+  api_key: null,
+  refresh_token: "sk-zai-key-12345",
+}
+Final zai account: {
+  id: "zai-account",
+  name: "zai-account",
+  provider: "zai",
+  api_key: "sk-zai-key-12345",
+  refresh_token: null,
+}
+
+packages/logger/src/logger.test.ts:
+[2026-08-06T22:07:06.432Z] WARN: [Test] warn-path: {"name":"Error","message":"warned","stack":"Error: warned\n    at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/logger/src/logger.test.ts:69:33)"}
+[2026-08-06T22:07:06.432Z] INFO: [Test] info-path: {"name":"Error","message":"informed","stack":"Error: informed\n    at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/logger/src/logger.test.ts:70:33)"}
+[2026-08-06T22:07:06.432Z] DEBUG: [Test] debug-path: {"name":"Error","message":"debugged","stack":"Error: debugged\n    at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/logger/src/logger.test.ts:71:35)"}
+
+packages/database/src/__tests__/auto-vacuum-bootstrap.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/database/src/__tests__/incremental-vacuum-adaptive.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/database/src/__tests__/integrity-storage-methods.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/database/src/__tests__/async-writer-interleaving.test.ts:
+[interleaving] jobsRun=500, tickerFires=8, observeMs=2000
+[drain-budget] queuedAfterFirstTick=81, elapsed_ms=279
+
+packages/database/src/__tests__/configure-sqlite-mmap.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/auto-refresh-529-not-counted.test.ts:
+(fail) AutoRefreshScheduler.sendDummyMessage — 529 is not a counted failure > does not increment consecutiveFailures on a 529 overloaded_error probe response [1.40ms]
+(fail) AutoRefreshScheduler.sendDummyMessage — 529 is not a counted failure > never pauses the account even after FAILURE_THRESHOLD consecutive 529 probe responses [0.65ms]
+(fail) AutoRefreshScheduler.sendDummyMessage — 529 is not a counted failure > control: a genuine (non-529) failure still counts and pauses at FAILURE_THRESHOLD [0.46ms]
+(fail) AutoRefreshScheduler.sendDummyMessage — 529 is not a counted failure > control: a genuine failure counter is untouched by an intervening 529 (neither incremented nor reset) [0.46ms]
+
+packages/proxy/src/__tests__/incident-2026-07-09-health-flap.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/response-handler-worker-protocol.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/proxy-model-capacity.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/auto-refresh-cooldown-guard.test.ts:
+(fail) AutoRefreshScheduler — SQL cooldown guard (PR #200 bug 1) > eligibility query contains the rate_limited_until guard clause [0.71ms]
+(fail) AutoRefreshScheduler — SQL cooldown guard (PR #200 bug 1) > eligibility query passes now as the third parameter (rate_limited_until guard) [0.47ms]
+(fail) AutoRefreshScheduler — SQL cooldown guard (PR #200 bug 1) > all three parameters are the same timestamp value [0.40ms]
+(fail) AutoRefreshScheduler — cooldown guard scenarios > account with rate_limited_until IS NULL is included (eligible) [0.37ms]
+(fail) AutoRefreshScheduler — cooldown guard scenarios > account with rate_limited_until in the past is included (eligible) [0.41ms]
+(fail) AutoRefreshScheduler — cooldown guard scenarios > account with rate_limited_until in the future is excluded (skipped) [0.23ms]
+
+packages/proxy/src/__tests__/circuit-recovery-reachability.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/model-catalog.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/usage-collector-attribution-tristate.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/auto-refresh-throttle-exemption.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/usage-collector-payload-meta.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/response-handler-anthropic-terminal-recovery.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/circuit-open-response.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/auto-refresh-failure-threshold.test.ts:
+(fail) AutoRefreshScheduler — consecutive failure threshold > does not pause account before threshold is reached [0.63ms]
+(fail) AutoRefreshScheduler — consecutive failure threshold > pauses account in the database when threshold is reached [0.36ms]
+(fail) AutoRefreshScheduler — consecutive failure threshold > pauses account exactly once even when threshold is exceeded (counter cleared after pause)
+(fail) AutoRefreshScheduler — consecutive failure threshold > clears consecutive failure counter after account is paused [0.66ms]
+(fail) AutoRefreshScheduler — consecutive failure threshold > tracks failures independently per account [0.33ms]
+(fail) AutoRefreshScheduler — consecutive failure threshold > consecutiveFailures.delete clears an entry (Map semantics used by success path) [0.24ms]
+(fail) AutoRefreshScheduler — consecutive failure threshold > does not propagate DB error out of recordRefreshFailure when pause UPDATE throws [0.47ms]
+
+packages/proxy/src/__tests__/auto-refresh-proactive-requires-reauth.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/cache-keepalive-scheduler.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/probe-gate-all-suppressed.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/usage-collector-stream-terminal-state.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/usage-collector-lifecycle.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/integrity-scheduler.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/token-refresh-hierarchy.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/pool-exhausted.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/auto-refresh-probe-filter.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/bun-leak-273-safety.test.ts:
+37 | 				max_tokens: 32,
+38 | 				messages: [{ role: "user", content: "hi" }],
+39 | 			}),
+40 | 		});
+41 | 
+42 | 		expect(r.status).toBe(200);
+                        ^
+error: expect(received).toBe(expected)
+
+Expected: 200
+Received: undefined
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/proxy/src/__tests__/bun-leak-273-safety.test.ts:42:20)
+(fail) issue #273 — safety: forwarded bodies are never cancelled by the leak fix > the streaming forward path does NOT cancel the upstream body [0.60ms]
+104 | 				messages: [{ role: "user", content: "hi" }],
+105 | 				stream: false,
+106 | 			}),
+107 | 		});
+108 | 
+109 | 		expect(r.status).toBe(200);
+                         ^
+error: expect(received).toBe(expected)
+
+Expected: 200
+Received: undefined
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/proxy/src/__tests__/bun-leak-273-safety.test.ts:109:20)
+(fail) issue #273 — safety: forwarded bodies are never cancelled by the leak fix > the non-streaming forward path drains the body without cancelling [0.49ms]
+177 | 			}),
+178 | 		});
+179 | 		expect(r.body).not.toBeNull();
+180 | 
+181 | 		const body = r.body;
+182 | 		if (!body) throw new Error("expected body");
+                             ^
+error: expected body
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/proxy/src/__tests__/bun-leak-273-safety.test.ts:182:24)
+(fail) issue #273 — safety: forwarded bodies are never cancelled by the leak fix > cancelling a NON-discarded body mid-forward truncates the client — the bug class the fix must never reintroduce [0.32ms]
+
+packages/proxy/src/__tests__/inject-system-cache-ttl.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/proxy-usage-throttling.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/__tests__/auto-refresh-manual-pause-guard.test.ts:
+(fail) AutoRefreshScheduler — manual-pause probe guard > (unnamed) [0.70ms]
+(fail) AutoRefreshScheduler — failure_threshold re-probe cooldown > probes a failure_threshold account on the first cycle [0.42ms]
+(fail) AutoRefreshScheduler — failure_threshold re-probe cooldown > skips re-probing within the cooldown window [0.32ms]
+(fail) AutoRefreshScheduler — failure_threshold re-probe cooldown > re-probes after the cooldown elapses [0.31ms]
+(fail) AutoRefreshScheduler — failure_threshold re-probe cooldown > does not throttle non-failure_threshold accounts [0.33ms]
+(fail) AutoRefreshScheduler — failure_threshold re-probe cooldown > clears the cooldown path once a failure_threshold account is resumed (resume-then-reprobe) [0.32ms]
+(fail) AutoRefreshScheduler — failure_threshold re-probe cooldown > probes after cooldown even when a prior window is still active (long-running scheduler) [0.32ms]
+
+packages/proxy/src/__tests__/auto-refresh-auth-401.test.ts:
+(fail) AutoRefreshScheduler 401 probe handling > expires the access token and disables auto-refresh without setting requires_reauth [0.64ms]
+
+packages/proxy/src/__tests__/auto-refresh-requires-reauth-filter.test.ts:
+(fail) AutoRefreshScheduler requires_reauth eligibility > excludes accounts that require manual authentication from probes [0.62ms]
+
+packages/oauth-flow/src/__tests__/complete-reauth.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/database/src/repositories/__tests__/usage-history.repository.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/request-handler.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/error-classifier-clone-disposal.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/token-manager-requires-reauth.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/agent-interceptor.precedence.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/proxy-operations-failover.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/pool-exhausted-usage-aware.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/proxy-operations-count-tokens.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/response-processor-parseusage-disposal.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/response-processor.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/agent-interceptor.rewrite-guard.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/proxy-operations-extra-usage-exhausted.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/retryable-429.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/proxy-operations-client-abort.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/agent-interceptor.security.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/proxy-operations-out-of-credits.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/account-selector-model-capacity.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/response-handler-midstream.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/agent-interceptor.header.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/account-selector.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/oauth-features.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/request-handler-client-abort.test.ts:
+94 | 			new Headers({ "content-type": "application/json" }),
+95 | 			undefined,
+96 | 			false,
+97 | 			controller.signal,
+98 | 		);
+99 | 		expect(response.status).toBe(200);
+                               ^
+error: expect(received).toBe(expected)
+
+Expected: 200
+Received: undefined
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/proxy/src/handlers/__tests__/request-handler-client-abort.test.ts:99:27)
+(fail) makeProxyRequest: client disconnect aborts the upstream fetch > aborts the upstream when the caller signal fires AFTER the headers arrived [0.61ms]
+119 | 			method: "POST",
+120 | 			signal: controller.signal,
+121 | 		});
+122 | 
+123 | 		const response = await makeProxyRequest(target);
+124 | 		expect(response.status).toBe(200);
+                                ^
+error: expect(received).toBe(expected)
+
+Expected: 200
+Received: undefined
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/proxy/src/handlers/__tests__/request-handler-client-abort.test.ts:124:27)
+(fail) makeProxyRequest: client disconnect aborts the upstream fetch > aborts the upstream when the signal is inherited from a Request target [0.39ms]
+146 | 				new Headers(),
+147 | 				undefined,
+148 | 				false,
+149 | 				controller.signal,
+150 | 			),
+151 | 		).rejects.toThrow();
+                  ^
+error: 
+
+Expected promise that rejects
+Received promise that resolved: Promise { <resolved> }
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/proxy/src/handlers/__tests__/request-handler-client-abort.test.ts:151:13)
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/proxy/src/handlers/__tests__/request-handler-client-abort.test.ts:137:83)
+(fail) makeProxyRequest: client disconnect aborts the upstream fetch > rejects without contacting the upstream when the signal is already aborted [0.28ms]
+162 | 			undefined,
+163 | 			false,
+164 | 			controller.signal,
+165 | 		);
+166 | 		const reader = response.body?.getReader();
+167 | 		if (!reader) throw new Error("no body");
+                               ^
+error: no body
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/proxy/src/handlers/__tests__/request-handler-client-abort.test.ts:167:26)
+(fail) makeProxyRequest: client disconnect aborts the upstream fetch > surfaces an AbortError (not a timeout error) when the client goes away [0.61ms]
+200 | 			"POST",
+201 | 			new Headers({ "content-type": "application/json" }),
+202 | 			undefined,
+203 | 			false,
+204 | 		);
+205 | 		expect(response.status).toBe(200);
+                                ^
+error: expect(received).toBe(expected)
+
+Expected: 200
+Received: undefined
+
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/proxy/src/handlers/__tests__/request-handler-client-abort.test.ts:205:27)
+(fail) makeProxyRequest: existing contracts stay intact > still performs the request when no signal is supplied [0.65ms]
+216 | 			undefined,
+217 | 			false,
+218 | 			controller.signal,
+219 | 		);
+220 | 		const reader = response.body?.getReader();
+221 | 		if (!reader) throw new Error("no body");
+                               ^
+error: no body
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/proxy/src/handlers/__tests__/request-handler-client-abort.test.ts:221:26)
+(fail) makeProxyRequest: existing contracts stay intact > does not abort a healthy in-flight stream while the caller signal stays quiet [0.50ms]
+68 | }
+69 | 
+70 | /** Reads one chunk so we are provably past the header boundary. */
+71 | async function readOneChunk(response: Response): Promise<void> {
+72 | 	const reader = response.body?.getReader();
+73 | 	if (!reader) throw new Error("response had no body");
+                             ^
+error: response had no body
+      at readOneChunk (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/proxy/src/handlers/__tests__/request-handler-client-abort.test.ts:73:25)
+      at readOneChunk (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/proxy/src/handlers/__tests__/request-handler-client-abort.test.ts:71:29)
+      at <anonymous> (/Users/vvladescu/.ao/data/worktrees/ccflare/ccflare-164/packages/proxy/src/handlers/__tests__/request-handler-client-abort.test.ts:252:9)
+(fail) makeProxyRequest: existing contracts stay intact > keeps the caller signal usable as the abort source for the whole stream lifetime [0.27ms]
+
+packages/proxy/src/handlers/__tests__/proxy-operations-windowless-429.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/extract-cooldown-until.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/requires-reauth-routing.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/proxy/src/handlers/__tests__/rate-limit-cooldown-reentry.test.ts:
+(fail) mature cooldown re-entry / single-flight probe > evicts the oldest lease once the in-memory map hits the cap [6626.48ms]
+  ^ this test timed out after 5000ms.
+
+packages/proxy/src/handlers/__tests__/response-processor-clone-cancel.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/health-runtime.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/account-add-duplicate-guard.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/requests.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/health-usage-exhausted.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/kilo.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/model-mappings-update.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/nanogpt.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/account-remove-handler.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/oauth.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/storage.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/account-refresh-usage.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/insights-context.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/rate-limit-status.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/requests-stream-terminal-state.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/insights-cache.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/accounts-requires-reauth.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/handlers/__tests__/token-health-integration.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/http-api/src/services/__tests__/auth-failure-alert.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/providers/src/providers/codex/provider.continuation-characterization.test.ts:
+[characterization] two-skill nudge count = 1
+
+packages/load-balancer/src/strategies/__tests__/session-strategy.test.ts:
+Unknown provider: unknown-provider. Defaulting to no session tracking (security through default denial).
+Unknown provider: unknown-provider. Defaulting to no session tracking (security through default denial).
+
+packages/cli-commands/src/commands/__tests__/account-remove-duplicate-guard.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/cli-commands/src/commands/__tests__/qwen-account-reauth.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/cli-commands/src/commands/__tests__/nanogpt-account.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/cli-commands/src/commands/__tests__/account-notify-local-control-secret.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/cli-commands/src/commands/__tests__/account-list-requires-reauth.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/cli-commands/src/commands/__tests__/xai-account.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/providers/src/providers/bedrock/__tests__/provider-stream.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/providers/src/providers/bedrock/__tests__/error-handler.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/providers/src/providers/bedrock/__tests__/inference-profile-cache.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+-------------------------------
+
+
+packages/providers/src/providers/anthropic/__tests__/oauth.test.ts:
+[AnthropicOAuth] exchange response: {
+  expiresIn: 3600,
+  hasRefreshToken: true,
+  responseKeys: [ "refresh_token", "access_token", "expires_in" ],
+}
+[AnthropicOAuth] exchange response: {
+  expiresIn: 3600,
+  hasRefreshToken: true,
+  responseKeys: [ "refresh_token", "access_token", "expires_in" ],
+}
+[AnthropicOAuth] exchange response: {
+  expiresIn: 3600,
+  hasRefreshToken: true,
+  responseKeys: [ "refresh_token", "access_token", "expires_in" ],
+}
+[AnthropicOAuth] exchange response: {
+  expiresIn: 3600,
+  hasRefreshToken: true,
+  responseKeys: [ "refresh_token", "access_token", "expires_in" ],
+}
+[AnthropicOAuth] exchange response: {
+  expiresIn: 3600,
+  hasRefreshToken: true,
+  responseKeys: [ "refresh_token", "access_token", "expires_in" ],
+}
+[AnthropicOAuth] exchange response: {
+  expiresIn: 3600,
+  hasRefreshToken: true,
+  responseKeys: [ "refresh_token", "access_token", "expires_in" ],
+}
+[AnthropicOAuth] exchange response: {
+  expiresIn: 3600,
+  hasRefreshToken: true,
+  responseKeys: [ "refresh_token", "access_token", "expires_in" ],
+}
+[AnthropicOAuth] exchange response: {
+  expiresIn: 7200,
+  hasRefreshToken: true,
+  responseKeys: [ "refresh_token", "access_token", "expires_in" ],
+}
+
+ 2098 pass
+ 55 skip
+ 134 fail
+ 80 errors
+ 7307 expect() calls
+Ran 2287 tests across 239 files. [76.32s]
+EXIT=1
