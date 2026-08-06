@@ -1,0 +1,9 @@
+{
+  "localBranches": 999,
+  "worktrees": 999,
+  "ephemeralWorktrees": 999,
+  "rescueRefs": 999,
+  "localOnlyTags": 999,
+  "unpushedBranchCommits": 999,
+  "dirtyFileMaxAgeHours": 999
+}
