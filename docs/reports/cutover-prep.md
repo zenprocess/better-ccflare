@@ -52,21 +52,23 @@ ABSENT (EXPECTED): git cat-file -e failed for scripts/provenance-canary.sh
 ABSENT (EXPECTED): git cat-file -e failed for docs/reviews/verify-live-build.adversarial.md
 ```
 
-### 2b. `git grep -inE 'zp\.digital|dellsrv|ccmax|ccproxy2|10\.0\.201'` classification
+### 2b. Public-cleanliness grep classification (brief pattern — see brief)
 
 9 grep hits on the target branch. Each classified by checking the same path on `upstream/main` (SHA `6f2c9d28bda4939e3a3b391b9ca6071200248582`).
 
-| # | File | Line | Pattern | Origin | Verdict |
-|---|------|------|---------|--------|---------|
-| 1 | `CB-INTEGRATION-REPORT.md` | 186 | `ccmax.zp.digital` | inherited from `upstream/main` (commit `c7b108f3`) | ✅ NOT a blocker — pre-existing upstream content |
-| 2 | `packages/dashboard-web/src/components/accounts/RateLimitProgress.test.tsx` | 271 | `ccmax` | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing test comment |
-| 3 | `packages/database/src/migrations-dedup-preserving-state.test.ts` | 15 | `ccmax` | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing test comment |
-| 4 | `packages/http-api/src/handlers/__tests__/health-usage-exhausted.test.ts` | 286 | `ccproxy2` | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing test comment |
-| 5 | `packages/http-api/src/services/__tests__/anomaly-insights.test.ts` | 253 | `ccmax` | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing test comment |
-| 6 | `packages/http-api/src/services/__tests__/anomaly-insights.test.ts` | 320 | `ccmax` | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing test comment |
-| 7 | `packages/proxy/src/__tests__/anthropic-terminal-recovery.test.ts` | 677 | `ccproxy2` | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing test comment |
-| 8 | `packages/proxy/src/__tests__/response-handler-anthropic-terminal-recovery.test.ts` | 230 | `ccmax` | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing test comment |
-| 9 | `packages/proxy/src/handlers/proxy-operations.ts` | 1532 | `ccproxy2` | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing production-trace comment |
+| # | File | Line | Pattern class | Origin | Verdict |
+|---|------|------|---------------|--------|---------|
+| 1 | `CB-INTEGRATION-REPORT.md` | 186 | internal-hostname-DNS (`<name>.<internal-TLD>`) | inherited from `upstream/main` (commit `c7b108f3`) | ✅ NOT a blocker — pre-existing upstream content |
+| 2 | `packages/dashboard-web/src/components/accounts/RateLimitProgress.test.tsx` | 271 | internal-host shortname (`cc<suffix>`) | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing test comment |
+| 3 | `packages/database/src/migrations-dedup-preserving-state.test.ts` | 15 | internal-host shortname (`cc<suffix>`) | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing test comment |
+| 4 | `packages/http-api/src/handlers/__tests__/health-usage-exhausted.test.ts` | 286 | internal-host shortname (`cc<suffix>`) | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing test comment |
+| 5 | `packages/http-api/src/services/__tests__/anomaly-insights.test.ts` | 253 | internal-host shortname (`cc<suffix>`) | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing test comment |
+| 6 | `packages/http-api/src/services/__tests__/anomaly-insights.test.ts` | 320 | internal-host shortname (`cc<suffix>`) | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing test comment |
+| 7 | `packages/proxy/src/__tests__/anthropic-terminal-recovery.test.ts` | 677 | internal-host shortname (`cc<suffix>`) | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing test comment |
+| 8 | `packages/proxy/src/__tests__/response-handler-anthropic-terminal-recovery.test.ts` | 230 | internal-host shortname (`cc<suffix>`) | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing test comment |
+| 9 | `packages/proxy/src/handlers/proxy-operations.ts` | 1532 | internal-host shortname (`cc<suffix>`) | inherited from `upstream/main` | ✅ NOT a blocker — pre-existing production-trace comment |
+
+The literal hostnames are intentionally NOT reproduced here (this file will be public when main is replaced with this branch). Each row above names the *pattern class*; the actual literals are in the inherited upstream content and remain visible there if anyone reads the source.
 
 **Zero Category (ii) hits (originates from our side).** All 9 hits are inherited from upstream/main. The pre-existing report (`docs/reports/rebase-onto-tombii-3.5.47.md` at the prep-time SHA `299f070e`) had 7 additional hits — all in this report file itself, addressed in §3 below.
 
@@ -103,19 +105,22 @@ The first 3 are the cherry-picked surviving commits from origin/main's 13 ahead.
 
 **Sanitization applied** (working tree diff, applied as commit on top of `299f070e`):
 
-- Line 28 (drop #1 — `.zp/project.yaml`): `(\`dellsrv\`, \`argus\`, \`forkd\`, \`fabro\`, \`bin/fabro-github-gate.sh\`, \`ao-company #114\`)` → `(hostnames, services, helper scripts, and internal tracker tickets — all names redacted)`
-- Line 28 (drop #1 subject): `feat(zp): add .zp/project.yaml for fabro/qa-pipeline gate (issue #108)` → `feat(zp): add .zp/project.yaml for [internal-pipeline]-gate (issue #108)`
-- Line 31 (drop #4 — `verify-live-build.sh` hardening): `Comments reference \`ccproxy2.zp.digital\`, \`ccmax.zp.digital\`, sandbox DNS for \`*.zp.digital\`` → `Comments reference operator-internal DNS hostnames (names redacted) and sandbox DNS for internal-name TLDs`
-- Line 33 (drop #6 — provenance canary): `posts results to \`http://ccproxy2.zp.digital:8080/health\` and depends on \`dellsrv/registry.zp.digital\`` → `posts results to an operator-internal HTTP endpoint and depends on operator-internal registry hostnames (names redacted)`
-- Lines 175–176 (cleanliness-check scan description): `\`*.zp.digital\`, \`dellsrv\`, \`fabro\`, \`argus\`, \`forkd\`, \`ccproxy2.zp\`` → `internal-DNS-hostname patterns, operator-internal-host shortnames, internal orchestrator/service names`
-- Line 178 (cleanliness-check hit description): `\`ccmax.zp.digital\`` → `\`<internal-host>.<internal-TLD>\``
-- Line 207 (follow-up note): `\`cbmax.zp.digital\`` → `operator-internal-DNS-hostname`
+Literal hostnames are intentionally NOT reproduced below; each row names the *pattern class* of the replaced text and its sanitized form.
+
+- Line 28 (drop #1 — `.zp/project.yaml`): original listed 4 internal-host shortnames + 1 helper script path + 1 internal-tracker reference. Replaced with: `(hostnames, services, helper scripts, and internal tracker tickets — all names redacted)`.
+- Line 28 (drop #1 subject): original contained an internal-pipeline service name. Replaced with `[internal-pipeline]-gate` placeholder.
+- Line 31 (drop #4 — `verify-live-build.sh` hardening): original referenced 2 internal-hostname-DNS literals + the internal-TLD wildcard. Replaced with: `operator-internal DNS hostnames (names redacted) and sandbox DNS for internal-name TLDs`.
+- Line 33 (drop #6 — provenance canary): original referenced 1 internal HTTP endpoint + 1 internal-registry hostname. Replaced with: `an operator-internal HTTP endpoint and operator-internal registry hostnames (names redacted)`.
+- Lines 175–176 (cleanliness-check scan description): original listed the 5 brief-pattern tokens. Replaced with: `internal-DNS-hostname patterns, operator-internal-host shortnames, internal orchestrator/service names`.
+- Line 178 (cleanliness-check hit description): original quoted the inherited literal string. Replaced with a `<internal-host>.<internal-TLD>` placeholder.
+- Line 207 (follow-up note): original referenced an internal-DNS-hostname (typo of an inherited hit). Replaced with `operator-internal-DNS-hostname`.
 
 **Post-sanitization grep on the file:**
 ```
-$ grep -nE 'zp\.digital|dellsrv|ccmax|ccproxy2|10\.0\.201' docs/reports/rebase-onto-tombii-3.5.47.md
+$ grep -nE '<brief-pattern>' docs/reports/rebase-onto-tombii-3.5.47.md
 (empty = clean)
 ```
+(Where `<brief-pattern>` is the alternation in the brief: 5 internal-hostname/internal-DNS/internal-TLD tokens. Replaced here with placeholder to keep this deliverable itself clean of the same literals.)
 
 ---
 
@@ -177,8 +182,8 @@ for f in .zp/project.yaml Dockerfile.provenance scripts/verify-live-build.sh \
     || echo "OK: $f absent"
 done
 
-# brief grep pattern on new main
-git grep -nE 'zp\.digital|dellsrv|ccmax|ccproxy2|10\.0\.201' origin/main || echo "OK: zero hits"
+# brief grep pattern on new main (5-token alternation; see brief)
+git grep -nE '<brief-pattern>' origin/main || echo "OK: zero hits"
 
 # rescue tag still resolvable
 git ls-remote origin rescue/pre-tombii-cutover-main
