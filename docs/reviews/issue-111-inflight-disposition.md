@@ -186,13 +186,20 @@ Run from this worker's perspective, not the primary checkout:
 git rev-list --count ao/ccflare-165/inflight-salvage --not --remotes
 # Expected: 0
 
-# Hygiene grep on the diff against origin/main (zero hits expected):
-git grep -nE "zp\.digital|ccmax|ccproxy|/Users/|\.ao/data|worktrees/ccflare|ccflare-[0-9]{2,4}" \
-  $(git diff --name-only origin/main...ao/ccflare-165/inflight-salvage)
-# Expected: no output
+# Hygiene scan on the diff against origin/main (zero hits expected):
+#   Inspect the 4 files in `git diff --name-only origin/main...ao/ccflare-165/inflight-salvage`
+#   for any internal infrastructure identifiers — internal hostnames, cc-internal
+#   product names, local user paths, AO session paths, or AO session IDs.
+#   Pattern lives in the orchestrator's runbook; do not paste it here.
+#   Expected: none of the 4 files contain such identifiers.
 ```
 
-Both checks pass (recorded in this worker's terminal output).
+Both checks pass (recorded in this worker's terminal output). The original
+commit of this document quoted the hygiene regex verbatim in the verification
+block — that commit is on origin as 71ec7b1d; a follow-up commit scrubs the
+literal pattern. The pattern itself qualifies as an internal-infra leak when
+published to a public repo, so the doc now describes the check by intent
+instead.
 
 ---
 
