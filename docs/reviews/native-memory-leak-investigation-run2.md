@@ -1,6 +1,8 @@
 # Native-memory leak investigation (streaming proxy path)
 
-**Status:** preliminary. Falsify-or-confirm per path. Cancel path is the leading hypothesis per upstream tombii/better-ccflare #382 (corroborated by a clean production instance showing zero growth and zero client_cancelled streams).
+> **⚠️ THIS DOCUMENT IS SUPERSEDED.** Same caveats as Run 1 (above): the single-process harness that produced these numbers has two confounds the corrected harness removes. Per-path iteration counts here were 1500/1500/300/150, so the complete path's per-request figure divides by 300 and the usage-collector figure divides by 150 (more than 10× the divisor for control / cancel at 1500). This makes the per-request columns of the table below not comparable across paths. The CORRECTED analysis is at [`native-memory-leak-investigation-v3.md`](./native-memory-leak-investigation-v3.md). Cancel came in co-dominant with complete (means +131.40 / +192.37 KiB/req), not dominant. This file is preserved for reproducibility.
+
+**Status (this run, superseded):** preliminary. Falsify-or-confirm per path. Cancel path is the leading hypothesis per upstream tombii/better-ccflare #382. See v3 for the corrected analysis.
 
 ## Scope
 
@@ -49,4 +51,6 @@ For each path, run `iterations` synthetic Anthropic-Messages-shaped SSE response
 
 ## Conclusion
 
-TBD — written after measurement runs complete. The conclusion names the path (if any) whose per-request growth exceeds the control floor by enough to explain a multi-GB RSS over ~26k requests, and either proposes a minimal fix or states plainly that no path was reproduced as a native-memory leak under the tested conditions.
+**This Run 2 conclusion is superseded — see the corrected analysis in [`native-memory-leak-investigation-v3.md`](./native-memory-leak-investigation-v3.md).** The numbers in this file are not directly comparable across rows because iteration counts differ per path; in particular the usage-collector row's 329 KiB/req derives from a path run at N=150, so any fixed-path setup cost divides into a 10× larger per-request number than the same fixed cost on cancel/control (N=1500).
+
+The forward ranking visible in this file (collector > complete > cancel > control) is real, but the *magnitudes* are not — and the ordering between complete and cancel flips in the corrected harness when both confounds are removed: complete comes in at +192.37 KiB/req vs cancel at +131.40 KiB/req, both well above the control noise floor of +3.51 KiB/req, surviving forward + reversed. So in the corrected data, cancel is **co-dominant** with complete (complete is 1.46× cancel), not dominant. A fix scoped only to the cancel handler would address roughly 40% of the reproduced growth — meaningful, but not the whole story.

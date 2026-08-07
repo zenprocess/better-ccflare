@@ -3,45 +3,45 @@
  *
  * NOT a CI gate. NOT a published artifact. Internal investigation script.
  *
- * Drives four candidate paths in isolation, measures process RSS via
+ * Drives ONE candidate path in isolation, measures process RSS via
  * process.memoryUsage() (cheap, no debug-endpoint allocation), and
  * reports per-request growth. The point is to falsify-or-confirm the
  * cancel-path hypothesis from upstream tombii/better-ccflare #382.
  *
- * Paths exercised:
- *   (0) instrumentation-control — gcHard() in a tight loop with no real
- *       work. If this path's RSS grows, the harness itself is the leak
- *       source (e.g. a measurement endpoint that allocates), not the
- *       code under test. MUST be near-zero delta for the other paths
- *       to be meaningful.
- *   (a) stream-tee cancel path — upstream read is interrupted by a
- *       downstream cancel before the body is fully consumed
- *   (b) normal complete path — upstream is fully drained through the
- *       teed wrapper (the steady state of /v1/messages streaming)
- *   (c) usage-collector handoff — chunks are fed into the in-process
- *       collector via handleChunk and an end message
+ * Single-path mode: the orchestrator (run-all.ts) spawns this script
+ * once per (path, ordering) pair as a fresh subprocess. Each child
+ * starts with an independent baseline — no allocator arenas, no JIT
+ * code, no warmed structures carried over from a previous path. This
+ * addresses the carry-over confound present in earlier single-process
+ * versions of the harness.
  *
- * Each path is run as several batches. Within a batch:
- *   1. force full GC
- *   2. record baseline {rss, heapUsed, external, arrayBuffers}
- *   3. run N iterations
- *   4. force full GC
- *   5. record final
- *   6. report per-request delta
+ * Paths exercised (selected via --path):
+ *   control         — gcHard() in a tight loop with no real work. If
+ *                     this path's RSS grows, the harness itself is the
+ *                     leak source (e.g. a measurement endpoint that
+ *                     allocates), not the code under test. MUST be
+ *                     near-zero delta for the other paths to be
+ *                     meaningful.
+ *   cancel          — stream-tee cancel path; upstream read is
+ *                     interrupted by a downstream cancel before the
+ *                     body is fully consumed. Mirrors tombii's
+ *                     attribution to Bun ReadableStream.cancel()
+ *                     semantics.
+ *   complete        — normal full consumption through teed wrapper.
+ *                     Steady state of /v1/messages streaming.
+ *   usage-collector — chunks are fed into the in-process collector
+ *                     via handleChunk and an end message.
  *
  * Methodology guard: `bun:jsc.heapStats()` is a debug endpoint that
  * allocates a JSC object snapshot each time it is called. Calling it
  * inside the sample function manufactures a leak that is not in the
  * code under test. We therefore avoid heapStats() in the hot path and
- * use `process.memoryUsage()` exclusively. A single end-of-run
- * heapStats() snapshot is taken ONLY for a side-channel cross-check;
- * it never feeds the per-request delta.
+ * use `process.memoryUsage()` exclusively.
  */
 
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { tmpdir } from "node:os";
 import { unlinkSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { createAnthropicTerminalRecoveryStream } from "../../packages/proxy/src/anthropic-terminal-recovery";
 import { combineChunks, teeStream } from "../../packages/proxy/src/stream-tee";
 import { initUsageCollector } from "../../packages/proxy/src/usage-collector";
@@ -283,21 +283,23 @@ async function runUsageCollectorPath(
 	iterations: number,
 	streamBytes: number,
 ): Promise<BatchResult> {
-	// Initialize a real UsageCollector against a throwaway SQLite file.
-	// The DB writes themselves are not what we are measuring — we are
-	// measuring the chunk → parser → retained-state path that the
-	// upstream hypothesis could blame. The DB ops run in the
-	// asyncWriter background and never block the per-iteration
-	// measurement loop.
+	// Initialize a real UsageCollector against a throwaway SQLite file
+	// unique to this child process. The DB writes themselves are not
+	// what we are measuring — we are measuring the chunk → parser →
+	// retained-state path that the upstream hypothesis could blame.
+	// The DB ops run in the asyncWriter background and never block the
+	// per-iteration measurement loop.
 	const tmpDb = join(
 		tmpdir(),
-		`leak-harness-${process.pid}-${Date.now()}.db`,
+		`leak-harness-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`,
 	);
 	process.env.BETTER_CCFLARE_DB_PATH = tmpDb;
+	process.stderr.write(`[harness/collector] db=${tmpDb} calling initUsageCollector...\n`);
 	const collector = await initUsageCollector(
 		() => false,
 		() => undefined,
 	);
+	process.stderr.write(`[harness/collector] initUsageCollector returned, entering loop...\n`);
 	gcHard();
 	const baseline = sampleMemory();
 	for (let i = 0; i < iterations; i++) {
@@ -340,13 +342,19 @@ async function runUsageCollectorPath(
 	}
 	gcHard();
 	const final = sampleMemory();
-	return finalizeBatch(
+	const result = finalizeBatch(
 		"usage-collector",
 		iterations,
 		streamBytes,
 		baseline,
 		final,
 	);
+	try {
+		unlinkSync(tmpDb);
+	} catch {
+		// best-effort cleanup of the throwaway db file
+	}
+	return result;
 }
 
 function finalizeBatch(
@@ -380,113 +388,13 @@ function finalizeBatch(
 	};
 }
 
-function renderMarkdown(
-	results: BatchResult[],
-	hostInfo: { bunVersion: string; platform: string; arch: string },
-): string {
-	const lines: string[] = [];
-	lines.push("# Native-memory leak investigation (streaming proxy path)");
-	lines.push("");
-	lines.push(
-		"**Status:** preliminary. Falsify-or-confirm per path. Cancel path is the leading hypothesis per upstream tombii/better-ccflare #382 (corroborated by a clean production instance showing zero growth and zero client_cancelled streams).",
-	);
-	lines.push("");
-	lines.push("## Scope");
-	lines.push("");
-	lines.push(
-		"Three candidate sites are exercised in isolation against one instrumentation-control path. The control path runs no real work — if its RSS grows, the measurement infrastructure (the GC, the loop, anything the JSC machinery promotes/finalizes) is the leak source, not the code under test.",
-	);
-	lines.push("");
-	lines.push("## Methodology");
-	lines.push("");
-	lines.push(
-		"For each path, run `iterations` synthetic Anthropic-Messages-shaped SSE responses of ~`streamBytes` total through the code under test in a tight loop. Before and after each batch:",
-	);
-	lines.push("");
-	lines.push(
-		"1. `bun:jsc.fullGC()` + `bun:jsc.gcAndSweep()` + `bun:jsc.fullGC()` (two-pass finalization)",
-	);
-	lines.push(
-		"2. Record `process.memoryUsage()` — RSS, heapUsed, external, arrayBuffers",
-	);
-	lines.push("3. Compute per-request delta = (final - baseline) / iterations");
-	lines.push("");
-	lines.push(
-		"**Methodology guard.** `bun:jsc.heapStats()` is a debug endpoint that allocates a JSC object snapshot on every call. Calling it on the hot measurement path would manufacture a leak that is not in the code under test. We therefore never call it on the hot path; we use `process.memoryUsage()` exclusively. The harness is robust against the exact artifact a previous measurement showed on the production instance.",
-	);
-	lines.push("");
-	lines.push("## Environment");
-	lines.push("");
-	lines.push(`- Bun: ${hostInfo.bunVersion}`);
-	lines.push(`- Platform: ${hostInfo.platform} ${hostInfo.arch}`);
-	lines.push(
-		"- Upstream source: synthetic ReadableStream producing Anthropic-shaped SSE (message_start, content_block_start, content_block_delta×N, content_block_stop, ping, message_delta, message_stop) in 4 KiB segments.",
-	);
-	lines.push("");
-	lines.push("## Per-path results");
-	lines.push("");
-	lines.push(
-		"| Path | Iterations | Stream bytes | Δ RSS total | Δ RSS / req | Δ heapUsed / req | Δ external / req |",
-	);
-	lines.push(
-		"|------|-----------:|-------------:|------------:|------------:|-----------------:|-----------------:|",
-	);
-	for (const r of results) {
-		lines.push(
-			`| ${r.path} | ${r.iterations} | ${r.streamBytes} | ${fmtBytes(r.delta.rssBytes)} | ${fmtBytes(r.delta.perRequest.rssBytes)} | ${fmtBytes(r.delta.perRequest.heapUsedBytes)} | ${fmtBytes(r.delta.perRequest.externalBytes)} |`,
-		);
-	}
-	lines.push("");
-	lines.push("## Raw samples");
-	lines.push("");
-	lines.push(
-		"| Path | baseline rss | final rss | baseline heap | final heap | baseline ext | final ext |",
-	);
-	lines.push(
-		"|------|-------------:|----------:|--------------:|-----------:|-------------:|----------:|",
-	);
-	for (const r of results) {
-		lines.push(
-			`| ${r.path} | ${fmtBytes(r.baseline.rssBytes)} | ${fmtBytes(r.final.rssBytes)} | ${fmtBytes(r.baseline.heapUsedBytes)} | ${fmtBytes(r.final.heapUsedBytes)} | ${fmtBytes(r.baseline.externalBytes)} | ${fmtBytes(r.final.externalBytes)} |`,
-		);
-	}
-	lines.push("");
-	lines.push("## Interpretation");
-	lines.push("");
-	const ctrl = results.find((r) => r.path === "control");
-	const ctrlRss = ctrl?.delta.perRequest.rssBytes ?? 0;
-	const summary: string[] = [];
-	for (const r of results) {
-		if (r.path === "control") {
-			summary.push(
-				`- **control (no real work)**: Δ RSS / req = ${fmtBytes(r.delta.perRequest.rssBytes)} Δ heapUsed / req = ${fmtBytes(r.delta.perRequest.heapUsedBytes)}. This is the harness-noise floor; all other paths must exceed it to be meaningful.`,
-			);
-			continue;
-		}
-		const perReqRss = r.delta.perRequest.rssBytes;
-		const signal = perReqRss - ctrlRss;
-		summary.push(
-			`- **${r.path}**: Δ RSS / req = ${fmtBytes(perReqRss)}, signal over control = ${fmtBytes(signal)}.`,
-		);
-	}
-	lines.push(...summary);
-	lines.push("");
-	lines.push("## Conclusion");
-	lines.push("");
-	lines.push(
-		"TBD — written after measurement runs complete. The conclusion names the path (if any) whose per-request growth exceeds the control floor by enough to explain a multi-GB RSS over ~26k requests, and either proposes a minimal fix or states plainly that no path was reproduced as a native-memory leak under the tested conditions.",
-	);
-	lines.push("");
-	return lines.join("\n");
-}
-
-async function main(): Promise<void> {
+function parseArgs(argv: string[]): Map<string, string> {
 	const args = new Map<string, string>();
-	for (let i = 2; i < Bun.argv.length; i++) {
-		const arg = Bun.argv[i];
+	for (let i = 2; i < argv.length; i++) {
+		const arg = argv[i];
 		if (arg.startsWith("--")) {
 			const key = arg.slice(2);
-			const val = Bun.argv[i + 1];
+			const val = argv[i + 1];
 			if (val && !val.startsWith("--")) {
 				args.set(key, val);
 				i++;
@@ -495,83 +403,79 @@ async function main(): Promise<void> {
 			}
 		}
 	}
-	const outPath =
-		args.get("out") ?? "docs/reviews/native-memory-leak-investigation.md";
-	const cancelIterations = Number(args.get("cancel-iterations") ?? "5000");
-	const completeIterations = Number(
-		args.get("complete-iterations") ?? "1000",
-	);
-	const collectorIterations = Number(
-		args.get("collector-iterations") ?? "500",
-	);
-	const controlIterations = Number(args.get("control-iterations") ?? "5000");
-	const streamBytes = Number(args.get("stream-bytes") ?? "262144"); // 256 KiB
+	return args;
+}
 
-	console.log(
-		`[harness] control=${controlIterations} cancel=${cancelIterations} complete=${completeIterations} collector=${collectorIterations} bytes=${streamBytes}`,
-	);
+type ChildOutput = {
+	path: BatchResult["path"];
+	iterations: number;
+	streamBytes: number;
+	pid: number;
+	bunVersion: string;
+	platform: string;
+	arch: string;
+	baseline: MemorySample;
+	final: MemorySample;
+	delta: BatchResult["delta"];
+};
 
-	console.log("[harness] path 0 (control)...");
-	const controlResult = await runControlPath(controlIterations);
-	console.log(
-		`[harness] control: Δrss=${fmtBytes(controlResult.delta.rssBytes)} Δheap=${fmtBytes(controlResult.delta.heapUsedBytes)}`,
-	);
-
-	console.log("[harness] path A (cancel)...");
-	const cancelResult = await runCancelPath(cancelIterations, streamBytes);
-	console.log(
-		`[harness] cancel: Δrss=${fmtBytes(cancelResult.delta.rssBytes)} Δheap=${fmtBytes(cancelResult.delta.heapUsedBytes)}`,
-	);
-
-	console.log("[harness] path B (complete)...");
-	const completeResult = await runCompletePath(
-		completeIterations,
-		streamBytes,
-	);
-	console.log(
-		`[harness] complete: Δrss=${fmtBytes(completeResult.delta.rssBytes)} Δheap=${fmtBytes(completeResult.delta.heapUsedBytes)}`,
-	);
-
-	console.log("[harness] path C (usage-collector)...");
-	const collectorResult = await runUsageCollectorPath(
-		collectorIterations,
-		streamBytes,
-	);
-	console.log(
-		`[harness] collector: Δrss=${fmtBytes(collectorResult.delta.rssBytes)} Δheap=${fmtBytes(collectorResult.delta.heapUsedBytes)}`,
-	);
-
-	const results: BatchResult[] = [
-		controlResult,
-		cancelResult,
-		completeResult,
-		collectorResult,
-	];
-	const md = renderMarkdown(results, {
+async function runSinglePath(
+	path: BatchResult["path"],
+	iterations: number,
+	streamBytes: number,
+): Promise<ChildOutput> {
+	let result: BatchResult;
+	switch (path) {
+		case "control":
+			result = await runControlPath(iterations);
+			break;
+		case "cancel":
+			result = await runCancelPath(iterations, streamBytes);
+			break;
+		case "complete":
+			result = await runCompletePath(iterations, streamBytes);
+			break;
+		case "usage-collector":
+			result = await runUsageCollectorPath(iterations, streamBytes);
+			break;
+	}
+	return {
+		path: result.path,
+		iterations: result.iterations,
+		streamBytes: result.streamBytes,
+		pid: process.pid,
 		bunVersion: Bun.version,
 		platform: process.platform,
 		arch: process.arch,
-	});
+		baseline: result.baseline,
+		final: result.final,
+		delta: result.delta,
+	};
+}
 
-	const dir = dirname(outPath);
-	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-	writeFileSync(outPath, md, "utf-8");
-	console.log(`[harness] wrote ${outPath}`);
-
-	// One-shot, off-the-hot-path heapStats cross-check. We use it to
-	// report a single end-of-run extraMemorySize number that gives a
-	// directionally consistent number with the RSS trend, but it does
-	// NOT feed any per-request delta.
-	try {
-		const stats = jsc && (require("bun:jsc") as { heapStats?: () => { extraMemorySize: number; objectCount: number } }).heapStats?.();
-		if (stats) {
-			console.log(
-				`[harness] end-of-run heapStats cross-check (off hot path): extraMemorySize=${stats.extraMemorySize} objectCount=${stats.objectCount}`,
-			);
-		}
-	} catch {
-		// best-effort
+async function main(): Promise<void> {
+	process.stderr.write(`[harness] start pid=${process.pid} argv=${JSON.stringify(Bun.argv)}\n`);
+	const args = parseArgs(Bun.argv);
+	const pathRaw = args.get("path");
+	if (
+		pathRaw !== "control" &&
+		pathRaw !== "cancel" &&
+		pathRaw !== "complete" &&
+		pathRaw !== "usage-collector"
+	) {
+		console.error(
+			"[harness] --path must be one of control|cancel|complete|usage-collector",
+		);
+		process.exit(2);
 	}
+	const path = pathRaw as BatchResult["path"];
+	const iterations = Number(args.get("iterations") ?? "300");
+	const streamBytes = Number(args.get("stream-bytes") ?? "262144");
+	process.stderr.write(`[harness] pid=${process.pid} path=${path} iterations=${iterations} streamBytes=${streamBytes} starting...\n`);
+
+	const result = await runSinglePath(path, iterations, streamBytes);
+	process.stderr.write(`[harness] pid=${process.pid} path=${path} complete\n`);
+	process.stdout.write(JSON.stringify(result) + "\n");
 }
 
 void createAnthropicTerminalRecoveryStream; // silence unused-import linter
@@ -582,11 +486,6 @@ if (import.meta.main) {
 		console.error("[harness] fatal:", err);
 		process.exit(1);
 	});
-	try {
-		unlinkSync(tmpDb);
-	} catch {
-		// best-effort cleanup of the throwaway db file
-	}
 }
 
 export {
@@ -594,6 +493,11 @@ export {
 	runCancelPath,
 	runCompletePath,
 	runUsageCollectorPath,
+	runSinglePath,
 	sampleMemory,
 	makeSseStream,
+	ChildOutput,
+	BatchResult,
+	MemorySample,
+	fmtBytes,
 };

@@ -1,6 +1,8 @@
 # Native-memory leak investigation (streaming proxy path)
 
-**Status:** preliminary. Falsify-or-confirm per path. Cancel path is the leading hypothesis per upstream tombii/better-ccflare #382 (corroborated by a clean production instance showing zero growth and zero client_cancelled streams).
+> **⚠️ THIS DOCUMENT IS SUPERSEDED.** The numbers in this file come from a single-process harness with two confounds that the corrected harness identifies: (1) sequential path execution in one process carries allocator arenas, JIT code, and warmed structures across paths, so each later path's baseline inherits earlier paths; (2) iteration counts were UNequal per path (2000/1500/300/150), which inflates the per-request delta for the smallest-N path by 10× on any fixed setup cost. The earlier "use of usage-collector at 221 KiB/req" headline was therefore a divisor artifact, and the cancel-vs-complete numbers below are not directly comparable. The CORRECTED analysis is at [`native-memory-leak-investigation-v3.md`](./native-memory-leak-investigation-v3.md) — fresh subprocess per path, equal N=200 across all paths, both forward and reversed orderings. The corrected numbers put the cancel path at +131.40 KiB/req and the complete path at +192.37 KiB/req (means of both orderings). Cancel is **co-dominant** with complete, not dominant. This file is preserved for reproducibility — keep it in source control alongside v3.
+
+**Status (this run, superseded):** preliminary. Falsify-or-confirm per path. Cancel path is the leading hypothesis per upstream tombii/better-ccflare #382 (corroborated by a clean production instance showing zero growth and zero client_cancelled streams). See v3 for the corrected analysis.
 
 ## Scope
 
